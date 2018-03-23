@@ -43,6 +43,7 @@ typedef struct H264MetadataContext {
     const AVClass *class;
 
     CodedBitstreamContext *cbc;
+    CodedBitstreamContext *cbc_out;
     CodedBitstreamFragment access_unit;
 
     int done_first_au;
@@ -69,13 +70,16 @@ typedef struct H264MetadataContext {
 
     const char *sei_user_data;
 
+    int frame_num_offset;
+    int poc_offset;
+
+    int delete_sei;
     int delete_filler;
 
     int display_orientation;
     double rotate;
     int flip;
 } H264MetadataContext;
-
 
 static int h264_metadata_update_sps(AVBSFContext *bsf,
                                     H264RawSPS *sps)
@@ -181,6 +185,12 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
     SET_OR_INFER(sps->vui.fixed_frame_rate_flag,
                  ctx->fixed_frame_rate_flag,
                  sps->vui.timing_info_present_flag, 0);
+
+    if (ctx->delete_sei) {
+        sps->vui.nal_hrd_parameters_present_flag = 0;
+        sps->vui.vcl_hrd_parameters_present_flag = 0;
+        sps->vui.pic_struct_present_flag = 0;
+    }
 
     if (sps->separate_colour_plane_flag || sps->chroma_format_idc == 0) {
         crop_unit_x = 1;
@@ -303,6 +313,24 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *out)
         }
     }
 
+    if (ctx->frame_num_offset || ctx->poc_offset) {
+        CodedBitstreamH264Context *h264 = ctx->cbc->priv_data;
+        H264RawSPS *sps = h264->active_sps;
+        int frame_num_max = (1 << (sps->log2_max_frame_num_minus4 + 4)) -1;
+        int poc_max = (1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)) -1;
+        for (i = 0; i < au->nb_units; i++) {
+            if (au->units[i].type == H264_NAL_SLICE) {
+                H264RawSliceHeader *head = au->units[i].content;
+                head->frame_num = (head->frame_num + ctx->frame_num_offset) & frame_num_max;
+                head->pic_order_cnt_lsb = (head->pic_order_cnt_lsb + ctx->poc_offset) & poc_max;
+            } else if (au->units[i].type == H264_NAL_IDR_SLICE) {
+                ctx->frame_num_offset = 0;
+                ctx->poc_offset = 0;
+                break;
+            }
+        }
+    }
+
     // Only insert the SEI in access units containing SPSs, and also
     // unconditionally in the first access unit we ever see.
     if (ctx->sei_user_data && (has_sps || !ctx->done_first_au)) {
@@ -358,6 +386,38 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *out)
         }
     }
 
+    if (ctx->delete_sei) {
+        int idr_pic = 0;
+        for (i = au->nb_units - 1; i >= 0; i--) {
+            if (au->units[i].type == H264_NAL_IDR_SLICE)
+                idr_pic = 1;
+            if (au->units[i].type == H264_NAL_SEI) {
+                if (idr_pic) {
+                    err = ff_cbs_delete_unit(ctx->cbc, au, i);
+                    if (err < 0) {
+                        av_log(bsf, AV_LOG_ERROR, "Failed to delete "
+                               "SEI NAL unit.\n");
+                        goto fail;
+                    }
+                } else {
+                    H264RawSEI *sei = au->units[i].content;
+                    for (j = sei->payload_count - 1; j >= 0; j--) {
+                        if (sei->payload[j].payload_type !=
+                            H264_SEI_TYPE_RECOVERY_POINT) {
+                            err = ff_cbs_h264_delete_sei_message(ctx->cbc, au,
+                                                                 &au->units[i], j);
+                            if (err < 0) {
+                                av_log(bsf, AV_LOG_ERROR, "Failed to delete "
+                                       "SEI message.\n");
+                                goto fail;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if (ctx->delete_filler) {
         for (i = 0; i < au->nb_units; i++) {
             if (au->units[i].type == H264_NAL_FILLER_DATA) {
@@ -372,7 +432,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *out)
                 continue;
             }
 
-            if (au->units[i].type == H264_NAL_SEI) {
+            if (!ctx->delete_sei && au->units[i].type == H264_NAL_SEI) {
                 // Filler SEI messages.
                 H264RawSEI *sei = au->units[i].content;
 
@@ -515,7 +575,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *out)
         }
     }
 
-    err = ff_cbs_write_packet(ctx->cbc, out, au);
+    err = ff_cbs_write_packet(ctx->cbc_out, out, au);
     if (err < 0) {
         av_log(bsf, AV_LOG_ERROR, "Failed to write packet.\n");
         goto fail;
@@ -561,6 +621,10 @@ static int h264_metadata_init(AVBSFContext *bsf)
     if (err < 0)
         return err;
 
+    err = ff_cbs_init(&ctx->cbc_out, AV_CODEC_ID_H264, bsf);
+    if (err < 0)
+        return err;
+
     if (bsf->par_in->extradata) {
         err = ff_cbs_read_extradata(ctx->cbc, au, bsf->par_in);
         if (err < 0) {
@@ -576,7 +640,7 @@ static int h264_metadata_init(AVBSFContext *bsf)
             }
         }
 
-        err = ff_cbs_write_extradata(ctx->cbc, bsf->par_out, au);
+        err = ff_cbs_write_extradata(ctx->cbc_out, bsf->par_out, au);
         if (err < 0) {
             av_log(bsf, AV_LOG_ERROR, "Failed to write extradata.\n");
             goto fail;
@@ -593,6 +657,7 @@ static void h264_metadata_close(AVBSFContext *bsf)
 {
     H264MetadataContext *ctx = bsf->priv_data;
     ff_cbs_close(&ctx->cbc);
+    ff_cbs_close(&ctx->cbc_out);
 }
 
 #define OFFSET(x) offsetof(H264MetadataContext, x)
@@ -654,6 +719,15 @@ static const AVOption h264_metadata_options[] = {
 
     { "sei_user_data", "Insert SEI user data (UUID+string)",
         OFFSET(sei_user_data), AV_OPT_TYPE_STRING, { .str = NULL }, .flags = FLAGS },
+
+    { "poc_offset", "Offset pic_order_count by the given amount",
+        OFFSET(poc_offset), AV_OPT_TYPE_INT, { .i64 = 0}, -65535, 65535 },
+
+    { "frame_num_offset", "Offset frame_num by the given amount",
+        OFFSET(frame_num_offset), AV_OPT_TYPE_INT, { .i64 = 0}, -65535, 65535 },
+
+    { "delete_sei", "Delete SEI messages",
+        OFFSET(delete_sei), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1 },
 
     { "delete_filler", "Delete all filler (both NAL and SEI)",
         OFFSET(delete_filler), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, FLAGS},
