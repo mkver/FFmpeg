@@ -1581,3 +1581,80 @@ int ff_cbs_h264_delete_sei_message(CodedBitstreamContext *ctx,
         return 0;
     }
 }
+
+int ff_cbs_h264_get_max_dpb_frames(H264RawSPS *sps)
+{
+    int32_t max_dpb_mbs, max_dpb_frames;
+
+    /* These are the intra profiles. */
+    if ((sps->profile_idc ==  44 || sps->profile_idc ==  86 ||
+         sps->profile_idc == 100 || sps->profile_idc == 110 ||
+         sps->profile_idc == 122 || sps->profile_idc == 244) &&
+        sps->constraint_set3_flag)
+        return 0;
+
+    switch (sps->level_idc) {
+    case 9: //Level 1b
+    case 10:
+        max_dpb_mbs = 396;
+        break;
+    case 11:
+        {
+            //11 can be level 1b or level 1.1 depending on the profile.
+            if (sps->constraint_set3_flag && (sps->profile_idc == 66 ||
+                sps->profile_idc == 77 || sps->profile_idc == 88))
+                max_dpb_mbs = 396;
+            else
+                max_dpb_mbs = 900;
+        }
+        break;
+    case 12:
+    case 13:
+    case 20:
+        max_dpb_mbs = 2376;
+        break;
+    case 21:
+        max_dpb_mbs = 4752;
+        break;
+    case 22:
+    case 30:
+        max_dpb_mbs = 8100;
+        break;
+    case 31:
+        max_dpb_mbs = 18000;
+        break;
+    case 32:
+        max_dpb_mbs = 20480;
+        break;
+    case 40:
+    case 41:
+        max_dpb_mbs = 32768;
+        break;
+    case 42:
+        max_dpb_mbs = 34816;
+        break;
+    case 50:
+        max_dpb_mbs = 110400;
+        break;
+    case 51:
+    case 52:
+        max_dpb_mbs = 184320;
+        break;
+    case 60:
+    case 61:
+    case 62:
+        max_dpb_mbs = 696320;
+        break;
+    default:
+        max_dpb_mbs = 0; //Unknown level.
+    }
+
+    if (max_dpb_mbs) {
+        max_dpb_frames = max_dpb_mbs/((2-sps->frame_mbs_only_flag)
+                       * (sps->pic_height_in_map_units_minus1 + 1)
+                       * (sps->pic_width_in_mbs_minus1 + 1));
+        max_dpb_frames = FFMIN(H264_MAX_DPB_FRAMES, max_dpb_frames);
+    } else
+        max_dpb_frames = H264_MAX_DPB_FRAMES;
+    return max_dpb_frames;
+}

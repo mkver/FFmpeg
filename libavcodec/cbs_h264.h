@@ -479,4 +479,10 @@ int ff_cbs_h264_delete_sei_message(CodedBitstreamContext *ctx,
                                    CodedBitstreamUnit *nal_unit,
                                    int position);
 
+/**
+ * Get the maximum value of max_dec_frame_buffering compatible
+ * with a given SPS.
+ */
+int ff_cbs_h264_get_max_dpb_frames(H264RawSPS *sps);
+
 #endif /* AVCODEC_CBS_H264_H */
