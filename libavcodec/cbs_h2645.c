@@ -701,6 +701,15 @@ static int cbs_h264_read_nal_unit(CodedBitstreamContext *ctx,
     GetBitContext gbc;
     int err;
 
+    if (unit->type == H264_NAL_FILLER_DATA) {
+        if (!ctx->trace_enable)
+            return 0;
+
+        av_log(ctx->log_ctx, ctx->trace_level, "Filler Data: %"SIZE_SPECIFIER
+               " bytes\n", unit->data_size);
+        return 0;
+    }
+
     err = init_get_bits(&gbc, unit->data, 8 * unit->data_size);
     if (err < 0)
         return err;
@@ -783,14 +792,6 @@ static int cbs_h264_read_nal_unit(CodedBitstreamContext *ctx,
     case H264_NAL_SEI:
         {
             err = cbs_h264_read_sei(ctx, &gbc, unit->content);
-            if (err < 0)
-                return AVERROR(EAGAIN);
-        }
-        break;
-
-    case H264_NAL_FILLER_DATA:
-        {
-            err = cbs_h264_read_filler(ctx, &gbc, unit->content);
             if (err < 0)
                 return AVERROR(EAGAIN);
         }
