@@ -860,14 +860,11 @@ static int cbs_h264_read_nal_unit(CodedBitstreamContext *ctx,
 
     case H264_NAL_FILLER_DATA:
         {
-            err = ff_cbs_alloc_unit_content(ctx, unit,
-                                            sizeof(H264RawFiller), NULL);
-            if (err < 0)
-                return err;
+            if (!ctx->trace_enable)
+                break;
 
-            err = cbs_h264_read_filler(ctx, &gbc, unit->content);
-            if (err < 0)
-                return err;
+            av_log(ctx->log_ctx, ctx->trace_level, "Filler Data: %d bytes\n",
+                   unit->data_size);
         }
         break;
 
