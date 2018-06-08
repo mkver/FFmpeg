@@ -170,7 +170,7 @@ static int cbs_mpeg2_split_fragment(CodedBitstreamContext *ctx,
     CodedBitstreamUnitType unit_type;
     uint32_t start_code = -1;
     size_t unit_size;
-    int err, i, final = 0;
+    int err, i, final = 0, max_trailing_bits = 15;
 
     start = avpriv_find_start_code(frag->data, frag->data + frag->data_size,
                                    &start_code);
@@ -199,12 +199,38 @@ static int cbs_mpeg2_split_fragment(CodedBitstreamContext *ctx,
         // the end of fragment->data).
         if (start_code >> 8 == 0x01) {
             // Unit runs from start to the beginning of the start code
-            // pointed to by end (including any padding zeroes).
+            // pointed to by end (preliminarily including any padding zeroes).
             unit_size = (end - 4) - start;
         } else {
            // We didn't find a start code, so this is the final unit.
            unit_size = end - start;
            final     = 1;
+        }
+
+        if (unit_type == MPEG2_START_EXTENSION && unit_size >= 4 &&
+            start[1] >> 4 == MPEG2_EXTENSION_PICTURE_CODING) {
+            // The values f_code[0][1], f_code[1][1] are used to improve
+            // the upper bound for the number of trailing zero bits.
+            // 6 + max{f_code[i][1] - 1, i = 0,1, f_code[i][1] != 0xf} is
+            // an upper bound.  An f_code value of 0xf means that there is
+            // no motion vector of the respective type.  f_code values 10..14
+            // are reserved and 0 is forbidden.  In these cases, no attempt
+            // to strip trailing zeroes is made.
+#define BOUND(f_code) \
+    ((f_code) == 0xf ? 0 : (f_code) >= 10 || !(f_code) ? 9 : (f_code) - 1)
+            max_trailing_bits = 6 + FFMAX(BOUND(start[2] >> 4),
+                                          BOUND(start[3] >> 4));
+        }
+
+        if (MPEG2_START_IS_SLICE(unit_type) && max_trailing_bits < 15) {
+            const uint8_t *tmp = start + unit_size - 1;
+
+            while (tmp > start && *tmp == 0)
+                tmp--;
+            av_assert0(*tmp);
+
+            unit_size = FFMIN(unit_size, tmp + 1 - start + max_trailing_bits / 8
+                                         + (ff_ctz(*tmp) < max_trailing_bits % 8));
         }
 
         err = ff_cbs_insert_unit_data(frag, i, unit_type, (uint8_t*)start,
