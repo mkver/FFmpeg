@@ -81,7 +81,7 @@ const H264LevelDescriptor *ff_h264_get_level(int level_idc,
     int i;
     for (i = 0; i < FF_ARRAY_ELEMS(h264_levels); i++) {
         if (h264_levels[i].level_idc            == level_idc &&
-            h264_levels[i].constraint_set3_flag == constraint_set3_flag)
+            (constraint_set3_flag || !h264_levels[i].constraint_set3_flag))
             return &h264_levels[i];
     }
     return NULL;
