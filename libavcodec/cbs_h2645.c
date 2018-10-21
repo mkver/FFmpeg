@@ -25,6 +25,7 @@
 #include "cbs_h264.h"
 #include "cbs_h265.h"
 #include "h264.h"
+#include "h264_levels.h"
 #include "h264_sei.h"
 #include "h2645_parse.h"
 #include "hevc.h"
@@ -1628,4 +1629,30 @@ void ff_cbs_h264_delete_sei_message(CodedBitstreamFragment *au,
                 sei->payload + position + 1,
                 (sei->payload_count - position) * sizeof(*sei->payload));
     }
+}
+
+int ff_cbs_h264_get_max_dpb_frames(const H264RawSPS *sps)
+{
+    int32_t max_dpb_mbs, max_dpb_frames;
+    const H264LevelDescriptor *level;
+
+    /* These are the intra profiles. */
+    if ((sps->profile_idc ==  44 || sps->profile_idc ==  86 ||
+         sps->profile_idc == 100 || sps->profile_idc == 110 ||
+         sps->profile_idc == 122 || sps->profile_idc == 244) &&
+        sps->constraint_set3_flag)
+        return 0;
+
+    level = ff_h264_get_level(sps->level_idc, sps->constraint_set3_flag);
+    max_dpb_mbs = level ? level->max_dpb_mbs : 0;
+
+    if (max_dpb_mbs) {
+        max_dpb_frames = max_dpb_mbs/((2-sps->frame_mbs_only_flag)
+                       * (sps->pic_height_in_map_units_minus1 + 1)
+                       * (sps->pic_width_in_mbs_minus1 + 1));
+        max_dpb_frames = FFMIN(H264_MAX_DPB_FRAMES, max_dpb_frames);
+    } else
+        max_dpb_frames = H264_MAX_DPB_FRAMES;
+
+    return max_dpb_frames;
 }
