@@ -79,6 +79,8 @@ typedef struct H264MetadataContext {
     int crop_top;
     int crop_bottom;
 
+    int reorder_frames;
+
     const char *sei_user_data;
     SEIRawUserDataUnregistered sei_user_data_payload;
 
@@ -382,6 +384,23 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
             ctx->qp_histogram -= 26;
             av_freep(&ctx->qp_histogram);
         }
+    }
+
+    if (ctx->reorder_frames >= 0) {
+        int max_dpb = ff_cbs_h264_get_max_dpb_frames(sps);
+
+        if (ctx->reorder_frames > max_dpb) {
+            av_log(bsf, AV_LOG_ERROR, "The specified value for reorder_frames "
+                   "is incompatible with profile and level restrictions. The "
+                   "maximal possible value is %d.\n", max_dpb);
+            return AVERROR(EINVAL);
+        }
+
+        sps->vui.max_num_reorder_frames  = ctx->reorder_frames;
+        sps->vui.max_dec_frame_buffering = FFMAX(ctx->reorder_frames,
+                                                 sps->vui.max_dec_frame_buffering);
+        sps->vui.bitstream_restriction_flag = 1;
+        need_vui = 1;
     }
 
     if (need_vui)
@@ -1078,6 +1097,10 @@ static const AVOption h264_metadata_options[] = {
     { "crop_bottom", "Set bottom border crop offset",
         OFFSET(crop_bottom), AV_OPT_TYPE_INT,
         { .i64 = -1 }, -1, H264_MAX_HEIGHT, FLAGS },
+
+    { "reorder_frames", "Set the number of reorder frames in the VUI",
+        OFFSET(reorder_frames), AV_OPT_TYPE_INT,
+        {.i64 = -1}, -1, H264_MAX_DPB_FRAMES },
 
     { "sei_user_data", "Insert SEI user data (UUID+string)",
         OFFSET(sei_user_data), AV_OPT_TYPE_STRING, { .str = NULL }, .flags = FLAGS },
