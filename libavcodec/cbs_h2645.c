@@ -414,12 +414,6 @@ static int cbs_h2645_read_more_rbsp_data(GetBitContext *gbc)
 #undef allocate
 
 
-static void cbs_h264_free_pps(void *unit, uint8_t *content)
-{
-    H264RawPPS *pps = (H264RawPPS*)content;
-    av_buffer_unref(&pps->slice_group_id_ref);
-    av_freep(&content);
-}
 
 static void cbs_h264_free_sei_payload(H264RawSEIPayload *payload)
 {
@@ -456,27 +450,6 @@ static void cbs_h264_free_slice(void *unit, uint8_t *content)
 {
     H264RawSlice *slice = (H264RawSlice*)content;
     av_buffer_unref(&slice->data_ref);
-    av_freep(&content);
-}
-
-static void cbs_h265_free_vps(void *unit, uint8_t *content)
-{
-    H265RawVPS *vps = (H265RawVPS*)content;
-    av_buffer_unref(&vps->extension_data.data_ref);
-    av_freep(&content);
-}
-
-static void cbs_h265_free_sps(void *unit, uint8_t *content)
-{
-    H265RawSPS *sps = (H265RawSPS*)content;
-    av_buffer_unref(&sps->extension_data.data_ref);
-    av_freep(&content);
-}
-
-static void cbs_h265_free_pps(void *unit, uint8_t *content)
-{
-    H265RawPPS *pps = (H265RawPPS*)content;
-    av_buffer_unref(&pps->extension_data.data_ref);
     av_freep(&content);
 }
 
@@ -727,11 +700,21 @@ static int cbs_h26 ## h26n ## _replace_ ## ps_var(CodedBitstreamContext *ctx, \
     return 0; \
 }
 
+#define cbs_h2645_replace_free_ps(h26n, ps_name, ps_var, id_element, buffer_ref) \
+static void cbs_h26 ## h26n ## _free_ ## ps_var(void *unit, uint8_t *content) \
+{ \
+    H26 ## h26n ## Raw ## ps_name *ps_var = (H26 ## h26n ## Raw ## ps_name*)content; \
+    av_buffer_unref(&ps_var->buffer_ref); \
+    av_freep(&content); \
+} \
+ \
+ cbs_h2645_replace_ps(h26n, ps_name, ps_var, id_element)
+
 cbs_h2645_replace_ps(4, SPS, sps, seq_parameter_set_id)
-cbs_h2645_replace_ps(4, PPS, pps, pic_parameter_set_id)
-cbs_h2645_replace_ps(5, VPS, vps, vps_video_parameter_set_id)
-cbs_h2645_replace_ps(5, SPS, sps, sps_seq_parameter_set_id)
-cbs_h2645_replace_ps(5, PPS, pps, pps_pic_parameter_set_id)
+cbs_h2645_replace_free_ps(4, PPS, pps, pic_parameter_set_id, slice_group_id_ref)
+cbs_h2645_replace_free_ps(5, VPS, vps, vps_video_parameter_set_id, extension_data.data_ref)
+cbs_h2645_replace_free_ps(5, SPS, sps, sps_seq_parameter_set_id, extension_data.data_ref)
+cbs_h2645_replace_free_ps(5, PPS, pps, pps_pic_parameter_set_id, extension_data.data_ref)
 
 static int cbs_h264_read_nal_unit(CodedBitstreamContext *ctx,
                                   CodedBitstreamUnit *unit)
