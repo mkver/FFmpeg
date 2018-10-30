@@ -49,6 +49,7 @@ typedef struct H264MetadataContext {
     const AVClass *class;
 
     CodedBitstreamContext *cbc;
+    CodedBitstreamContext *cbc_out;
     CodedBitstreamFragment access_unit;
 
     int done_first_au;
@@ -88,11 +89,14 @@ typedef struct H264MetadataContext {
 
 
 static int h264_metadata_update_sps(AVBSFContext *bsf,
-                                    H264RawSPS *sps)
+                                    CodedBitstreamUnit *unit)
 {
+    H264RawSPS *sps;
     H264MetadataContext *ctx = bsf->priv_data;
     int need_vui = 0;
     int crop_unit_x, crop_unit_y;
+
+    sps = unit->content;
 
     if (ctx->sample_aspect_ratio.num && ctx->sample_aspect_ratio.den) {
         // Table E-1.
@@ -354,7 +358,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     has_sps = 0;
     for (i = 0; i < au->nb_units; i++) {
         if (au->units[i].type == H264_NAL_SPS) {
-            err = h264_metadata_update_sps(bsf, au->units[i].content);
+            err = h264_metadata_update_sps(bsf, &au->units[i]);
             if (err < 0)
                 goto fail;
             has_sps = 1;
@@ -556,7 +560,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         }
     }
 
-    err = ff_cbs_write_packet(ctx->cbc, pkt, au);
+    err = ff_cbs_write_packet(ctx->cbc_out, pkt, au);
     if (err < 0) {
         av_log(bsf, AV_LOG_ERROR, "Failed to write packet.\n");
         goto fail;
@@ -584,6 +588,10 @@ static int h264_metadata_init(AVBSFContext *bsf)
     if (err < 0)
         return err;
 
+    err = ff_cbs_init(&ctx->cbc_out, AV_CODEC_ID_H264, bsf);
+    if (err < 0)
+        return err;
+
     if (bsf->par_in->extradata) {
         err = ff_cbs_read_extradata(ctx->cbc, au, bsf->par_in);
         if (err < 0) {
@@ -593,13 +601,13 @@ static int h264_metadata_init(AVBSFContext *bsf)
 
         for (i = 0; i < au->nb_units; i++) {
             if (au->units[i].type == H264_NAL_SPS) {
-                err = h264_metadata_update_sps(bsf, au->units[i].content);
+                err = h264_metadata_update_sps(bsf, &au->units[i]);
                 if (err < 0)
                     goto fail;
             }
         }
 
-        err = ff_cbs_write_extradata(ctx->cbc, bsf->par_out, au);
+        err = ff_cbs_write_extradata(ctx->cbc_out, bsf->par_out, au);
         if (err < 0) {
             av_log(bsf, AV_LOG_ERROR, "Failed to write extradata.\n");
             goto fail;
@@ -618,6 +626,7 @@ static void h264_metadata_close(AVBSFContext *bsf)
 
     ff_cbs_fragment_free(ctx->cbc, &ctx->access_unit);
     ff_cbs_close(&ctx->cbc);
+    ff_cbs_close(&ctx->cbc_out);
 }
 
 #define OFFSET(x) offsetof(H264MetadataContext, x)
