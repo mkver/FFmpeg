@@ -401,7 +401,7 @@ typedef struct H264RawSliceHeader {
     uint8_t adaptive_ref_pic_marking_mode_flag;
     struct {
         uint8_t memory_management_control_operation;
-        int32_t difference_of_pic_nums_minus1;
+        uint32_t difference_of_pic_nums_minus1;
         uint8_t long_term_pic_num;
         uint8_t long_term_frame_idx;
         uint8_t max_long_term_frame_idx_plus1;
