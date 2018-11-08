@@ -764,7 +764,7 @@ static int cbs_h264_read_nal_unit(CodedBitstreamContext *ctx,
         {
             err = cbs_h264_read_aud(ctx, &gbc, unit->content);
             if (err < 0)
-                return err;
+                return AVERROR(EAGAIN);
         }
         break;
 
@@ -772,7 +772,7 @@ static int cbs_h264_read_nal_unit(CodedBitstreamContext *ctx,
         {
             err = cbs_h264_read_sei(ctx, &gbc, unit->content);
             if (err < 0)
-                return err;
+                return AVERROR(EAGAIN);
         }
         break;
 
@@ -780,7 +780,7 @@ static int cbs_h264_read_nal_unit(CodedBitstreamContext *ctx,
         {
             err = cbs_h264_read_filler(ctx, &gbc, unit->content);
             if (err < 0)
-                return err;
+                return AVERROR(EAGAIN);
         }
         break;
 
@@ -791,7 +791,7 @@ static int cbs_h264_read_nal_unit(CodedBitstreamContext *ctx,
                    cbs_h264_read_end_of_sequence :
                    cbs_h264_read_end_of_stream)(ctx, &gbc, unit->content);
             if (err < 0)
-                return err;
+                return AVERROR(EAGAIN);
         }
         break;
 
@@ -901,7 +901,7 @@ static int cbs_h265_read_nal_unit(CodedBitstreamContext *ctx,
         {
             err = cbs_h265_read_aud(ctx, &gbc, unit->content);
             if (err < 0)
-                return err;
+                return AVERROR(EAGAIN);
         }
         break;
 
@@ -912,7 +912,7 @@ static int cbs_h265_read_nal_unit(CodedBitstreamContext *ctx,
                                     unit->type == HEVC_NAL_SEI_PREFIX);
 
             if (err < 0)
-                return err;
+                return AVERROR(EAGAIN);
         }
         break;
 

@@ -193,6 +193,12 @@ static int cbs_read_fragment_content(CodedBitstreamContext *ctx,
             av_log(ctx->log_ctx, AV_LOG_VERBOSE,
                    "Decomposition unimplemented for unit %d "
                    "(type %"PRIu32").\n", i, unit->type);
+        } else if (err == AVERROR(EAGAIN)) {
+            av_log(ctx->log_ctx, AV_LOG_ERROR, "Failed to read "
+                   "inessential unit %d (type %"PRIu32"). The unit will "
+                   "be skipped.\n", i, unit->type);
+            ff_cbs_delete_unit(frag, i);
+            i--;
         } else if (err < 0) {
             av_log(ctx->log_ctx, AV_LOG_ERROR, "Failed to read unit %d "
                    "(type %"PRIu32").\n", i, unit->type);
