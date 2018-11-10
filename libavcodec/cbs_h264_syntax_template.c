@@ -1060,8 +1060,9 @@ static int FUNC(slice_header)(CodedBitstreamContext *ctx, RWContext *rw,
         } else {
             infer(num_ref_idx_l0_active_minus1,
                   pps->num_ref_idx_l0_default_active_minus1);
-            infer(num_ref_idx_l1_active_minus1,
-                  pps->num_ref_idx_l1_default_active_minus1);
+            if (slice_type_b)
+                infer(num_ref_idx_l1_active_minus1,
+                      pps->num_ref_idx_l1_default_active_minus1);
         }
     }
 
