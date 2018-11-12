@@ -326,7 +326,12 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
             desc = ff_h264_guess_level(sps->profile_idc, bit_rate, framerate,
                                        width, height, dpb_frames);
             if (desc) {
-                level_idc = desc->level_idc;
+                if ((desc->level_idc == 11) && desc->constraint_set3_flag)
+                    // This ensures that for level 1b the correct level
+                    // will be inferred below.
+                    level_idc = 9;
+                else
+                    level_idc = desc->level_idc;
             } else {
                 av_log(bsf, AV_LOG_WARNING, "Stream does not appear to "
                        "conform to any level: using level 6.2.\n");
@@ -346,6 +351,15 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
                 sps->level_idc = 9;
             }
         } else {
+            // If the earlier level was 1b or the new level
+            // is in danger of being mistaken for 1b,
+            // we clear constraint_set3_flag.
+            if ((level_idc        == 11 ||
+                 sps->level_idc   == 11) &&
+                (sps->profile_idc == 66 ||
+                 sps->profile_idc == 77 ||
+                 sps->profile_idc == 88))
+                sps->constraint_set3_flag = 0;
             sps->level_idc = level_idc;
         }
     }
