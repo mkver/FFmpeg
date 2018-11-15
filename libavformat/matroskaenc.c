@@ -2592,6 +2592,8 @@ static int mkv_write_block(void *logctx, MatroskaMuxContext *mkv,
         writer.elements[0].id = MATROSKA_ID_SIMPLEBLOCK;
         if (keyframe)
             mkv->cur_block.flags |= 1 << 7;
+        if (pkt->flags & AV_PKT_FLAG_DISPOSABLE)
+            mkv->cur_block.flags |= 1 << 0;
     } else if (!keyframe)
         ebml_writer_add_sint(&writer, MATROSKA_ID_BLOCKREFERENCE,
                              track->last_timestamp - ts);
