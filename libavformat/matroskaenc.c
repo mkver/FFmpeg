@@ -2057,6 +2057,7 @@ static int mkv_write_block(AVFormatContext *s, AVIOContext *pb,
     uint64_t additional_id;
     int64_t discard_padding = 0;
     unsigned track_number = track->track_num;
+    uint8_t flags = !!(pkt->flags & AV_PKT_FLAG_DISPOSABLE);
     ebml_master block_group, block_additions, block_more;
 
     ts += track->ts_offset;
@@ -2128,7 +2129,8 @@ static int mkv_write_block(AVFormatContext *s, AVIOContext *pb,
     put_ebml_length(pb, size + track->track_num_size + 3, 0);
     put_ebml_num(pb, track_number, track->track_num_size);
     avio_wb16(pb, ts - mkv->cluster_pts);
-    avio_w8(pb, (blockid == MATROSKA_ID_SIMPLEBLOCK && keyframe) ? (1 << 7) : 0);
+    flags |= (blockid == MATROSKA_ID_SIMPLEBLOCK && keyframe) ? (1 << 7) : 0;
+    avio_w8(pb, flags);
     avio_write(pb, data + offset, size);
     if (data != pkt->data)
         av_free(data);
