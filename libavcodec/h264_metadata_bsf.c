@@ -603,7 +603,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     H264MetadataContext *ctx = bsf->priv_data;
     CodedBitstreamH264Context *h264_in = ctx->input->priv_data;
     CodedBitstreamFragment *au = &ctx->access_unit;
-    int err, i, has_sps, seek_point;
+    int err, i, has_sps, seek_point, disposable;
 
     err = ff_bsf_get_packet_ref(bsf, pkt);
     if (err < 0)
@@ -841,6 +841,17 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         av_log(bsf, AV_LOG_ERROR, "Failed to write packet.\n");
         goto fail;
     }
+
+    disposable = AV_PKT_FLAG_DISPOSABLE;
+    for (int i = 0; i < au->nb_units; i++) {
+        const CodedBitstreamUnit *unit = &au->units[i];
+        if ((unit->content && ((H264RawNALUnitHeader*)unit->content)->nal_ref_idc)
+            || (!unit->content && unit->data[0] & 0x60)) {
+            disposable = 0;
+            break;
+        }
+    }
+    pkt->flags = (pkt->flags & ~AV_PKT_FLAG_DISPOSABLE) | disposable;
 
     ctx->done_first_au = 1;
 
