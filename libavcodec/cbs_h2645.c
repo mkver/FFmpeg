@@ -546,7 +546,7 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
                                     int header)
 {
     enum AVCodecID codec_id = ctx->codec->codec_id;
-    CodedBitstreamH2645Context *priv = ctx->priv_data;
+    CodedBitstreamH2645Context *h2645 = ctx->priv_data;
     GetByteContext gbc;
     int err;
 
@@ -559,7 +559,7 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
         size_t size, start, end;
         int i, count, version;
 
-        priv->mp4 = 1;
+        h2645->mp4 = 1;
 
         bytestream2_init(&gbc, frag->data, frag->data_size);
 
@@ -574,7 +574,7 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
         }
 
         bytestream2_skip(&gbc, 3);
-        priv->nal_length_size = (bytestream2_get_byte(&gbc) & 3) + 1;
+        h2645->nal_length_size = (bytestream2_get_byte(&gbc) & 3) + 1;
 
         // SPS array.
         count = bytestream2_get_byte(&gbc) & 0x1f;
@@ -589,14 +589,14 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
         }
         end = bytestream2_tell(&gbc);
 
-        err = ff_h2645_packet_split(&priv->read_packet,
+        err = ff_h2645_packet_split(&h2645->read_packet,
                                     frag->data + start, end - start,
                                     ctx->log_ctx, 1, 2, AV_CODEC_ID_H264, 1);
         if (err < 0) {
             av_log(ctx->log_ctx, AV_LOG_ERROR, "Failed to split AVCC SPS array.\n");
             return err;
         }
-        err = cbs_h2645_fragment_add_nals(ctx, frag, &priv->read_packet);
+        err = cbs_h2645_fragment_add_nals(ctx, frag, &h2645->read_packet);
         if (err < 0)
             return err;
 
@@ -613,14 +613,14 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
         }
         end = bytestream2_tell(&gbc);
 
-        err = ff_h2645_packet_split(&priv->read_packet,
+        err = ff_h2645_packet_split(&h2645->read_packet,
                                     frag->data + start, end - start,
                                     ctx->log_ctx, 1, 2, AV_CODEC_ID_H264, 1);
         if (err < 0) {
             av_log(ctx->log_ctx, AV_LOG_ERROR, "Failed to split AVCC PPS array.\n");
             return err;
         }
-        err = cbs_h2645_fragment_add_nals(ctx, frag, &priv->read_packet);
+        err = cbs_h2645_fragment_add_nals(ctx, frag, &h2645->read_packet);
         if (err < 0)
             return err;
 
@@ -634,7 +634,7 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
         size_t size, start, end;
         int i, j, nb_arrays, nal_unit_type, nb_nals, version;
 
-        priv->mp4 = 1;
+        h2645->mp4 = 1;
 
         bytestream2_init(&gbc, frag->data, frag->data_size);
 
@@ -649,7 +649,7 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
         }
 
         bytestream2_skip(&gbc, 20);
-        priv->nal_length_size = (bytestream2_get_byte(&gbc) & 3) + 1;
+        h2645->nal_length_size = (bytestream2_get_byte(&gbc) & 3) + 1;
 
         nb_arrays = bytestream2_get_byte(&gbc);
         for (i = 0; i < nb_arrays; i++) {
@@ -667,7 +667,7 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
             }
             end = bytestream2_tell(&gbc);
 
-            err = ff_h2645_packet_split(&priv->read_packet,
+            err = ff_h2645_packet_split(&h2645->read_packet,
                                         frag->data + start, end - start,
                                         ctx->log_ctx, 1, 2, AV_CODEC_ID_HEVC, 1);
             if (err < 0) {
@@ -676,7 +676,7 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
                        i, nb_nals, nal_unit_type);
                 return err;
             }
-            err = cbs_h2645_fragment_add_nals(ctx, frag, &priv->read_packet);
+            err = cbs_h2645_fragment_add_nals(ctx, frag, &h2645->read_packet);
             if (err < 0)
                 return err;
         }
@@ -684,15 +684,15 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
     } else {
         // Annex B, or later MP4 with already-known parameters.
 
-        err = ff_h2645_packet_split(&priv->read_packet,
+        err = ff_h2645_packet_split(&h2645->read_packet,
                                     frag->data, frag->data_size,
                                     ctx->log_ctx,
-                                    priv->mp4, priv->nal_length_size,
+                                    h2645->mp4, h2645->nal_length_size,
                                     codec_id, 1);
         if (err < 0)
             return err;
 
-        err = cbs_h2645_fragment_add_nals(ctx, frag, &priv->read_packet);
+        err = cbs_h2645_fragment_add_nals(ctx, frag, &h2645->read_packet);
         if (err < 0)
             return err;
     }
@@ -1338,26 +1338,26 @@ static int cbs_h265_write_nal_unit(CodedBitstreamContext *ctx,
 static int cbs_h2645_write_nal_unit(CodedBitstreamContext *ctx,
                                     CodedBitstreamUnit *unit)
 {
-    CodedBitstreamH2645Context *priv = ctx->priv_data;
+    CodedBitstreamH2645Context *h2645 = ctx->priv_data;
     enum AVCodecID codec_id = ctx->codec->codec_id;
     PutBitContext pbc;
     int err;
 
-    if (!priv->write_buffer) {
+    if (!h2645->write_buffer) {
         // Initial write buffer size is 1MB.
-        priv->write_buffer_size = 1024 * 1024;
+        h2645->write_buffer_size = 1024 * 1024;
 
     reallocate_and_try_again:
-        err = av_reallocp(&priv->write_buffer, priv->write_buffer_size);
+        err = av_reallocp(&h2645->write_buffer, h2645->write_buffer_size);
         if (err < 0) {
             av_log(ctx->log_ctx, AV_LOG_ERROR, "Unable to allocate a "
                    "sufficiently large write buffer (last attempt "
-                   "%"SIZE_SPECIFIER" bytes).\n", priv->write_buffer_size);
+                   "%"SIZE_SPECIFIER" bytes).\n", h2645->write_buffer_size);
             return err;
         }
     }
 
-    init_put_bits(&pbc, priv->write_buffer, priv->write_buffer_size);
+    init_put_bits(&pbc, h2645->write_buffer, h2645->write_buffer_size);
 
     if (codec_id == AV_CODEC_ID_H264)
         err = cbs_h264_write_nal_unit(ctx, unit, &pbc);
@@ -1366,11 +1366,11 @@ static int cbs_h2645_write_nal_unit(CodedBitstreamContext *ctx,
 
     if (err == AVERROR(ENOSPC)) {
         // Overflow.
-        priv->write_buffer_size *= 2;
+        h2645->write_buffer_size *= 2;
         goto reallocate_and_try_again;
     }
     // Overflow but we didn't notice.
-    av_assert0(put_bits_count(&pbc) <= 8 * priv->write_buffer_size);
+    av_assert0(put_bits_count(&pbc) <= 8 * h2645->write_buffer_size);
 
     if (err < 0) {
         // Write failed for some other reason.
@@ -1389,7 +1389,7 @@ static int cbs_h2645_write_nal_unit(CodedBitstreamContext *ctx,
     if (err < 0)
         return err;
 
-    memcpy(unit->data, priv->write_buffer, unit->data_size);
+    memcpy(unit->data, h2645->write_buffer, unit->data_size);
 
     return 0;
 }
