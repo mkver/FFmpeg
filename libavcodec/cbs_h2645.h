@@ -33,6 +33,11 @@ typedef struct CodedBitstreamH2645Context {
     int nal_length_size;
     // Packet reader.
     H2645Packet read_packet;
+    // The AVBufferRef points to the H2645Packet's rbsp_buffer.
+    AVBufferRef *rbsp_buffer_ref;
+    // This parameter is used in order to determine whether
+    // the rbsp_buffer is still in use by read_packet.
+    uint8_t *used;
 
     // Write buffer
     uint8_t *write_buffer;

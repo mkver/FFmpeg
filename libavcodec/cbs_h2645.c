@@ -509,39 +509,89 @@ static void cbs_h265_free_sei(void *unit, uint8_t *content)
     av_freep(&content);
 }
 
+static void cbs_h2645_free_rbsp_buffer(void *used, uint8_t *rbsp_buffer)
+{
+    uint8_t status = *(uint8_t*)used;
+    if (!status) {
+        av_free(rbsp_buffer);
+        av_free(used);
+    }
+}
+
+ // ff_h2645_packet_split may reallocate its rbsp-buffer;
+ // it might also happen that it fails at reallocating.
+ // In both cases the old memory has already been freed,
+ // but our *rbsp_buffer_ref might still reference it. Then
+ // the reference needs to be destroyed. h2645->used ensures
+ // that the already freed memory won't be freed again.
+#define RBSP_REALLOCATION_CHECK \
+    if (h2645->rbsp_buffer_ref && \
+        h2645->rbsp_buffer_ref->data != h2645->read_packet.rbsp.rbsp_buffer) \
+        av_buffer_unref(&h2645->rbsp_buffer_ref);
+
+ // If there is another reference to the rbsp-buffer besides
+ // the CodedBitstreamH2645Context's own rbsp_buffer (so that
+ // the buffer isn't owned by *rbsp), the H2645RBSP needs to be reset
+ // as well as the internal data fields of the CodedBitstreamH2645Context.
+ // This function takes care of this.
+ // Both the original rbsp-buffer as well as the memory pointed to
+ // by h2645->used will be owned by the AVBuffer if there was another reference.
+static void cbs_h2645_reset_rbsp_buffer(CodedBitstreamH2645Context *h2645,
+                                        H2645RBSP *rbsp)
+{
+    if (h2645->rbsp_buffer_ref && !av_buffer_is_writable(h2645->rbsp_buffer_ref)) {
+        *h2645->used = 0;
+        av_buffer_unref(&h2645->rbsp_buffer_ref);
+        h2645->used                  = NULL;
+        rbsp->rbsp_buffer            = NULL;
+        rbsp->rbsp_buffer_alloc_size = 0;
+        rbsp->rbsp_buffer_size       = 0;
+    }
+}
+
 static int cbs_h2645_fragment_add_nals(CodedBitstreamContext *ctx,
                                        CodedBitstreamFragment *frag,
                                        const H2645Packet *packet)
 {
+    CodedBitstreamH2645Context *h2645 = ctx->priv_data;
+    AVBufferRef *ref = h2645->rbsp_buffer_ref;
     int err, i;
+
+    av_assert0(!ref || av_buffer_is_writable(ref)
+                && h2645->used && *h2645->used == 1);
+
+    if (!ref) {
+        if (!h2645->used) {
+            h2645->used = av_malloc(sizeof(*h2645->used));
+            if (!h2645->used)
+                return AVERROR(ENOMEM);
+            *h2645->used = 1;
+        }
+
+        h2645->rbsp_buffer_ref = av_buffer_create(packet->rbsp.rbsp_buffer,
+                                                  packet->rbsp.rbsp_buffer_alloc_size,
+                                                  &cbs_h2645_free_rbsp_buffer,
+                                                  h2645->used, 0);
+        if (!h2645->rbsp_buffer_ref)
+            return AVERROR(ENOMEM);
+    }
 
     for (i = 0; i < packet->nb_nals; i++) {
         const H2645NAL *nal = &packet->nals[i];
         size_t size = nal->size;
+
         // Remove trailing zeroes.
         while (size > 0 && nal->data[size - 1] == 0)
             --size;
         av_assert0(size > 0);
 
-        if (nal->data == nal->raw_data) {
-            err = ff_cbs_insert_unit_data(ctx, frag, -1, nal->type,
-                                (uint8_t*)nal->data, size, frag->data_ref);
-            if (err < 0)
-                return err;
-        } else {
-            uint8_t *data = av_malloc(size + AV_INPUT_BUFFER_PADDING_SIZE);
-            if (!data)
-                return AVERROR(ENOMEM);
-            memcpy(data, nal->data, size);
-            memset(data + size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+        ref = (nal->data == nal->raw_data) ? frag->data_ref
+                                           : h2645->rbsp_buffer_ref;
 
-            err = ff_cbs_insert_unit_data(ctx, frag, -1, nal->type,
-                                          data, size, NULL);
-            if (err < 0) {
-                av_freep(&data);
-                return err;
-            }
-        }
+        err = ff_cbs_insert_unit_data(ctx, frag, -1, nal->type,
+                            (uint8_t*)nal->data, size, ref);
+        if (err < 0)
+            return err;
     }
 
     return 0;
@@ -559,6 +609,8 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
     av_assert0(frag->data && frag->nb_units == 0);
     if (frag->data_size == 0)
         return 0;
+
+    cbs_h2645_reset_rbsp_buffer(h2645, &h2645->read_packet.rbsp);
 
     if (header && frag->data[0] && codec_id == AV_CODEC_ID_H264) {
         // AVCC header.
@@ -598,6 +650,7 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
         err = ff_h2645_packet_split(&h2645->read_packet,
                                     frag->data + start, end - start,
                                     ctx->log_ctx, 1, 2, AV_CODEC_ID_H264, 1);
+        RBSP_REALLOCATION_CHECK
         if (err < 0) {
             av_log(ctx->log_ctx, AV_LOG_ERROR, "Failed to split AVCC SPS array.\n");
             return err;
@@ -619,9 +672,11 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
         }
         end = bytestream2_tell(&gbc);
 
+        cbs_h2645_reset_rbsp_buffer(h2645, &h2645->read_packet.rbsp);
         err = ff_h2645_packet_split(&h2645->read_packet,
                                     frag->data + start, end - start,
                                     ctx->log_ctx, 1, 2, AV_CODEC_ID_H264, 1);
+        RBSP_REALLOCATION_CHECK
         if (err < 0) {
             av_log(ctx->log_ctx, AV_LOG_ERROR, "Failed to split AVCC PPS array.\n");
             return err;
@@ -673,9 +728,12 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
             }
             end = bytestream2_tell(&gbc);
 
+            if (i)
+                cbs_h2645_reset_rbsp_buffer(h2645, &h2645->read_packet.rbsp);
             err = ff_h2645_packet_split(&h2645->read_packet,
                                         frag->data + start, end - start,
                                         ctx->log_ctx, 1, 2, AV_CODEC_ID_HEVC, 1);
+            RBSP_REALLOCATION_CHECK
             if (err < 0) {
                 av_log(ctx->log_ctx, AV_LOG_ERROR, "Failed to split "
                        "HVCC array %d (%d NAL units of type %d).\n",
@@ -695,6 +753,7 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
                                     ctx->log_ctx,
                                     h2645->mp4, h2645->nal_length_size,
                                     codec_id, 1);
+        RBSP_REALLOCATION_CHECK
         if (err < 0)
             return err;
 
@@ -1487,14 +1546,29 @@ static int cbs_h2645_assemble_fragment(CodedBitstreamContext *ctx,
     return 0;
 }
 
+static void cbs_h2645_close(CodedBitstreamH2645Context *h2645)
+{
+    AVBufferRef *ref = h2645->rbsp_buffer_ref;
+
+    av_assert0(!ref || h2645->used && *h2645->used == 1);
+
+    if (ref && !av_buffer_is_writable(ref)) {
+        cbs_h2645_reset_rbsp_buffer(h2645, &h2645->read_packet.rbsp);
+    } else if (ref)
+        av_buffer_unref(&h2645->rbsp_buffer_ref);
+
+    av_freep(&h2645->used);
+    ff_h2645_packet_uninit(&h2645->read_packet);
+
+    av_freep(&h2645->write_buffer);
+}
+
 static void cbs_h264_close(CodedBitstreamContext *ctx)
 {
-    CodedBitstreamH264Context *h264 = ctx->priv_data;
+    CodedBitstreamH264Context *h264  = ctx->priv_data;
     int i;
 
-    ff_h2645_packet_uninit(&h264->common.read_packet);
-
-    av_freep(&h264->common.write_buffer);
+    cbs_h2645_close(&h264->common);
 
     for (i = 0; i < FF_ARRAY_ELEMS(h264->sps); i++)
         av_buffer_unref(&h264->sps_ref[i]);
@@ -1507,9 +1581,7 @@ static void cbs_h265_close(CodedBitstreamContext *ctx)
     CodedBitstreamH265Context *h265 = ctx->priv_data;
     int i;
 
-    ff_h2645_packet_uninit(&h265->common.read_packet);
-
-    av_freep(&h265->common.write_buffer);
+    cbs_h2645_close(&h265->common);
 
     for (i = 0; i < FF_ARRAY_ELEMS(h265->vps); i++)
         av_buffer_unref(&h265->vps_ref[i]);
