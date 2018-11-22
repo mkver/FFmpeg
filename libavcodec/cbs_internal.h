@@ -118,4 +118,57 @@ extern const CodedBitstreamType ff_cbs_type_mpeg2;
 extern const CodedBitstreamType ff_cbs_type_vp9;
 
 
+enum {
+    BITS,
+    BYTES
+};
+
+// The following macro automatically creates both (deep) copy and
+// free functions for structs with exactly one internal buffer.
+
+#define cbs_copy_free(codec, type, var, buffer, size_element, size_offset, size_unit) \
+static void cbs_ ## codec ## _free_ ## var(void *unit, uint8_t *content) \
+{ \
+    type *var = (type *)content; \
+ \
+    av_buffer_unref(&var->buffer ## _ref); \
+    av_freep(&var); \
+} \
+ \
+static AVBufferRef *cbs_ ## codec ## _copy_ ## var(const type *source) \
+{ \
+    AVBufferRef *copy_ref; \
+    type *copy; \
+ \
+    copy = av_malloc(sizeof(type)); \
+    if (!copy) \
+        return NULL; \
+    memcpy(copy, source, sizeof(type)); \
+ \
+    copy_ref = av_buffer_create((uint8_t*)copy, sizeof(type), \
+                            &cbs_ ## codec ## _free_ ## var, \
+                            NULL, 0); \
+    if (!copy_ref) { \
+        av_free(copy); \
+        return NULL; \
+    } \
+ \
+    if (source->buffer) { \
+        size_t size = (size_t)source->size_element + size_offset; \
+        if (size_unit == BITS) \
+            size = (size + 7) / 8; \
+ \
+        copy->buffer ## _ref = av_buffer_alloc(size + AV_INPUT_BUFFER_PADDING_SIZE); \
+        if (!copy->buffer ## _ref) {\
+            av_buffer_unref(&copy_ref); \
+            return NULL; \
+        } \
+        copy->buffer = copy->buffer ## _ref->data; \
+        memcpy(copy->buffer, source->buffer, size); \
+        memset(copy->buffer + size, 0, AV_INPUT_BUFFER_PADDING_SIZE); \
+    } \
+ \
+    return copy_ref; \
+}
+
 #endif /* AVCODEC_CBS_INTERNAL_H */
