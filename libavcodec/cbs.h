@@ -394,5 +394,15 @@ void ff_cbs_delete_unit(CodedBitstreamContext *ctx,
                         CodedBitstreamFragment *frag,
                         int position);
 
+/**
+ * Make the content of a unit writable.
+ *
+ * If content is supplied, it is supposed to be a pointer to a pointer
+ * and *content will point to the content of the unit on success.
+ */
+int ff_cbs_make_unit_writable(CodedBitstreamContext *ctx,
+                              CodedBitstreamUnit *unit,
+                              void *content);
+
 
 #endif /* AVCODEC_CBS_H */

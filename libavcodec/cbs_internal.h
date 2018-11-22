@@ -44,6 +44,10 @@ typedef struct CodedBitstreamType {
     int (*read_unit)(CodedBitstreamContext *ctx,
                      CodedBitstreamUnit *unit);
 
+    // Make a unit's content writable.
+    int (*make_writable)(CodedBitstreamContext *ctx,
+                         CodedBitstreamUnit *unit);
+
     // Write the data bitstream from unit->content into pbc.
     // Return value AVERROR(ENOSPC) indicates that pbc was too small.
     int (*write_unit)(CodedBitstreamContext *ctx,

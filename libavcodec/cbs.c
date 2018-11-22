@@ -809,3 +809,24 @@ void ff_cbs_delete_unit(CodedBitstreamContext *ctx,
                 frag->units + position + 1,
                 (frag->nb_units - position) * sizeof(*frag->units));
 }
+
+int ff_cbs_make_unit_writable(CodedBitstreamContext *ctx,
+                              CodedBitstreamUnit *unit,
+                              void *content)
+{
+    if (unit->content && (!unit->content_ref ||
+                          !av_buffer_is_writable(unit->content_ref))) {
+        int err;
+        if (!ctx->codec->make_writable)
+            return AVERROR_PATCHWELCOME;
+
+        err = ctx->codec->make_writable(ctx, unit);
+        if (err < 0)
+            return err;
+
+        if (content)
+            memcpy(content, &unit->content, sizeof(content));
+    }
+
+    return 0;
+}
