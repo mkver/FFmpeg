@@ -1088,6 +1088,69 @@ static int cbs_h265_read_nal_unit(CodedBitstreamContext *ctx,
     return 0;
 }
 
+static int cbs_h264_make_unit_writable(CodedBitstreamContext *ctx,
+                                       CodedBitstreamUnit *unit)
+{
+    AVBufferRef *ref;
+
+    switch (unit->type) {
+    case H264_NAL_SPS:
+        {
+            ref = cbs_h264_copy_sps(unit->content);
+            break;
+        }
+    case H264_NAL_PPS:
+        {
+            ref = cbs_h264_copy_pps(unit->content);
+            break;
+        }
+    default:
+        return AVERROR_PATCHWELCOME;
+    }
+    if (!ref)
+        return AVERROR(ENOMEM);
+
+    av_buffer_unref(&unit->content_ref);
+    unit->content     = ref->data;
+    unit->content_ref = ref;
+
+    return 0;
+}
+
+static int cbs_h265_make_unit_writable(CodedBitstreamContext *ctx,
+                                       CodedBitstreamUnit *unit)
+{
+    AVBufferRef *ref;
+
+    switch (unit->type) {
+    case HEVC_NAL_VPS:
+        {
+            ref = cbs_h265_copy_vps(unit->content);
+            break;
+        }
+    case HEVC_NAL_SPS:
+        {
+            ref = cbs_h265_copy_sps(unit->content);
+            break;
+        }
+    case HEVC_NAL_PPS:
+        {
+            ref = cbs_h265_copy_pps(unit->content);
+            break;
+        }
+    default:
+        return AVERROR_PATCHWELCOME;
+    }
+    if (!ref)
+        return AVERROR(ENOMEM);
+
+    av_buffer_unref(&unit->content_ref);
+    unit->content     = ref->data;
+    unit->content_ref = ref;
+
+    return 0;
+}
+
 static int cbs_h2645_write_slice_data(CodedBitstreamContext *ctx,
                                       PutBitContext *pbc, const uint8_t *data,
                                       size_t data_size, int data_bit_start)
@@ -1497,6 +1560,7 @@ const CodedBitstreamType ff_cbs_type_h264 = {
 
     .split_fragment    = &cbs_h2645_split_fragment,
     .read_unit         = &cbs_h264_read_nal_unit,
+    .make_writable     = &cbs_h264_make_unit_writable,
     .write_unit        = &cbs_h264_write_nal_unit,
     .assemble_fragment = &cbs_h2645_assemble_fragment,
 
@@ -1510,6 +1574,7 @@ const CodedBitstreamType ff_cbs_type_h265 = {
 
     .split_fragment    = &cbs_h2645_split_fragment,
     .read_unit         = &cbs_h265_read_nal_unit,
+    .make_writable     = &cbs_h265_make_unit_writable,
     .write_unit        = &cbs_h265_write_nal_unit,
     .assemble_fragment = &cbs_h2645_assemble_fragment,
 
