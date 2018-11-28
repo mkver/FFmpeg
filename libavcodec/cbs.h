@@ -333,6 +333,21 @@ int ff_cbs_write_extradata(CodedBitstreamContext *ctx,
                            CodedBitstreamFragment *frag);
 
 /**
+ * Update the parameters of an AVCodecParameters structure
+ *
+ * If a parameter is negative, the corresponding member is not
+ * modified. For the color/chroma parameters, only values that
+ * are part of the relevant enumeration are written.
+ */
+void ff_cbs_update_video_parameters(CodedBitstreamContext *ctx,
+                                    AVCodecParameters *par, int profile,
+                                    int level, int width, int height,
+                                    int field_order, int color_range,
+                                    int color_primaries, int color_trc,
+                                    int color_space, int chroma_location,
+                                    int video_delay);
+
+/**
  * Write the bitstream of a fragment to a packet.
  *
  * Modifies context and fragment as ff_cbs_write_fragment_data does.
