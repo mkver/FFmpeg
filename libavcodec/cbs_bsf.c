@@ -109,6 +109,34 @@ fail:
     return err;
 }
 
+static void cbs_bsf_update_video_parameters(CBSBSFContext *ctx,
+                                            AVCodecParameters *par)
+{
+#define SET_IF_NONNEGATIVE(elem) \
+    if (ctx->elem >= 0) \
+        par->elem = ctx->elem;
+    SET_IF_NONNEGATIVE(profile)
+    SET_IF_NONNEGATIVE(level)
+    SET_IF_NONNEGATIVE(width)
+    SET_IF_NONNEGATIVE(height)
+#undef SET_IF_NONNEGATIVE
+
+#define SET_IF_VALID(elem, upper_bound) \
+    if (0 <= ctx->elem && ctx->elem < upper_bound) \
+        par->elem = ctx->elem;
+    SET_IF_VALID(color_range,     AVCOL_RANGE_NB)
+    SET_IF_VALID(color_trc,       AVCOL_TRC_NB)
+    SET_IF_VALID(color_space,     AVCOL_SPC_NB)
+    SET_IF_VALID(chroma_location, AVCHROMA_LOC_NB)
+#undef SET_IF_VALID
+
+    if (0 <= ctx->color_primaries && ctx->color_primaries <= AVCOL_PRI_SMPTE432
+                                  || ctx->color_primaries == AVCOL_PRI_JEDEC_P22)
+        par->color_primaries = ctx->color_primaries;
+
+    return;
+}
+
 int ff_cbs_bsf_generic_init(AVBSFContext *bsf, const CBSBSFType *type)
 {
     CBSBSFContext           *ctx = bsf->priv_data;
@@ -116,6 +144,16 @@ int ff_cbs_bsf_generic_init(AVBSFContext *bsf, const CBSBSFType *type)
     int err;
 
     ctx->type = type;
+
+    ctx->profile         = -1;
+    ctx->level           = -1;
+    ctx->width           = -1;
+    ctx->height          = -1;
+    ctx->color_range     = -1;
+    ctx->color_primaries = -1;
+    ctx->color_trc       = -1;
+    ctx->color_space     = -1;
+    ctx->chroma_location = -1;
 
     err = ff_cbs_init(&ctx->input, type->codec_id, bsf);
     if (err < 0)
@@ -143,6 +181,7 @@ int ff_cbs_bsf_generic_init(AVBSFContext *bsf, const CBSBSFType *type)
         }
     }
 
+    cbs_bsf_update_video_parameters(ctx, bsf->par_out);
     err = 0;
 fail:
     ff_cbs_fragment_reset(frag);

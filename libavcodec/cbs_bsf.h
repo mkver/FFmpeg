@@ -57,6 +57,16 @@ typedef struct CBSBSFContext {
     CodedBitstreamContext *input;
     CodedBitstreamContext *output;
     CodedBitstreamFragment fragment;
+
+    int                    profile;
+    int                    level;
+    int                    width;
+    int                    height;
+    int                    color_range;
+    int                    color_primaries;
+    int                    color_trc;
+    int                    color_space;
+    int                    chroma_location;
 } CBSBSFContext;
 
 /**
