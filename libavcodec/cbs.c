@@ -340,6 +340,45 @@ int ff_cbs_write_extradata(CodedBitstreamContext *ctx,
     return 0;
 }
 
+void ff_cbs_update_video_parameters(CodedBitstreamContext *ctx,
+                                    AVCodecParameters *par, int profile,
+                                    int level, int width, int height,
+                                    AVRational sample_aspect_ratio,
+                                    int field_order, int color_range,
+                                    int color_primaries, int color_trc,
+                                    int color_space, int chroma_location,
+                                    int video_delay)
+{
+    #define SET_IF_NONNEGATIVE(elem) \
+    if (elem >= 0) \
+        par->elem = elem;
+    SET_IF_NONNEGATIVE(profile)
+    SET_IF_NONNEGATIVE(level)
+    SET_IF_NONNEGATIVE(width)
+    SET_IF_NONNEGATIVE(height)
+    SET_IF_NONNEGATIVE(field_order)
+    SET_IF_NONNEGATIVE(video_delay)
+    #undef SET_IF_NONNEGATIVE
+
+    if (sample_aspect_ratio.num > 0)
+        par->sample_aspect_ratio = sample_aspect_ratio;
+
+    #define SET_IF_VALID(elem, upper_bound) \
+    if (0 <= elem && elem < upper_bound) \
+        par->elem = elem;
+    SET_IF_VALID(color_range,     AVCOL_RANGE_NB)
+    SET_IF_VALID(color_trc,       AVCOL_TRC_NB)
+    SET_IF_VALID(color_space,     AVCOL_SPC_NB)
+    SET_IF_VALID(chroma_location, AVCHROMA_LOC_NB)
+    #undef SET_IF_VALID
+
+    if (0 <= color_primaries && color_primaries <= AVCOL_PRI_SMPTE432
+                             || color_primaries == AVCOL_PRI_JEDEC_P22)
+        par->color_primaries = color_primaries;
+
+    return;
+}
+
 int ff_cbs_write_packet(CodedBitstreamContext *ctx,
                         AVPacket *pkt,
                         CodedBitstreamFragment *frag)
