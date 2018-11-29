@@ -108,7 +108,23 @@ fail:
 
 static int vp9_metadata_init(AVBSFContext *bsf)
 {
+    static const uint8_t conversion_table[8] = {
+        AVCOL_SPC_UNSPECIFIED, AVCOL_SPC_BT470BG,
+        AVCOL_SPC_BT709,       AVCOL_SPC_SMPTE170M,
+        AVCOL_SPC_SMPTE240M,   AVCOL_SPC_BT2020_NCL,
+        AVCOL_SPC_RESERVED,    AVCOL_SPC_RGB
+    };
     VP9MetadataContext *ctx = bsf->priv_data;
+    AVCodecParameters  *par = bsf->par_out;
+
+    if (ctx->color_space >= 0 && (par->profile & 1 ||
+                                  ctx->color_space != VP9_CS_RGB))
+        par->color_space = conversion_table[ctx->color_space];
+
+    if (par->color_space == AVCOL_SPC_RGB)
+        par->color_range = AVCOL_RANGE_JPEG;
+    else if (ctx->color_range >= 0)
+        par->color_range = ctx->color_range + 1;
 
     return ff_cbs_init(&ctx->cbc, AV_CODEC_ID_VP9, bsf);
 }
