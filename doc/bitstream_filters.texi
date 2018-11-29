@@ -487,6 +487,12 @@ table 6-6).
 Set the colour description in the stream (see H.262 section 6.3.6
 and tables 6-7, 6-8 and 6-9).
 
+@item full_update
+If this is set, the AVCodecParameters are updated in addition to the
+bitstream. If unset, muxers might add header information based upon the
+old AVCodecParameters that contradicts and potentially precedes the
+changes made at the bitstream level. On by default.
+
 @end table
 
 @section mpeg4_unpack_bframes

@@ -43,11 +43,14 @@ typedef struct MPEG2MetadataContext {
     int matrix_coefficients;
 
     int mpeg1_warned;
+
+    int full_update;
 } MPEG2MetadataContext;
 
 
 static int mpeg2_metadata_update_fragment(AVBSFContext *bsf,
-                                          CodedBitstreamFragment *frag)
+                                          CodedBitstreamFragment *frag,
+                                          AVRational *sample_aspect_ratio)
 {
     MPEG2MetadataContext             *ctx = bsf->priv_data;
     MPEG2RawSequenceHeader            *sh = NULL;
@@ -89,14 +92,33 @@ static int mpeg2_metadata_update_fragment(AVBSFContext *bsf,
         av_reduce(&num, &den, ctx->display_aspect_ratio.num,
                   ctx->display_aspect_ratio.den, 65535);
 
+        if (sample_aspect_ratio) {
+            AVRational size;
+
+            if (sde && sde->display_horizontal_size
+                    && sde->display_vertical_size)
+                size = (AVRational) { sde->display_horizontal_size,
+                                      sde->display_vertical_size };
+            else {
+                CodedBitstreamMPEG2Context *ctx_mpeg2 = ctx->cbc->priv_data;
+                size = (AVRational) { ctx_mpeg2->horizontal_size,
+                                      ctx_mpeg2->vertical_size };
+            }
+
+            *sample_aspect_ratio = av_div_q((AVRational) { num, den }, size);
+        }
+
         if (num == 4 && den == 3)
             sh->aspect_ratio_information = 2;
         else if (num == 16 && den == 9)
             sh->aspect_ratio_information = 3;
         else if (num == 221 && den == 100)
             sh->aspect_ratio_information = 4;
-        else
+        else {
             sh->aspect_ratio_information = 1;
+            if (sample_aspect_ratio)
+                *sample_aspect_ratio = (AVRational) { 1, 1 };
+        }
     }
 
     if (ctx->frame_rate.num && ctx->frame_rate.den) {
@@ -196,7 +218,7 @@ static int mpeg2_metadata_filter(AVBSFContext *bsf, AVPacket *out)
         goto fail;
     }
 
-    err = mpeg2_metadata_update_fragment(bsf, frag);
+    err = mpeg2_metadata_update_fragment(bsf, frag, NULL);
     if (err < 0) {
         av_log(bsf, AV_LOG_ERROR, "Failed to update frame fragment.\n");
         goto fail;
@@ -227,6 +249,7 @@ static int mpeg2_metadata_init(AVBSFContext *bsf)
 {
     MPEG2MetadataContext *ctx = bsf->priv_data;
     CodedBitstreamFragment *frag = &ctx->fragment;
+    AVRational sample_aspect_ratio = { .num = -1, .den = 1 };
     int err;
 
     err = ff_cbs_init(&ctx->cbc, AV_CODEC_ID_MPEG2VIDEO, bsf);
@@ -240,7 +263,7 @@ static int mpeg2_metadata_init(AVBSFContext *bsf)
             goto fail;
         }
 
-        err = mpeg2_metadata_update_fragment(bsf, frag);
+        err = mpeg2_metadata_update_fragment(bsf, frag, &sample_aspect_ratio);
         if (err < 0) {
             av_log(bsf, AV_LOG_ERROR, "Failed to update metadata fragment.\n");
             goto fail;
@@ -252,6 +275,13 @@ static int mpeg2_metadata_init(AVBSFContext *bsf)
             goto fail;
         }
     }
+
+    if (ctx->full_update)
+        ff_cbs_update_video_parameters(ctx->cbc, bsf->par_out, -1, -1,
+                                       -1, -1, sample_aspect_ratio,
+                                       -1, -1, ctx->colour_primaries,
+                                       ctx->transfer_characteristics,
+                                       ctx->matrix_coefficients, -1, -1);
 
     err = 0;
 fail:
@@ -288,6 +318,9 @@ static const AVOption mpeg2_metadata_options[] = {
     { "matrix_coefficients", "Set matrix coefficients (table 6-9)",
         OFFSET(matrix_coefficients), AV_OPT_TYPE_INT,
         { .i64 = -1 }, -1, 255, FLAGS },
+
+    { "full_update", "Update not only bitstream, but also AVCodecParameters",
+        OFFSET(full_update), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
 
     { NULL }
 };
