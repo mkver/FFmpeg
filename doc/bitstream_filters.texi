@@ -656,9 +656,7 @@ Modify metadata embedded in a VP9 stream.
 
 @table @option
 @item color_space
-Set the color space value in the frame header. Note that any frame
-set to RGB will be implicitly set to PC range and that RGB is
-incompatible with profiles 0 and 2.
+Set the color space value in the frame header.
 @table @samp
 @item unknown
 @item bt601
@@ -670,12 +668,19 @@ incompatible with profiles 0 and 2.
 @end table
 
 @item color_range
-Set the color range value in the frame header. Note that any value
-imposed by the color space will take precedence over this value.
+Set the color range value in the frame header.  Note that this cannot
+be set in RGB streams.
 @table @samp
 @item tv
 @item pc
 @end table
+
+@item full_update
+If this is set, the AVCodecParameters are updated in addition to the
+bitstream. If unset, muxers might add header information based upon the
+old AVCodecParameters that contradicts and potentially precedes the
+changes made at the bitstream level. On by default.
+
 @end table
 
 @section vp9_superframe

@@ -34,6 +34,8 @@ typedef struct VP9MetadataContext {
     int color_range;
 
     int color_warnings;
+
+    int full_update;
 } VP9MetadataContext;
 
 
@@ -115,6 +117,22 @@ static int vp9_metadata_init(AVBSFContext *bsf)
 {
     VP9MetadataContext *ctx = bsf->priv_data;
 
+    if (ctx->full_update) {
+        AVCodecParameters *par = bsf->par_out;
+        static const enum AVColorSpace colorspaces[] = {
+            AVCOL_SPC_UNSPECIFIED, AVCOL_SPC_BT470BG, AVCOL_SPC_BT709, AVCOL_SPC_SMPTE170M,
+            AVCOL_SPC_SMPTE240M, AVCOL_SPC_BT2020_NCL, AVCOL_SPC_RESERVED, AVCOL_SPC_RGB
+        };
+
+        if (ctx->color_space >= 0 && (ctx->color_space != VP9_CS_RGB || par->profile & 1))
+            par->color_space = colorspaces[ctx->color_space];
+
+        if (par->color_space == AVCOL_SPC_RGB)
+            par->color_range = AVCOL_RANGE_JPEG;
+        else if (ctx->color_range >= 0)
+            par->color_range = ctx->color_range + 1;
+    }
+
     return ff_cbs_init(&ctx->cbc, AV_CODEC_ID_VP9, bsf);
 }
 
@@ -152,6 +170,9 @@ static const AVOption vp9_metadata_options[] = {
         { .i64 = 0 }, .flags = FLAGS, .unit = "cr" },
     { "pc", "PC (full) range",    0, AV_OPT_TYPE_CONST,
         { .i64 = 1 }, .flags = FLAGS, .unit = "cr" },
+
+    { "full_update", "Update not only bitstream, but also AVCodecParameters",
+        OFFSET(full_update), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
 
     { NULL }
 };
