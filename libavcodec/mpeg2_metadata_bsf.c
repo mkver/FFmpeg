@@ -191,6 +191,11 @@ static int mpeg2_metadata_init(AVBSFContext *bsf)
     VALIDITY_CHECK(matrix_coefficients);
 #undef VALIDITY_CHECK
 
+    ff_cbs_update_video_parameters(ctx->common.output, bsf->par_out, -1, -1, -1,
+                                   -1, -1, -1, ctx->colour_primaries,
+                                   ctx->transfer_characteristics,
+                                   ctx->matrix_coefficients, -1, -1);
+
     return ff_cbs_bsf_generic_init(bsf, &mpeg2_metadata_type);
 }
 
