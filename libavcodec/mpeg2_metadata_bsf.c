@@ -250,6 +250,11 @@ static int mpeg2_metadata_init(AVBSFContext *bsf)
         }
     }
 
+    ff_cbs_update_video_parameters(ctx->cbc, bsf->par_out, -1, -1, -1,
+                                   -1, -1, -1, ctx->colour_primaries,
+                                   ctx->transfer_characteristics,
+                                   ctx->matrix_coefficients, -1, -1);
+
     err = 0;
 fail:
     ff_cbs_fragment_reset(frag);
