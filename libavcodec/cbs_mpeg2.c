@@ -42,19 +42,22 @@
 
 #define ui(width, name) \
         xui(width, name, current->name, 0)
+#define uir(width, name, range_min, range_max) \
+        xuir(width, name, current->name, range_min, range_max, 0)
 #define uis(width, name, subs, ...) \
         xui(width, name, current->name, subs, __VA_ARGS__)
-
+#define xui(width, name, var, subs, ...) \
+        xuir(width, name, var, 0, (1 << width) - 1, subs, __VA_ARGS__)
 
 #define READ
 #define READWRITE read
 #define RWContext GetBitContext
 
-#define xui(width, name, var, subs, ...) do { \
+#define xuir(width, name, var, range_min, range_max, subs, ...) do { \
         uint32_t value = 0; \
         CHECK(ff_cbs_read_unsigned(ctx, rw, width, #name, \
                                    SUBSCRIPTS(subs, __VA_ARGS__), \
-                                   &value, 0, (1 << width) - 1)); \
+                                   &value, range_min, range_max)); \
         var = value; \
     } while (0)
 
@@ -72,7 +75,7 @@
 #undef READ
 #undef READWRITE
 #undef RWContext
-#undef xui
+#undef xuir
 #undef marker_bit
 #undef nextbits
 
@@ -81,10 +84,10 @@
 #define READWRITE write
 #define RWContext PutBitContext
 
-#define xui(width, name, var, subs, ...) do { \
+#define xuir(width, name, var, range_min, range_max, subs, ...) do { \
         CHECK(ff_cbs_write_unsigned(ctx, rw, width, #name, \
                                     SUBSCRIPTS(subs, __VA_ARGS__), \
-                                    var, 0, (1 << width) - 1)); \
+                                    var, range_min, range_max)); \
     } while (0)
 
 #define marker_bit() do { \
@@ -98,7 +101,7 @@
 #undef READ
 #undef READWRITE
 #undef RWContext
-#undef xui
+#undef xuir
 #undef marker_bit
 #undef nextbits
 

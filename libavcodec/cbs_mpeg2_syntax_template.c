@@ -26,8 +26,8 @@ static int FUNC(sequence_header)(CodedBitstreamContext *ctx, RWContext *rw,
 
     ui(8,  sequence_header_code);
 
-    ui(12, horizontal_size_value);
-    ui(12, vertical_size_value);
+    uir(12, horizontal_size_value, 1, (1 << 12) -1);
+    uir(12, vertical_size_value, 1, (1 << 12) - 1);
 
     mpeg2->horizontal_size = current->horizontal_size_value;
     mpeg2->vertical_size   = current->vertical_size_value;
