@@ -82,11 +82,14 @@ typedef struct H264MetadataContext {
     int flip;
 
     int level;
+
+    int full_update;
 } H264MetadataContext;
 
 
-static int h264_metadata_update_sps(AVBSFContext *bsf,
-                                    H264RawSPS *sps)
+static int h264_metadata_update_sps(AVBSFContext *bsf, H264RawSPS *sps,
+                                    int *width, int *height, int *level,
+                                    int *chroma_location)
 {
     H264MetadataContext *ctx = bsf->priv_data;
     int need_vui = 0;
@@ -172,6 +175,9 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
             ctx->chroma_sample_loc_type;
         sps->vui.chroma_loc_info_present_flag = 1;
         need_vui = 1;
+
+        if (chroma_location && sps->chroma_format_idc == 1)
+            *chroma_location = 1 + ctx->chroma_sample_loc_type;
     }
 
     if (ctx->tick_rate.num && ctx->tick_rate.den) {
@@ -215,6 +221,14 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
     CROP(top,    crop_unit_y);
     CROP(bottom, crop_unit_y);
 #undef CROP
+
+    if (width && height) {
+        *width  = 16 * (sps->pic_width_in_mbs_minus1 + 1) - crop_unit_x *
+                  (sps->frame_crop_left_offset + sps->frame_crop_right_offset);
+        *height = 16 * (sps->pic_height_in_map_units_minus1 + 1)
+                     * (2 - sps->frame_mbs_only_flag)     - crop_unit_y *
+                  (sps->frame_crop_top_offset + sps->frame_crop_bottom_offset);
+    }
 
     if (ctx->level != LEVEL_UNSET) {
         int level_idc;
@@ -269,6 +283,9 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
         } else {
             sps->level_idc = level_idc;
         }
+
+        if (level)
+            *level = sps->level_idc;
     }
 
     if (need_vui)
@@ -359,7 +376,8 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *out)
     has_sps = 0;
     for (i = 0; i < au->nb_units; i++) {
         if (au->units[i].type == H264_NAL_SPS) {
-            err = h264_metadata_update_sps(bsf, au->units[i].content);
+            err = h264_metadata_update_sps(bsf, au->units[i].content,
+                                           NULL, NULL, NULL, NULL);
             if (err < 0)
                 goto fail;
             has_sps = 1;
@@ -618,7 +636,7 @@ static int h264_metadata_init(AVBSFContext *bsf)
 {
     H264MetadataContext *ctx = bsf->priv_data;
     CodedBitstreamFragment *au = &ctx->access_unit;
-    int err, i;
+    int err, i, width = -1, height = -1, level = -1, chroma_location = -1;
 
     err = ff_cbs_init(&ctx->cbc, AV_CODEC_ID_H264, bsf);
     if (err < 0)
@@ -633,7 +651,9 @@ static int h264_metadata_init(AVBSFContext *bsf)
 
         for (i = 0; i < au->nb_units; i++) {
             if (au->units[i].type == H264_NAL_SPS) {
-                err = h264_metadata_update_sps(bsf, au->units[i].content);
+                err = h264_metadata_update_sps(bsf, au->units[i].content,
+                                               &width, &height, &level,
+                                               &chroma_location);
                 if (err < 0)
                     goto fail;
             }
@@ -645,6 +665,25 @@ static int h264_metadata_init(AVBSFContext *bsf)
             goto fail;
         }
     }
+
+    if (ctx->full_update) {
+        int color_range = ctx->video_full_range_flag == -1 ? -1 :
+                          ctx->video_full_range_flag + 1;
+        AVRational sample_aspect_ratio = { -1, 1 };
+        if (ctx->sample_aspect_ratio.num && ctx->sample_aspect_ratio.den)
+            sample_aspect_ratio = ctx->sample_aspect_ratio;
+
+        ff_cbs_update_video_parameters(ctx->cbc, bsf->par_out, -1, level,
+                                       width, height, sample_aspect_ratio,
+                                       -1, color_range, ctx->colour_primaries,
+                                       ctx->transfer_characteristics,
+                                       ctx->matrix_coefficients,
+                                       chroma_location, -1);
+    } else
+        ff_cbs_update_video_parameters(ctx->cbc, bsf->par_out,
+                                       -1, -1, width, height,
+                                       (AVRational) { -1, 1 }, -1,
+                                       -1, -1, -1, -1, -1, -1);
 
     err = 0;
 fail:
@@ -775,6 +814,9 @@ static const AVOption h264_metadata_options[] = {
     { LEVEL("6.1", 61) },
     { LEVEL("6.2", 62) },
 #undef LEVEL
+
+    { "full_update", "Update not only bitstream, but also AVCodecParameters",
+        OFFSET(full_update), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
 
     { NULL }
 };

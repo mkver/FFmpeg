@@ -282,6 +282,14 @@ level_idc value (for example, @samp{42}), or the special name @samp{auto}
 indicating that the filter should attempt to guess the level from the
 input stream properties.
 
+@item full_update
+If this is set, the AVCodecParameters are updated in addition to the
+bitstream. If unset, muxers might add header information based upon the
+old AVCodecParameters that contradicts and potentially precedes the
+changes made at the bitstream level. On by default.
+
+The frame dimensions are always updated and not affected by this option.
+
 @end table
 
 @section h264_mp4toannexb
