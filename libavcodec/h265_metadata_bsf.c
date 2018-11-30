@@ -58,6 +58,8 @@ typedef struct H265MetadataContext {
     int crop_right;
     int crop_top;
     int crop_bottom;
+
+    int full_update;
 } H265MetadataContext;
 
 
@@ -89,8 +91,9 @@ static int h265_metadata_update_vps(AVBSFContext *bsf,
     return 0;
 }
 
-static int h265_metadata_update_sps(AVBSFContext *bsf,
-                                    H265RawSPS *sps)
+static int h265_metadata_update_sps(AVBSFContext *bsf, H265RawSPS *sps,
+                                    int *width, int *height,
+                                    int *chroma_location)
 {
     H265MetadataContext *ctx = bsf->priv_data;
     int need_vui = 0;
@@ -176,6 +179,9 @@ static int h265_metadata_update_sps(AVBSFContext *bsf,
             ctx->chroma_sample_loc_type;
         sps->vui.chroma_loc_info_present_flag = 1;
         need_vui = 1;
+
+        if (chroma_location && sps->chroma_format_idc == 1)
+            *chroma_location = 1 + ctx->chroma_sample_loc_type;
     }
 
     if (ctx->tick_rate.num && ctx->tick_rate.den) {
@@ -223,6 +229,13 @@ static int h265_metadata_update_sps(AVBSFContext *bsf,
     CROP(top,    crop_unit_y);
     CROP(bottom, crop_unit_y);
 #undef CROP
+
+    if (width && height) {
+        *width  = sps->pic_width_in_luma_samples  - crop_unit_x *
+                  (sps->conf_win_left_offset + sps->conf_win_right_offset);
+        *height = (1 + sps->vui.field_seq_flag) * (sps->pic_height_in_luma_samples
+                - crop_unit_y * (sps->conf_win_top_offset + sps->conf_win_bottom_offset));
+    }
 
     if (need_vui)
         sps->vui_parameters_present_flag = 1;
@@ -304,7 +317,8 @@ static int h265_metadata_filter(AVBSFContext *bsf, AVPacket *out)
                 goto fail;
         }
         if (au->units[i].type == HEVC_NAL_SPS) {
-            err = h265_metadata_update_sps(bsf, au->units[i].content);
+            err = h265_metadata_update_sps(bsf, au->units[i].content,
+                                           NULL, NULL, NULL);
             if (err < 0)
                 goto fail;
         }
@@ -335,7 +349,7 @@ static int h265_metadata_init(AVBSFContext *bsf)
 {
     H265MetadataContext *ctx = bsf->priv_data;
     CodedBitstreamFragment *au = &ctx->access_unit;
-    int err, i;
+    int err, i, width = -1, height = -1, chroma_location = -1;
 
     err = ff_cbs_init(&ctx->cbc, AV_CODEC_ID_HEVC, bsf);
     if (err < 0)
@@ -355,7 +369,9 @@ static int h265_metadata_init(AVBSFContext *bsf)
                     goto fail;
             }
             if (au->units[i].type == HEVC_NAL_SPS) {
-                err = h265_metadata_update_sps(bsf, au->units[i].content);
+                err = h265_metadata_update_sps(bsf, au->units[i].content,
+                                               &width, &height,
+                                               &chroma_location);
                 if (err < 0)
                     goto fail;
             }
@@ -367,6 +383,25 @@ static int h265_metadata_init(AVBSFContext *bsf)
             goto fail;
         }
     }
+
+    if (ctx->full_update) {
+        int color_range = ctx->video_full_range_flag == -1 ? -1 :
+                          ctx->video_full_range_flag + 1;
+        AVRational sample_aspect_ratio = { -1, 1 };
+        if (ctx->sample_aspect_ratio.num && ctx->sample_aspect_ratio.den)
+            sample_aspect_ratio = ctx->sample_aspect_ratio;
+
+        ff_cbs_update_video_parameters(ctx->cbc, bsf->par_out, -1, -1,
+                                       width, height, sample_aspect_ratio,
+                                       -1, color_range, ctx->colour_primaries,
+                                       ctx->transfer_characteristics,
+                                       ctx->matrix_coefficients,
+                                       chroma_location, -1);
+    } else
+        ff_cbs_update_video_parameters(ctx->cbc, bsf->par_out,
+                                       -1, -1, width, height,
+                                       (AVRational) { -1, 1 }, -1,
+                                       -1, -1, -1, -1, -1, -1);
 
     err = 0;
 fail:
@@ -438,6 +473,9 @@ static const AVOption h265_metadata_options[] = {
     { "crop_bottom", "Set bottom border crop offset",
         OFFSET(crop_bottom), AV_OPT_TYPE_INT,
         { .i64 = -1 }, -1, HEVC_MAX_HEIGHT, FLAGS },
+
+    { "full_update", "Update not only bitstream, but also AVCodecParameters",
+        OFFSET(full_update), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
 
     { NULL }
 };

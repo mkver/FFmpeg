@@ -372,6 +372,12 @@ will replace the current ones if the stream is already cropped.
 These fields are set in pixels.  Note that some sizes may not be
 representable if the chroma is subsampled (H.265 section 7.4.3.2.1).
 
+@item full_update
+If this is set, the AVCodecParameters are updated in addition to the
+bitstream. If unset, muxers might add header information based upon the
+old AVCodecParameters that contradicts and potentially precedes the
+changes made at the bitstream level. On by default.
+
 @end table
 
 @section hevc_mp4toannexb
