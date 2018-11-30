@@ -195,8 +195,8 @@ static int h265_metadata_update_vps(AVBSFContext *bsf,
     return 0;
 }
 
-static int h265_metadata_update_sps(AVBSFContext *bsf,
-                                    H265RawSPS *sps)
+static int h265_metadata_update_sps(AVBSFContext *bsf, H265RawSPS *sps,
+                                    int *width, int *height)
 {
     H265MetadataContext *ctx = bsf->priv_data;
     int need_vui = 0;
@@ -330,6 +330,13 @@ static int h265_metadata_update_sps(AVBSFContext *bsf,
     CROP(bottom, crop_unit_y);
 #undef CROP
 
+    if (width && height) {
+        *width  = sps->pic_width_in_luma_samples  - crop_unit_x *
+                  (sps->conf_win_left_offset + sps->conf_win_right_offset);
+        *height = (1 + sps->vui.field_seq_flag) * (sps->pic_height_in_luma_samples
+                - crop_unit_y * (sps->conf_win_top_offset + sps->conf_win_bottom_offset));
+    }
+
     if (need_vui)
         sps->vui_parameters_present_flag = 1;
 
@@ -367,7 +374,8 @@ static int h265_metadata_update_side_data(AVBSFContext *bsf, AVPacket *pkt)
                 return err;
         }
         if (au->units[i].type == HEVC_NAL_SPS) {
-            err = h265_metadata_update_sps(bsf, au->units[i].content);
+            err = h265_metadata_update_sps(bsf, au->units[i].content,
+                                           NULL, NULL);
             if (err < 0)
                 return err;
         }
@@ -468,7 +476,8 @@ static int h265_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                 goto fail;
         }
         if (au->units[i].type == HEVC_NAL_SPS) {
-            err = h265_metadata_update_sps(bsf, au->units[i].content);
+            err = h265_metadata_update_sps(bsf, au->units[i].content,
+                                           NULL, NULL);
             if (err < 0)
                 goto fail;
         }
@@ -494,7 +503,9 @@ static int h265_metadata_init(AVBSFContext *bsf)
 {
     H265MetadataContext *ctx = bsf->priv_data;
     CodedBitstreamFragment *au = &ctx->access_unit;
-    int err, i;
+    int err, i, width = -1, height = -1, level = ctx->level;
+    int color_range     = ctx->video_full_range_flag;
+    int chroma_location = ctx->chroma_sample_loc_type;
 
     err = ff_cbs_init(&ctx->input,  AV_CODEC_ID_HEVC, bsf);
     if (err < 0)
@@ -510,8 +521,10 @@ static int h265_metadata_init(AVBSFContext *bsf)
             goto fail;
         }
 
-        if (ctx->level == LEVEL_AUTO)
+        if (ctx->level == LEVEL_AUTO) {
             h265_metadata_guess_level(bsf, au);
+            level = ctx->level_guess ? ctx->level_guess : level;
+        }
 
         for (i = 0; i < au->nb_units; i++) {
             if (au->units[i].type == HEVC_NAL_VPS) {
@@ -520,7 +533,8 @@ static int h265_metadata_init(AVBSFContext *bsf)
                     goto fail;
             }
             if (au->units[i].type == HEVC_NAL_SPS) {
-                err = h265_metadata_update_sps(bsf, au->units[i].content);
+                err = h265_metadata_update_sps(bsf, au->units[i].content,
+                                               &width, &height);
                 if (err < 0)
                     goto fail;
             }
@@ -532,6 +546,18 @@ static int h265_metadata_init(AVBSFContext *bsf)
             goto fail;
         }
     }
+
+    if (color_range >= 0)
+        color_range++;
+    if (chroma_location >= 0)
+        chroma_location++;
+
+    ff_cbs_update_video_parameters(ctx->output, bsf->par_out, -1, level,
+                                   width, height, -1, color_range,
+                                   ctx->colour_primaries,
+                                   ctx->transfer_characteristics,
+                                   ctx->matrix_coefficients,
+                                   chroma_location, -1);
 
     err = 0;
 fail:
