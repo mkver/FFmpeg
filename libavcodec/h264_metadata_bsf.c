@@ -109,6 +109,9 @@ typedef struct H264MetadataContext {
     int *qp_histogram;
 
     int level;
+
+    int dts;
+    int64_t last_dts;
 } H264MetadataContext;
 
 
@@ -889,6 +892,20 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     }
     pkt->flags = (pkt->flags & ~AV_PKT_FLAG_DISPOSABLE) | disposable;
 
+    if (ctx->dts) {
+        if (pkt->dts != AV_NOPTS_VALUE) {
+            pkt->dts += ctx->dts;
+
+            if (ctx->done_first_au)
+                pkt->dts  = FFMAX(pkt->dts, ctx->last_dts);
+            ctx->last_dts = pkt->dts;
+
+            if (pkt->pts != AV_NOPTS_VALUE && pkt->dts > pkt->pts)
+                av_log(bsf, AV_LOG_WARNING, "dts %"PRId64" still bigger "
+                       "than pts %"PRId64".\n", pkt->dts, pkt->pts);
+        }
+    }
+
     ctx->done_first_au = 1;
 
     err = 0;
@@ -1008,6 +1025,11 @@ static int h264_metadata_init(AVBSFContext *bsf)
             av_log(bsf, AV_LOG_ERROR, "Failed to write extradata.\n");
             goto fail;
         }
+    }
+
+    if (ctx->dts) {
+        ctx->dts = -bsf->time_base_out.den * (int64_t)ctx->dts /
+                       (bsf->time_base_out.num * 1000LL);
     }
 
     err = 0;
@@ -1180,6 +1202,9 @@ static const AVOption h264_metadata_options[] = {
     { LEVEL("6.1", 61) },
     { LEVEL("6.2", 62) },
 #undef LEVEL
+
+    { "dts", "Offset dts in ms",
+        OFFSET(dts), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, FLAGS },
 
     { NULL }
 };
