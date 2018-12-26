@@ -147,18 +147,12 @@ static int mpeg2_metadata_update_fragment(AVBSFContext *bsf,
 
             if (ctx->colour_primaries >= 0)
                 sde->colour_primaries = ctx->colour_primaries;
-            else if (add_sde)
-                sde->colour_primaries = 2;
 
             if (ctx->transfer_characteristics >= 0)
                 sde->transfer_characteristics = ctx->transfer_characteristics;
-            else if (add_sde)
-                sde->transfer_characteristics = 2;
 
             if (ctx->matrix_coefficients >= 0)
                 sde->matrix_coefficients = ctx->matrix_coefficients;
-            else if (add_sde)
-                sde->matrix_coefficients = 2;
         }
     }
 
@@ -228,6 +222,18 @@ static int mpeg2_metadata_init(AVBSFContext *bsf)
     MPEG2MetadataContext *ctx = bsf->priv_data;
     CodedBitstreamFragment *frag = &ctx->fragment;
     int err;
+
+    #define VALIDITY_CHECK(name) do { \
+        if (!ctx->name) { \
+            av_log(bsf, AV_LOG_ERROR, "The value 0 for %s is " \
+                                      "forbidden.\n", #name); \
+            return AVERROR(EINVAL); \
+        } \
+    } while (0)
+    VALIDITY_CHECK(colour_primaries);
+    VALIDITY_CHECK(transfer_characteristics);
+    VALIDITY_CHECK(matrix_coefficients);
+    #undef VALIDITY_CHECK
 
     err = ff_cbs_init(&ctx->cbc, AV_CODEC_ID_MPEG2VIDEO, bsf);
     if (err < 0)
