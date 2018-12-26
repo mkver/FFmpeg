@@ -111,9 +111,9 @@ static int mpeg2_metadata_update_fragment(AVBSFContext *bsf,
     }
 
     if (ctx->video_format             >= 0 ||
-        ctx->colour_primaries         >= 0 ||
-        ctx->transfer_characteristics >= 0 ||
-        ctx->matrix_coefficients      >= 0) {
+        ctx->colour_primaries         >  0 ||
+        ctx->transfer_characteristics >  0 ||
+        ctx->matrix_coefficients      >  0) {
         if (!sde) {
             add_sde = 1;
             ctx->sequence_display_extension.extension_start_code =
@@ -140,25 +140,19 @@ static int mpeg2_metadata_update_fragment(AVBSFContext *bsf,
         if (ctx->video_format >= 0)
             sde->video_format = ctx->video_format;
 
-        if (ctx->colour_primaries         >= 0 ||
-            ctx->transfer_characteristics >= 0 ||
-            ctx->matrix_coefficients      >= 0) {
+        if (ctx->colour_primaries         > 0 ||
+            ctx->transfer_characteristics > 0 ||
+            ctx->matrix_coefficients      > 0) {
             sde->colour_description = 1;
 
-            if (ctx->colour_primaries >= 0)
+            if (ctx->colour_primaries > 0)
                 sde->colour_primaries = ctx->colour_primaries;
-            else if (add_sde)
-                sde->colour_primaries = 2;
 
-            if (ctx->transfer_characteristics >= 0)
+            if (ctx->transfer_characteristics > 0)
                 sde->transfer_characteristics = ctx->transfer_characteristics;
-            else if (add_sde)
-                sde->transfer_characteristics = 2;
 
-            if (ctx->matrix_coefficients >= 0)
+            if (ctx->matrix_coefficients > 0)
                 sde->matrix_coefficients = ctx->matrix_coefficients;
-            else if (add_sde)
-                sde->matrix_coefficients = 2;
         }
     }
 
@@ -283,13 +277,13 @@ static const AVOption mpeg2_metadata_options[] = {
         { .i64 = -1 }, -1, 7, FLAGS },
     { "colour_primaries", "Set colour primaries (table 6-7)",
         OFFSET(colour_primaries), AV_OPT_TYPE_INT,
-        { .i64 = -1 }, -1, 255, FLAGS },
+        { .i64 = 0 }, 0, 255, FLAGS },
     { "transfer_characteristics", "Set transfer characteristics (table 6-8)",
         OFFSET(transfer_characteristics), AV_OPT_TYPE_INT,
-        { .i64 = -1 }, -1, 255, FLAGS },
+        { .i64 = 0 }, 0, 255, FLAGS },
     { "matrix_coefficients", "Set matrix coefficients (table 6-9)",
         OFFSET(matrix_coefficients), AV_OPT_TYPE_INT,
-        { .i64 = -1 }, -1, 255, FLAGS },
+        { .i64 = 0 }, 0, 255, FLAGS },
 
     { NULL }
 };
