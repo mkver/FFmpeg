@@ -29,6 +29,16 @@
 #include "config.h"
 #include "libavutil/intreadwrite.h"
 
+
+#if AV_GCC_VERSION_AT_LEAST(2,96) || defined(__clang__)
+# define av_likely(x)      __builtin_expect(!!(x), 1)
+# define av_unlikely(x)    __builtin_expect(!!(x), 0)
+#else
+# define av_likely(x)      (x)
+# define av_unlikely(x)    (x)
+#endif
+
+
 int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
 {
     const uint8_t *start = buf, *end = buf + size;
