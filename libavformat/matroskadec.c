@@ -1173,10 +1173,15 @@ static int ebml_parse(MatroskaDemuxContext *matroska,
                 if (matroska->is_live)
                     // in live mode, finish parsing if EOF is reached.
                     return 1;
-                if (level && level->length == EBML_UNKNOWN_LENGTH && pos == avio_tell(pb)) {
-                    // Unknown-length levels automatically end at EOF.
-                    matroska->num_levels = 0;
-                    return LEVEL_ENDED;
+                if (level && pos == avio_tell(pb)) {
+                    if (level->length == EBML_UNKNOWN_LENGTH) {
+                        // Unknown-length levels automatically end at EOF.
+                        matroska->num_levels = 0;
+                        return LEVEL_ENDED;
+                    } else {
+                        av_log(matroska->ctx, AV_LOG_ERROR, "File ended prematurely "
+                               "at pos. %"PRIu64" (0x%"PRIx64")\n", pos, pos);
+                    }
                 }
             }
             return res;
@@ -3571,6 +3576,14 @@ static int matroska_parse_cluster(MatroskaDemuxContext *matroska)
     ebml_free(matroska_blockgroup, block);
     memset(block, 0, sizeof(*block));
     } else if (!matroska->num_levels) {
+        if (!avio_feof(matroska->ctx->pb)) {
+            avio_r8(matroska->ctx->pb);
+            if (!avio_feof(matroska->ctx->pb)) {
+                av_log(matroska->ctx, AV_LOG_WARNING, "File extends beyond "
+                       "end of segment.\n");
+                return AVERROR_INVALIDDATA;
+            }
+        }
         matroska->done = 1;
         return AVERROR_EOF;
     }
@@ -3591,7 +3604,7 @@ static int matroska_read_packet(AVFormatContext *s, AVPacket *pkt)
     while (matroska_deliver_packet(matroska, pkt)) {
         if (matroska->done)
             return (ret < 0) ? ret : AVERROR_EOF;
-        if (matroska_parse_cluster(matroska) < 0)
+        if (matroska_parse_cluster(matroska) < 0 && !matroska->done)
             ret = matroska_resync(matroska, matroska->resync_pos);
     }
 
