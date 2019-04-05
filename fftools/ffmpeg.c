@@ -3102,6 +3102,14 @@ static int init_output_stream_streamcopy(OutputStream *ost)
     // copy disposition
     ost->st->disposition = ist->st->disposition;
 
+    // propagate attached pic
+    if (ist->st->attached_pic.size) {
+        ret = av_packet_ref(&ost->st->attached_pic, &ist->st->attached_pic);
+        if (ret < 0)
+            return ret;
+        ost->st->attached_pic.stream_index = ost->index;
+    }
+
     if (ist->st->nb_side_data) {
         for (i = 0; i < ist->st->nb_side_data; i++) {
             const AVPacketSideData *sd_src = &ist->st->side_data[i];
