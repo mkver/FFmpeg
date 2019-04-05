@@ -3598,6 +3598,16 @@ static int init_output_stream(OutputStream *ost, char *error, int error_len)
     if (ret < 0)
         return ret;
 
+    // propagate attached pic
+    if (ost->stream_copy && ost->st->disposition & AV_DISPOSITION_ATTACHED_PIC &&
+        !ost->bsf_ctx && get_input_stream(ost)->st->attached_pic.size) {
+        ret = av_packet_ref(&ost->st->attached_pic,
+                            &get_input_stream(ost)->st->attached_pic);
+        if (ret < 0)
+            return ret;
+        ost->st->attached_pic.stream_index = ost->index;
+    }
+
     ost->initialized = 1;
 
     ret = check_init_output_file(output_files[ost->file_index], ost->file_index);
