@@ -683,6 +683,7 @@ static const EbmlSyntax matroska_seekhead[] = {
 };
 
 static const EbmlSyntax matroska_segment[] = {
+    { MATROSKA_ID_CLUSTER,     EBML_STOP },
     { MATROSKA_ID_INFO,        EBML_LEVEL1, 0, 0, { .n = matroska_info } },
     { MATROSKA_ID_TRACKS,      EBML_LEVEL1, 0, 0, { .n = matroska_tracks } },
     { MATROSKA_ID_ATTACHMENTS, EBML_LEVEL1, 0, 0, { .n = matroska_attachments } },
@@ -690,7 +691,6 @@ static const EbmlSyntax matroska_segment[] = {
     { MATROSKA_ID_CUES,        EBML_LEVEL1, 0, 0, { .n = matroska_index } },
     { MATROSKA_ID_TAGS,        EBML_LEVEL1, 0, 0, { .n = matroska_tags } },
     { MATROSKA_ID_SEEKHEAD,    EBML_LEVEL1, 0, 0, { .n = matroska_seekhead } },
-    { MATROSKA_ID_CLUSTER,     EBML_STOP },
     { 0 }   /* We don't want to go back to level 0, so don't add the parent. */
 };
 
@@ -737,18 +737,6 @@ static const EbmlSyntax matroska_cluster_parsing[] = {
 static const EbmlSyntax matroska_cluster_enter[] = {
     { MATROSKA_ID_CLUSTER,     EBML_NEST, 0, 0, { .n = &matroska_cluster_parsing[2] } },
     { 0 }
-};
-
-static const EbmlSyntax matroska_clusters[] = {
-    { MATROSKA_ID_CLUSTER,     EBML_STOP },
-    { MATROSKA_ID_CUES,        EBML_NONE },
-    { MATROSKA_ID_TAGS,        EBML_NONE },
-    { MATROSKA_ID_INFO,        EBML_NONE },
-    { MATROSKA_ID_TRACKS,      EBML_NONE },
-    { MATROSKA_ID_ATTACHMENTS, EBML_NONE },
-    { MATROSKA_ID_CHAPTERS,    EBML_NONE },
-    { MATROSKA_ID_SEEKHEAD,    EBML_NONE },
-    { 0 } /* We don't want to go back to level 0, so don't add the parent. */
 };
 #undef CHILD_OF
 
@@ -1067,6 +1055,7 @@ static int ebml_parse_nest(MatroskaDemuxContext *matroska, EbmlSyntax *syntax,
 {
     int i, res;
 
+    if (data) {
     for (i = 0; syntax[i].id; i++)
         switch (syntax[i].type) {
         case EBML_SINT:
@@ -1093,6 +1082,7 @@ static int ebml_parse_nest(MatroskaDemuxContext *matroska, EbmlSyntax *syntax,
     if (!matroska->levels[matroska->num_levels - 1].length) {
         matroska->num_levels--;
         return 0;
+    }
     }
 
     do {
@@ -1218,6 +1208,7 @@ static int ebml_parse(MatroskaDemuxContext *matroska,
         update_pos = 0; /* Don't update resync_pos as an error might have happened. */
     }
 
+    if (data) {
     data = (char *) data + syntax->data_offset;
     if (syntax->list_elem_size) {
         EbmlList *list = data;
@@ -1228,6 +1219,7 @@ static int ebml_parse(MatroskaDemuxContext *matroska,
         data = (char *) list->elem + list->nb_elem * syntax->list_elem_size;
         memset(data, 0, syntax->list_elem_size);
         list->nb_elem++;
+    }
     }
 
     if (syntax->type != EBML_STOP) {
@@ -1335,6 +1327,9 @@ static int ebml_parse(MatroskaDemuxContext *matroska,
             // of the element as the "last known good" position.
             matroska->resync_pos = pos;
         }
+
+        if (!data && length != EBML_UNKNOWN_LENGTH)
+            goto skip;
     }
 
     switch (syntax->type) {
@@ -1372,6 +1367,7 @@ static int ebml_parse(MatroskaDemuxContext *matroska,
         break;
     case EBML_STOP:
         return 1;
+    skip:
     default:
         if (ffio_limit(pb, length) != length)
             return AVERROR(EIO);
@@ -3603,7 +3599,7 @@ static int matroska_parse_cluster(MatroskaDemuxContext *matroska)
     av_assert0(matroska->num_levels <= 2);
 
     if (matroska->num_levels == 1) {
-        res = ebml_parse(matroska, matroska_clusters, NULL);
+        res = ebml_parse(matroska, matroska_segment, NULL);
 
         if (res == 1) {
             /* Found a cluster: subtract the size of the ID already read. */
