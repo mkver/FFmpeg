@@ -41,15 +41,15 @@
 #define SUBSCRIPTS(subs, ...) (subs > 0 ? ((int[subs + 1]){ subs, __VA_ARGS__ }) : NULL)
 
 #define ui(width, name) \
-        xui(width, name, current->name, 0, MAX_UINT_BITS(width), 0)
+        xui(width, #name, current->name, 0, MAX_UINT_BITS(width), 0)
 #define uir(width, name) \
-        xui(width, name, current->name, 1, MAX_UINT_BITS(width), 0)
+        xui(width, #name, current->name, 1, MAX_UINT_BITS(width), 0)
 #define uis(width, name, subs, ...) \
-        xui(width, name, current->name, 0, MAX_UINT_BITS(width), subs, __VA_ARGS__)
+        xui(width, #name, current->name, 0, MAX_UINT_BITS(width), subs, __VA_ARGS__)
 #define uirs(width, name, subs, ...) \
-        xui(width, name, current->name, 1, MAX_UINT_BITS(width), subs, __VA_ARGS__)
+        xui(width, #name, current->name, 1, MAX_UINT_BITS(width), subs, __VA_ARGS__)
 #define sis(width, name, subs, ...) \
-        xsi(width, name, current->name, subs, __VA_ARGS__)
+        xsi(width, #name, current->name, subs, __VA_ARGS__)
 
 
 #define READ
@@ -58,7 +58,7 @@
 
 #define xui(width, name, var, range_min, range_max, subs, ...) do { \
         uint32_t value = 0; \
-        CHECK(ff_cbs_read_unsigned(ctx, rw, width, #name, \
+        CHECK(ff_cbs_read_unsigned(ctx, rw, width, name, \
                                    SUBSCRIPTS(subs, __VA_ARGS__), \
                                    &value, range_min, range_max)); \
         var = value; \
@@ -66,7 +66,7 @@
 
 #define xsi(width, name, var, subs, ...) do { \
         int32_t value = 0; \
-        CHECK(ff_cbs_read_signed(ctx, rw, width, #name, \
+        CHECK(ff_cbs_read_signed(ctx, rw, width, name, \
                                  SUBSCRIPTS(subs, __VA_ARGS__), &value, \
                                  MIN_INT_BITS(width), \
                                  MAX_INT_BITS(width))); \
@@ -103,13 +103,13 @@
 #define RWContext PutBitContext
 
 #define xui(width, name, var, range_min, range_max, subs, ...) do { \
-        CHECK(ff_cbs_write_unsigned(ctx, rw, width, #name, \
+        CHECK(ff_cbs_write_unsigned(ctx, rw, width, name, \
                                     SUBSCRIPTS(subs, __VA_ARGS__), \
                                     var, range_min, range_max)); \
     } while (0)
 
 #define xsi(width, name, var, subs, ...) do { \
-        CHECK(ff_cbs_write_signed(ctx, rw, width, #name, \
+        CHECK(ff_cbs_write_signed(ctx, rw, width, name, \
                                   SUBSCRIPTS(subs, __VA_ARGS__), var, \
                                   MIN_INT_BITS(width), \
                                   MAX_INT_BITS(width))); \
@@ -142,6 +142,13 @@
 #undef infer
 
 
+static void cbs_mpeg2_free_picture_header(void *unit, uint8_t *content)
+{
+    MPEG2RawPictureHeader *picture = (MPEG2RawPictureHeader*)content;
+    av_buffer_unref(&picture->extra_information_picture.extra_information_ref);
+    av_free(content);
+}
+
 static void cbs_mpeg2_free_user_data(void *unit, uint8_t *content)
 {
     MPEG2RawUserData *user = (MPEG2RawUserData*)content;
@@ -152,7 +159,7 @@ static void cbs_mpeg2_free_user_data(void *unit, uint8_t *content)
 static void cbs_mpeg2_free_slice(void *unit, uint8_t *content)
 {
     MPEG2RawSlice *slice = (MPEG2RawSlice*)content;
-    av_buffer_unref(&slice->header.extra_information_ref);
+    av_buffer_unref(&slice->header.extra_information_slice.extra_information_ref);
     av_buffer_unref(&slice->data_ref);
     av_freep(&content);
 }
@@ -255,7 +262,7 @@ static int cbs_mpeg2_read_unit(CodedBitstreamContext *ctx,
             } \
             break;
             START(MPEG2_START_PICTURE,   MPEG2RawPictureHeader,
-                                                        picture_header,  NULL);
+                               picture_header, &cbs_mpeg2_free_picture_header);
             START(MPEG2_START_USER_DATA, MPEG2RawUserData,
                                          user_data, &cbs_mpeg2_free_user_data);
             START(MPEG2_START_SEQUENCE_HEADER, MPEG2RawSequenceHeader,
