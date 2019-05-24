@@ -34,20 +34,23 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
     const uint8_t *start = buf, *end = buf + size;
 
 #define INITIALIZATION(mod) do {                                           \
-    for (; buf < end && (uintptr_t)buf % mod; buf++)                       \
-        if (!*buf)                                                         \
-            return buf - start;                                            \
+        if (mod > end - start)                                             \
+            goto near_end;                                                 \
+        for (; (uintptr_t)buf % mod; buf++)                                \
+            if (!*buf)                                                     \
+                return buf - start;                                        \
+        /* Effective end for MAIN_LOOP in order not to overread. */        \
+        end -= mod;                                                        \
     } while (0)
 
 #define READ(bitness) AV_RN ## bitness ## A
 #define MAIN_LOOP(bitness, mask1, mask2) do {                              \
-        /* we check p < end instead of p + 3 / 7 because it is
-         * simpler and there must be AV_INPUT_BUFFER_PADDING_SIZE
-         * bytes at the end. */                                            \
-        for (; buf < end; buf += bitness / 8)                              \
+        for (; buf <= end; buf += bitness / 8)                             \
             if ((~READ(bitness)(buf) & (READ(bitness)(buf) - mask1))       \
                                      & mask2)                              \
                 break;                                                     \
+        /* Revert to the real end. */                                      \
+        end += bitness / 8;                                                \
     } while (0)
 
 #if HAVE_FAST_64BIT
@@ -57,6 +60,8 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
     INITIALIZATION(4);
     MAIN_LOOP(32, 0x01010101U, 0x80808080U);
 #endif
+
+near_end:
     for (; buf < end; buf++)
         if (!*buf)
             break;
