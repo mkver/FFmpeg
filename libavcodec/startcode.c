@@ -39,12 +39,8 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
             return i; \
     } while (0) \
 
-    /* we check i < size instead of i + 3 / 7 because it is
-     * simpler and there must be AV_INPUT_BUFFER_PADDING_SIZE
-     * bytes at the end.
-     */
 #define MAIN_LOOP(bitness, mask1, mask2) \
-    while (i < size && \
+    while (i < size - bitness / 8 + 1 && \
             !((~READ(bitness)(buf + i) & (READ(bitness)(buf + i) - mask1)) \
                                        & mask2)) \
         i += bitness / 8
