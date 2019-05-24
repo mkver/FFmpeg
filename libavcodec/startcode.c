@@ -33,7 +33,16 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
 {
     int i = 0;
 
-#define READ(bitness) AV_RN ## bitness
+#define ALIGNMENT_CHECK(bitness) do { \
+    for (; i < size && (uintptr_t)(buf + i) % (bitness / 8); i++) \
+        if (!buf[i]) \
+            return i; \
+    } while (0) \
+
+    /* we check i < size instead of i + 3 / 7 because it is
+     * simpler and there must be AV_INPUT_BUFFER_PADDING_SIZE
+     * bytes at the end.
+     */
 #define MAIN_LOOP(bitness, mask1, mask2) \
     while (i < size && \
             !((~READ(bitness)(buf + i) & (READ(bitness)(buf + i) - mask1)) \
@@ -41,17 +50,25 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
         i += bitness / 8
 
 #if HAVE_FAST_UNALIGNED
-    /* we check i < size instead of i + 3 / 7 because it is
-     * simpler and there must be AV_INPUT_BUFFER_PADDING_SIZE
-     * bytes at the end.
-     */
+#define READ(bitness) AV_RN ## bitness
 
 #if HAVE_FAST_64BIT
     MAIN_LOOP(64, 0x0101010101010101ULL, 0x8080808080808080ULL);
 #else
     MAIN_LOOP(32, 0x01010101U, 0x80808080U);
 #endif
+#else
+#define READ(bitness) AV_RN ## bitness ## A
+
+#if HAVE_FAST_64BIT
+    ALIGNMENT_CHECK(64);
+    CHECK(64, 0x0101010101010101ULL, 0x8080808080808080ULL);
+#else
+    ALIGNMENT_CHECK(32);
+    CHECK(32, 0x01010101U, 0x80808080U);
 #endif
+#endif
+
     for (; i < size; i++)
         if (!buf[i])
             break;
