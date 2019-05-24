@@ -33,8 +33,13 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
 {
     const uint8_t *start = buf, *end = buf + size;
 
-#if HAVE_FAST_UNALIGNED
-#define READ(bitness) AV_RN ## bitness
+#define INITIALIZATION(mod) do {                                           \
+    for (; buf < end && (uintptr_t)buf % mod; buf++)                       \
+        if (!*buf)                                                         \
+            return buf - start;                                            \
+    } while (0)
+
+#define READ(bitness) AV_RN ## bitness ## A
 #define MAIN_LOOP(bitness, mask1, mask2) do {                              \
         /* we check p < end instead of p + 3 / 7 because it is
          * simpler and there must be AV_INPUT_BUFFER_PADDING_SIZE
@@ -46,10 +51,11 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
     } while (0)
 
 #if HAVE_FAST_64BIT
+    INITIALIZATION(8);
     MAIN_LOOP(64, 0x0101010101010101ULL, 0x8080808080808080ULL);
 #else
+    INITIALIZATION(4);
     MAIN_LOOP(32, 0x01010101U, 0x80808080U);
-#endif
 #endif
     for (; buf < end; buf++)
         if (!*buf)
