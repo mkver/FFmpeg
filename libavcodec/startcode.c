@@ -41,10 +41,7 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
 
 #define READ(bitness) AV_RN ## bitness ## A
 #define MAIN_LOOP(bitness, mask1, mask2) do {                              \
-        /* we check p < end instead of p + 3 / 7 because it is
-         * simpler and there must be AV_INPUT_BUFFER_PADDING_SIZE
-         * bytes at the end. */                                            \
-        for (; buf < end; buf += bitness / 8)                              \
+        for (; buf <= end - bitness / 8; buf += bitness / 8)               \
             if ((~READ(bitness)(buf) & (READ(bitness)(buf) - mask1))       \
                                      & mask2)                              \
                 break;                                                     \
