@@ -22,7 +22,8 @@
  * @file
  * Accelerated start code search function for start codes common to
  * MPEG-1/2/4 video, VC-1, H.264/5
- * @author Michael Niedermayer <michaelni@gmx.at>
+ * @author Michael Niedermayer <michaelni@gmx.at>,
+ * @author Andreas Rheinhardt <andreas.rheinhardt@gmail.com>
  */
 
 #include "startcode.h"
@@ -31,20 +32,60 @@
 
 int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
 {
-    const uint8_t *start = buf, *end = buf + size;
+    const uint8_t *start = buf, *end = buf + size, *temp;
 
 #define INITIALIZATION(mod) do {                                           \
-    for (; buf < end && (uintptr_t)buf % mod; buf++)                       \
-        if (!*buf)                                                         \
-            return buf - start;                                            \
+        if (end - start <= mod + 1)                                        \
+            goto near_end;                                                 \
+        /* From this point on until the end of the MAIN_LOOP,              \
+         * buf is the earliest possible position of a 0x00                 \
+         * immediately preceding a startcode's 0x01, i.e.                  \
+         * everything from start to buf (inclusive) is known               \
+         * to not contain a startcode's 0x01. */                           \
+        buf += 1;                                                          \
+        temp = (const uint8_t *)((uintptr_t)(buf + mod - 1) / mod * mod);  \
+        goto startcode_check;                                              \
     } while (0)
 
 #define READ(bitness) AV_RN ## bitness ## A
+#define STARTCODE_CHECK(offset) do { \
+        if (buf[2 - offset] > 1) {                                         \
+            buf += 3;                                                      \
+        } else if (buf[1 - offset]) {                                      \
+            buf += 2;                                                      \
+        } else if (buf[-offset] || buf[2 - offset] == 0) {                 \
+            buf += 1;                                                      \
+        } else {                                                           \
+            buf += 1 - offset;                                             \
+            goto found_startcode;                                          \
+        }                                                                  \
+    } while (0)
+
+    /* The MAIN_LOOP tries to read several bytes at once.
+     * A startcode's 0x00 0x01 or 0x00 0x00 will be detected
+     * by it if these bytes are contained within the bytes
+     * read at once. */
 #define MAIN_LOOP(bitness, mask1, mask2) do {                              \
-        for (; buf <= end - bitness / 8; buf += bitness / 8)               \
-            if ((~READ(bitness)(buf) & (READ(bitness)(buf) - mask1))       \
-                                     & mask2)                              \
-                break;                                                     \
+        for (; buf < end - bitness / 8 - 1; ) {                            \
+            if (!((~READ(bitness)(buf) & (READ(bitness)(buf) - mask1))     \
+                                       &  mask2)) {                        \
+                buf += bitness / 8;                                        \
+                continue;                                                  \
+            }                                                              \
+            temp = buf + bitness / 8;                                      \
+            /* If the 0x01 of a startcode is at position buf + 1,          \
+             * the following check detects it.                             \
+             * Because buf gets incremented before entering this           \
+             * loop, buf - 1 may be evaluated.                             \
+             * Because temp + 1 < end, buf is always <= end during         \
+             * the closing check so that the pointer comparison is         \
+             * defined. */                                                 \
+        startcode_check:                                                   \
+            do {                                                           \
+                STARTCODE_CHECK(1);                                        \
+            } while (buf < temp);                                          \
+            buf = temp;                                                    \
+        }                                                                  \
     } while (0)
 
 #if HAVE_FAST_64BIT
@@ -54,8 +95,43 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
     INITIALIZATION(4);
     MAIN_LOOP(32, 0x01010101U, 0x80808080U);
 #endif
-    for (; buf < end; buf++)
-        if (!*buf)
+
+    /* For the end, buf is the earliest possible position
+     * of a three-byte startcode's leading 0x00. This is
+     * done in order not to run into the undefined behaviour
+     * explained below. */
+    buf--;
+near_end:
+    while (2 < end - buf) {
+        /* The STARTCODE_CHECK in the MAIN_LOOP can't be used
+         * to check whether the file ends with a startcode,
+         * because for this buf would need to be end - 2.
+         * But depending on the value of end[-1], buf might get
+         * incremented by 3 and therefore be beyond end. But
+         * pointer arithmetic beyond end is undefined behaviour.
+         * So a STARTCODE_CHECK with a different offset is used
+         * here: It detects whether buf points to the first 0x00
+         * of a three-byte startcode. */
+        STARTCODE_CHECK(0);
+    }
+
+    /* No startcode found, but if the last bytes vanish,
+     * they may be part of a startcode whose end is not
+     * in the current buffer. Return the offset of the
+     * earliest element that may belong to a startcode. */
+    for (buf = end; buf > (end - start > 3 ? end - 3 : start); buf--)
+        if (buf[-1])
             break;
+
+    return buf - start;
+
+found_startcode:
+    /* buf points to the byte preceding a startcode's 0x01.
+     * Check whether it is a four-byte startcode. */
+
+    buf -= 1;
+    if (buf > start && buf[-1] == 0)
+        buf--;
+
     return buf - start;
 }
