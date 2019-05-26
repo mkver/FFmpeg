@@ -49,13 +49,15 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
         }                                                                      \
     } while (0)
 
-#define MAIN_LOOP(bitness, mask1, mask2) do {                                  \
-        for (i = 1; i < size - bitness / 8 + 1; ) {                            \
+#define MAIN_LOOP(bitness, mask1, mask2, aligned) do {                         \
+        for (i = 1 + !aligned; i < size - bitness / 8 + 1; ) {                 \
             if (!((~READ(bitness)(buf + i) & (READ(bitness)(buf + i) - mask1)) \
                                            & mask2)) {                         \
-                i += bitness / 8;                                              \
+                i += bitness / 8 + 2 * !aligned;                               \
                 continue;                                                      \
             }                                                                  \
+            if (buf[i] == 1)                                                   \
+                goto startcode_check;                                          \
             /* No bounds check is necessary here as the bytes
              * just read are known to contain a zero. */                       \
             while (buf[i])                                                     \
@@ -65,6 +67,7 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
                 if (++i == size)                                               \
                     goto reached_end;                                          \
             } while (!buf[i]);                                                 \
+        startcode_check:                                                       \
             STARTCODE_AND_ALIGNMENT_CHECK(bitness);                            \
         }                                                                      \
     } while (0)
@@ -74,19 +77,14 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
 #define READ(bitness) AV_RN ## bitness
 #define STARTCODE_AND_ALIGNMENT_CHECK(bitness) do {                            \
         STARTCODE_CHECK;                                                       \
-        /* After STARTCODE_CHECK, i is the index of the lowest position
-         * that might contain the 0x01 in a startcode, but our masks
-         * can only detect zeros. So decrement i so that at least
-         * one zero of the startcode is not jumped over. */                    \
-        i--;                                                                   \
     } while (0)
 
 #if HAVE_FAST_64BIT
-    MAIN_LOOP(64, 0x0101010101010101ULL, 0x8080808080808080ULL);
+    MAIN_LOOP(64, 0x0100010100100102ULL, 0x8080008080080080ULL, 0);
 #else
     MAIN_LOOP(32, 0x01010101U, 0x80808080U);
 #endif
-#else
+#else 
 #define READ(bitness) AV_RN ## bitness ## A
 #define STARTCODE_AND_ALIGNMENT_CHECK(bitness) do {                            \
         j = i + bitness / 8 - (uintptr_t)(buf + i) % (bitness / 8);            \
@@ -98,11 +96,9 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
     } while (0)
 
     i = 2;
-    j = i + bitness / 8 - (uintptr_t)(buf + i) % (bitness / 8);
-    if (j >= size)
-    goto alignment;
+
 #if HAVE_FAST_64BIT
-    MAIN_LOOP(64, 0x0101010101010101ULL, 0x8080808080808080ULL);
+    MAIN_LOOP(64, 0x0010010100100101ULL, 0x8008008080080080ULL, 1);
 #else
     MAIN_LOOP(32, 0x01010101U, 0x80808080U);
 #endif
