@@ -74,10 +74,8 @@ typedef struct VC1DSPContext {
                                      int alpha, int width);
 
     /**
-     * Search buf from the start for up to size bytes. Return the index
-     * of a zero byte, or >= size if not found. Ideally, use lookahead
-     * to filter out any zero bytes that are known to not be followed by
-     * one or more further zero bytes and a one byte.
+     * Search buf from the start for up to size bytes. Return the first 0x00
+     * that might be part of a (three or four) byte startcode.
      */
     int (*startcode_find_candidate)(const uint8_t *buf, int size);
 } VC1DSPContext;
