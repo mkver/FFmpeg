@@ -28,45 +28,49 @@
 #include "startcode.h"
 #include "config.h"
 #include "libavutil/intreadwrite.h"
+#include "libavutil/common.h"
+
+#include "libavutil/log.h"
 
 int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
 {
-    int i, j;
+//    int i, j;
+    const uint8_t *start = buf, *end = buf + size;
 
     /* If the 0x01 of a startcode is at position i,
      * the following check detects it. Requires i >= 2.
      * This requirement is always fulfilled, because i
      * starts at 1 and gets incremented at least once more.*/
 #define STARTCODE_CHECK do {                                                   \
-        if (buf[i] > 1) {                                                      \
-            i += 3;                                                            \
-        } else if (buf[i - 1] > 0) {                                           \
-            i += 2;                                                            \
-        } else if (buf[i - 2] > 0 || buf[i] != 1) {                            \
-            i += 1;                                                            \
+        if (*buf > 1) {                                                      \
+            buf += 3;                                                            \
+        } else if (buf[-1]) {                                           \
+            buf += 2;                                                            \
+        } else if (buf[-2] || *buf != 1) {                            \
+            buf += 1;                                                            \
         } else {                                                               \
             goto found_startcode;                                              \
         }                                                                      \
     } while (0)
 
 #define MAIN_LOOP(bitness, mask1, mask2, aligned) do {                         \
-        for (i = 1 + !aligned; i < size - bitness / 8 + 1; ) {                 \
-            if (!((~READ(bitness)(buf + i) & (READ(bitness)(buf + i) - mask1)) \
+        for (buf += 1 + !aligned; buf <= end - bitness / 8; ) {          \
+            if (!((~READ(bitness)(buf) & (READ(bitness)(buf) - mask1)) \
                                            & mask2)) {                         \
-                i += bitness / 8 + 2 * !aligned;                               \
+                buf += bitness / 8 + 2 * !aligned;                               \
                 continue;                                                      \
-            }                                                                  \
-            if (buf[i] == 1)                                                   \
+            } /*av_log(NULL, AV_LOG_WARNING, "buf - end: %d\n",(int)(buf-start)); */                                                                \
+            if (*buf == 1)                                                   \
                 goto startcode_check;                                          \
             /* No bounds check is necessary here as the bytes
              * just read are known to contain a zero. */                       \
-            while (buf[i])                                                     \
-                i++;                                                           \
+            while (*buf)                                                     \
+                buf++;                                                           \
             /* Go to the first nonzero */                                      \
             do {                                                               \
-                if (++i == size)                                               \
+                if (++buf == end)                                             \
                     goto reached_end;                                          \
-            } while (!buf[i]);                                                 \
+            } while (!*buf);                                                 \
         startcode_check:                                                       \
             STARTCODE_AND_ALIGNMENT_CHECK(bitness);                            \
         }                                                                      \
@@ -104,12 +108,8 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
 #endif
 #endif
 
-    if (i < size) {
-        if (i == 1)
-            i++;
-        while (i < size)
+        while (buf < end)
             STARTCODE_CHECK;
-    }
 
 
 reached_end:
@@ -118,20 +118,19 @@ reached_end:
      * in the current buffer. Return the offset of the
      * earliest element that may belong to a startcode. */
 
-    j = size > 3 ? size - 3 : 0;
-    for (i = size; i > j; i--)
-        if (buf[i - 1])
+    for (buf = end; buf > FFMAX(start, end - 3); buf--)
+        if (buf[-1])
             break;
 
-    return i;
+    return buf - start;
 
 found_startcode:
     /* i is the position of a startcode's 0x01. We have to
      * check whether it is a four-byte startcode. */
 
-     i -= 2;
-     if (i > 0 && buf[i - 1] == 0)
-         i--;
+     buf -= 2;
+     if (buf > start && buf[-1] == 0)
+         buf--;
 
-     return i;
+     return buf - start;
 }
