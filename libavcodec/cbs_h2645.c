@@ -1436,12 +1436,92 @@ static int cbs_h2645_write_nal_unit(CodedBitstreamContext *ctx,
     return 0;
 }
 
+static int find_escapes(const uint8_t *start, const uint8_t *end)
+{
+    const uint8_t *buf = start + 1, *temp;
+
+#define INITIALIZATION(mod) do {                                           \
+        if (end - start <= mod + 1)                                        \
+            goto near_end;                                                 \
+        /* From this point on until the end of the MAIN_LOOP,              \
+         * buf is the earliest possible position of a 0x00                 \
+         * immediately preceding a startcode's 0x01, i.e.                  \
+         * everything from start to buf (inclusive) is known               \
+         * to not contain a startcode's 0x01. */                           \
+        temp = (const uint8_t *)((uintptr_t)(buf + mod - 1) / mod * mod);  \
+        goto escape_check;                                                 \
+    } while (0)
+
+#define READ(bitness) AV_RN ## bitness ## A
+#define STARTCODE_CHECK do { \
+        if (buf[1] > 3) {                                                  \
+            buf += 3;                                                      \
+        } else if (buf[0]) {                                               \
+            buf += 2;                                                      \
+        } else if (buf[-1]) {                                              \
+            buf += 1;                                                      \
+        } else                                                             \
+            return buf + 1 - start;                                        \
+    } while (0)
+
+    /* The MAIN_LOOP tries to read several bytes at once.
+     * A startcode's 0x00 0x01 or 0x00 0x00 will be detected
+     * by it if these bytes are contained within the bytes
+     * read at once. */
+#define MAIN_LOOP(bitness, mask1, mask2) do {                              \
+        for (; buf < end - bitness / 8; ) {                                \
+            if (!((~READ(bitness)(buf) & (READ(bitness)(buf) - mask1))     \
+                                       &  mask2)) {                        \
+                buf += bitness / 8;                                        \
+                continue;                                                  \
+            }                                                              \
+            temp = buf + bitness / 8;                                      \
+            /* If the 0x01 of a startcode is at position buf + 1,          \
+             * the following check detects it.                             \
+             * Because buf gets incremented before entering this           \
+             * loop, buf - 1 may be evaluated.                             \
+             * Because temp + 1 < end, buf is always <= end during         \
+             * the closing check so that the pointer comparison is         \
+             * defined. */                                                 \
+        escape_check:                                                      \
+            do {                                                           \
+                STARTCODE_CHECK;                                           \
+            } while (buf < temp);                                          \
+            buf = temp;                                                    \
+        }                                                                  \
+    } while (0)
+
+#if HAVE_FAST_64BIT
+    INITIALIZATION(8);
+#if HAVE_BIGENDIAN
+    MAIN_LOOP(64, 0x0004000400040004ULL, 0x8000800080008000ULL);
+#else
+    MAIN_LOOP(64, 0x0010010100100101ULL, 0x8008008080080080ULL);
+#endif
+#else
+    INITIALIZATION(4);
+#if HAVE_BIGENDIAN
+    MAIN_LOOP(32, 0x00040004U, 0x80008000U);
+#else
+    MAIN_LOOP(32, 0x00100101U, 0x80080080U);
+#endif
+#endif
+
+near_end:
+    if (buf < end - 1) {
+        temp = end - 1;
+        goto escape_check;
+    }
+
+    return end - start;
+}
+
 static int cbs_h2645_assemble_fragment(CodedBitstreamContext *ctx,
                                        CodedBitstreamFragment *frag)
 {
     uint8_t *data;
-    size_t max_size, dp, sp;
-    int err, i, zero_run;
+    size_t max_size, dp;
+    int err, i;
 
     for (i = 0; i < frag->nb_units; i++) {
         // Data should already all have been written when we get here.
@@ -1461,6 +1541,7 @@ static int cbs_h2645_assemble_fragment(CodedBitstreamContext *ctx,
     dp = 0;
     for (i = 0; i < frag->nb_units; i++) {
         CodedBitstreamUnit *unit = &frag->units[i];
+        const uint8_t *buf = unit->data, *end = unit->data + unit->data_size;
 
         if (unit->data_bit_padding > 0) {
             if (i < frag->nb_units - 1)
@@ -1486,21 +1567,16 @@ static int cbs_h2645_assemble_fragment(CodedBitstreamContext *ctx,
         data[dp++] = 0;
         data[dp++] = 1;
 
-        zero_run = 0;
-        for (sp = 0; sp < unit->data_size; sp++) {
-            if (zero_run < 2) {
-                if (unit->data[sp] == 0)
-                    ++zero_run;
-                else
-                    zero_run = 0;
-            } else {
-                if ((unit->data[sp] & ~3) == 0) {
-                    // emulation_prevention_three_byte
-                    data[dp++] = 3;
-                }
-                zero_run = unit->data[sp] == 0;
-            }
-            data[dp++] = unit->data[sp];
+        goto find;
+
+        while (buf < end) {
+            int length;
+            data[dp++] = 3;
+        find:
+            length = find_escapes(buf, end);
+            memcpy(data + dp, buf, length);
+            buf += length;
+            dp  += length;
         }
     }
 
