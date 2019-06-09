@@ -2746,6 +2746,9 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
         do_streamcopy(ist, ost, pkt);
     }
 
+    if (!pkt && !ist->decoding_needed)
+        eof_reached = 1;
+
     return !eof_reached;
 }
 
@@ -4309,11 +4312,10 @@ static int process_input(int file_index)
 
         for (i = 0; i < ifile->nb_streams; i++) {
             ist = input_streams[ifile->ist_index + i];
-            if (ist->decoding_needed) {
-                ret = process_input_packet(ist, NULL, 0);
-                if (ret>0)
-                    return 0;
-            }
+            ret = process_input_packet(ist, NULL, 0);
+
+            if (ret>0)
+                return 0;
 
             /* mark all outputs that don't go through lavfi as finished */
             for (j = 0; j < nb_output_streams; j++) {
