@@ -113,7 +113,8 @@ typedef struct mkv_track {
     int64_t         last_timestamp;
     int64_t         duration;
     int64_t         duration_offset;
-    int64_t         codecpriv_offset;
+    int             codecpriv_offset;
+    int             codecpriv_size;
     int64_t         ts_offset;
 } mkv_track;
 
@@ -763,7 +764,7 @@ static int mkv_write_native_codecprivate(AVFormatContext *s, AVIOContext *pb,
 }
 
 static int mkv_write_codecprivate(AVFormatContext *s, AVIOContext *pb,
-                                  AVCodecParameters *par,
+                                  AVCodecParameters *par, int *size,
                                   int native_id, int qt_id)
 {
     AVIOContext *dyn_cp;
@@ -824,10 +825,29 @@ static int mkv_write_codecprivate(AVFormatContext *s, AVIOContext *pb,
 
     if (ret >= 0) {
         codecpriv_size = avio_get_dyn_buf(dyn_cp, &codecpriv);
-        if ((ret = dyn_cp->error) >= 0 && codecpriv_size)
-            put_ebml_binary(pb, MATROSKA_ID_CODECPRIVATE, codecpriv,
-                            codecpriv_size);
+        if ((ret = dyn_cp->error) >= 0 && codecpriv_size) {
+            int sizediff = 0;
+
+            if (*size) {
+                int oldsize = ebml_num_size(*size) + *size;
+                int newsize = ebml_num_size(codecpriv_size) + codecpriv_size;
+                sizediff = oldsize - newsize;
+            }
+            if (!*size || sizediff == 0 || sizediff > 1) {
+                put_ebml_binary(pb, MATROSKA_ID_CODECPRIVATE, codecpriv,
+                                codecpriv_size);
+                if (*size && sizediff)
+                    put_ebml_void(pb, sizediff);
+                if (!*size)
+                    *size = codecpriv_size;
+            } else {
+                av_log(s, AV_LOG_ERROR, "Can't update CodecPrivate as "
+                       "not enough size has been reserved for it.\n");
+                ret = AVERROR(EINVAL);
+            }
+        }
     }
+
     ffio_free_dyn_buf(&dyn_cp);
     return ret;
 }
@@ -1381,7 +1401,8 @@ static int mkv_write_track(AVFormatContext *s, MatroskaMuxContext *mkv,
 
     if (mkv->mode != MODE_WEBM || par->codec_id != AV_CODEC_ID_WEBVTT) {
         track->codecpriv_offset = avio_tell(pb);
-        ret = mkv_write_codecprivate(s, pb, par, native_id, qt_id);
+        ret = mkv_write_codecprivate(s, pb, par, &track->codecpriv_size,
+                                     native_id, qt_id);
         if (ret < 0)
             return ret;
     }
@@ -2235,7 +2256,7 @@ static int mkv_check_new_extra_data(AVFormatContext *s, const AVPacket *pkt)
                 return ret;
             memcpy(par->extradata, side_data, side_data_size);
             avio_seek(mkv->track.bc, track->codecpriv_offset, SEEK_SET);
-            mkv_write_codecprivate(s, mkv->track.bc, par, 1, 0);
+            mkv_write_codecprivate(s, mkv->track.bc, par, &(int) { 0 }, 1, 0);
             filler = MAX_PCE_SIZE + 2 + 4 - (avio_tell(mkv->track.bc) - track->codecpriv_offset);
             if (filler)
                 put_ebml_void(mkv->track.bc, filler);
@@ -2249,17 +2270,22 @@ static int mkv_check_new_extra_data(AVFormatContext *s, const AVPacket *pkt)
         }
         break;
     case AV_CODEC_ID_FLAC:
+    case AV_CODEC_ID_H264:
         if (side_data_size && mkv->track.bc) {
             uint8_t *old_extradata = par->extradata;
-            if (side_data_size != par->extradata_size) {
+            int old_extradata_size = par->extradata_size;
+            if (par->codec_id == AV_CODEC_ID_FLAC && side_data_size != par->extradata_size) {
                 av_log(s, AV_LOG_ERROR, "Invalid FLAC STREAMINFO metadata for output stream %d\n",
                        pkt->stream_index);
                 return AVERROR(EINVAL);
             }
             par->extradata = side_data;
+            par->extradata_size = side_data_size;
             avio_seek(mkv->track.bc, track->codecpriv_offset, SEEK_SET);
-            mkv_write_codecprivate(s, mkv->track.bc, par, 1, 0);
+            mkv_write_codecprivate(s, mkv->track.bc, par,
+                                   &track->codecpriv_size, 1, 0);
             par->extradata = old_extradata;
+            par->extradata_size = old_extradata_size;
         }
         break;
     // FIXME: Remove the following once libaom starts propagating extradata during init()
@@ -2454,11 +2480,12 @@ static int mkv_write_packet(AVFormatContext *s, const AVPacket *pkt)
 
     // buffer an audio packet to ensure the packet containing the video
     // keyframe's timecode is contained in the same cluster for WebM
-    if (codec_type == AVMEDIA_TYPE_AUDIO) {
-        if (pkt->size > 0)
+    if (pkt->size > 0) {
+        if (codec_type == AVMEDIA_TYPE_AUDIO) {
             ret = av_packet_ref(mkv->cur_audio_pkt, pkt);
-    } else
-        ret = mkv_write_packet_internal(s, pkt);
+        } else
+            ret = mkv_write_packet_internal(s, pkt);
+    }
     return ret;
 }
 
