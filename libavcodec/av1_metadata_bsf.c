@@ -54,7 +54,9 @@ typedef struct AV1MetadataContext {
 
 
 static int av1_metadata_update_sequence_header(AVBSFContext *bsf,
-                                               AV1RawSequenceHeader *seq)
+                                               AV1RawSequenceHeader *seq,
+                                               int *color_range,
+                                               int *chroma_sample_position)
 {
     AV1MetadataContext *ctx = bsf->priv_data;
     AV1RawColorConfig  *clc = &seq->color_config;
@@ -81,6 +83,8 @@ static int av1_metadata_update_sequence_header(AVBSFContext *bsf,
                    "on RGB streams encoded in BT.709 sRGB.\n");
         } else {
             clc->color_range = ctx->color_range;
+            if (color_range)
+                *color_range = ctx->color_range + 1;
         }
     }
 
@@ -90,6 +94,8 @@ static int av1_metadata_update_sequence_header(AVBSFContext *bsf,
                    "can only be set for 4:2:0 streams.\n");
         } else {
             clc->chroma_sample_position = ctx->chroma_sample_position;
+            if (chroma_sample_position)
+                *chroma_sample_position = ctx->chroma_sample_position;
         }
     }
 
@@ -135,7 +141,8 @@ static int av1_metadata_update_side_data(AVBSFContext *bsf, AVPacket *pkt)
     for (i = 0; i < frag->nb_units; i++) {
         if (frag->units[i].type == AV1_OBU_SEQUENCE_HEADER) {
             AV1RawOBU *obu = frag->units[i].content;
-            err = av1_metadata_update_sequence_header(bsf, &obu->obu.sequence_header);
+            err = av1_metadata_update_sequence_header(bsf, &obu->obu.sequence_header,
+                                                      NULL, NULL);
             if (err < 0)
                 return err;
         }
@@ -187,7 +194,8 @@ static int av1_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     for (i = 0; i < frag->nb_units; i++) {
         if (frag->units[i].type == AV1_OBU_SEQUENCE_HEADER) {
             obu = frag->units[i].content;
-            err = av1_metadata_update_sequence_header(bsf, &obu->obu.sequence_header);
+            err = av1_metadata_update_sequence_header(bsf, &obu->obu.sequence_header,
+                                                      NULL, NULL);
             if (err < 0)
                 goto fail;
         }
@@ -238,7 +246,7 @@ static int av1_metadata_init(AVBSFContext *bsf)
     AV1MetadataContext *ctx = bsf->priv_data;
     CodedBitstreamFragment *frag = &ctx->access_unit;
     AV1RawOBU *obu;
-    int err, i;
+    int err, i, color_range = -1, chroma_sample_position = -1;
 
     err = ff_cbs_init(&ctx->input, AV_CODEC_ID_AV1, bsf);
     if (err < 0)
@@ -257,7 +265,8 @@ static int av1_metadata_init(AVBSFContext *bsf)
         for (i = 0; i < frag->nb_units; i++) {
             if (frag->units[i].type == AV1_OBU_SEQUENCE_HEADER) {
                 obu = frag->units[i].content;
-                err = av1_metadata_update_sequence_header(bsf, &obu->obu.sequence_header);
+                err = av1_metadata_update_sequence_header(bsf, &obu->obu.sequence_header,
+                                                          &color_range, &chroma_sample_position);
                 if (err < 0)
                     goto fail;
             }
@@ -269,6 +278,22 @@ static int av1_metadata_init(AVBSFContext *bsf)
             goto fail;
         }
     }
+
+    if (chroma_sample_position >= 0) {
+        static const uint8_t conversion_table[4] = {
+            AVCHROMA_LOC_UNSPECIFIED,
+            AVCHROMA_LOC_LEFT,
+            AVCHROMA_LOC_TOPLEFT,
+            AVCHROMA_LOC_UNSPECIFIED
+        };
+        chroma_sample_position = conversion_table[chroma_sample_position];
+    }
+
+    ff_cbs_update_video_parameters(ctx->output, bsf->par_out, -1, -1, -1, -1,
+                                   -1, color_range, ctx->color_primaries,
+                                   ctx->transfer_characteristics,
+                                   ctx->matrix_coefficients,
+                                   chroma_sample_position, -1);
 
     err = 0;
 fail:
