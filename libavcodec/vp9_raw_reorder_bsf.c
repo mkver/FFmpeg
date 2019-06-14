@@ -334,12 +334,14 @@ static int vp9_raw_reorder_filter(AVBSFContext *bsf, AVPacket *out)
     for (s = 0; s < FRAME_SLOTS; s++) {
         if (!(frame->refresh_frame_flags & (1 << s)))
             continue;
-        if (ctx->slot[s] && ctx->slot[s]->needs_display &&
+        if (ctx->slot[s] && (ctx->slot[s]->needs_display ||
+                             ctx->slot[s]->needs_output) &&
             ctx->slot[s]->slots == (1 << s)) {
-            // We are overwriting this slot, which is last reference
-            // to the frame previously present in it.  In order to be
-            // a valid stream, that frame must already have been
-            // displayed before the pts of the current frame.
+            // We are overwriting this slot which is the last reference
+            // to the frame present or once present in it.  In order to
+            // be a valid stream, that frame and/or a show_existing_frame
+            // corresponding to said frame must be output before the next
+            // frame.
             err = vp9_raw_reorder_make_output(bsf, out, ctx->slot[s]);
             if (err < 0) {
                 av_log(bsf, AV_LOG_ERROR, "Failed to create "
