@@ -376,7 +376,7 @@ static int vp9_raw_reorder_filter(AVBSFContext *bsf, AVPacket *out)
             av_log(bsf, AV_LOG_ERROR, "Failed to create output "
                    "for transient frame.\n");
             ctx->next_frame = NULL;
-            return AVERROR_INVALIDDATA;
+            goto fail;
         }
         if (!frame->needs_display) {
             vp9_raw_reorder_frame_free(&frame);
@@ -397,9 +397,9 @@ static void vp9_raw_reorder_close_flush(AVBSFContext *bsf)
 {
     VP9RawReorderContext *ctx = bsf->priv_data;
 
+    vp9_raw_reorder_frame_free(&ctx->next_frame);
     for (int s = 0; s < FRAME_SLOTS; s++)
         vp9_raw_reorder_clear_slot(ctx, s);
-    ctx->next_frame = NULL;
     ctx->sequence = 0;
 }
 
