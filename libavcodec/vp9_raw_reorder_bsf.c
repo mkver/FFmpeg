@@ -363,27 +363,30 @@ static int vp9_raw_reorder_filter(AVBSFContext *bsf, AVPacket *out)
         vp9_raw_reorder_clear_slot(ctx, s);
     }
 
+    // If the new frame is a frame that ought to be shown immediately,
+    // then we can already output the current frame and all frames
+    // preceding the current frame in decoding order as well as all
+    // outstanding show_existing_frame-frames corresponding to frames
+    // whose pts is < the pts of the current frame.
+    if (frame->needs_output && (!frame->refresh_frame_flags ||
+                                 frame->show_frame)) {
+        err = vp9_raw_reorder_make_output(bsf, out, frame);
+        if (err < 0) {
+            av_log(bsf, AV_LOG_ERROR, "Failed to create output.\n");
+            ctx->next_frame = NULL;
+            goto fail;
+        }
+        if (!frame->refresh_frame_flags && !frame->needs_output)
+            vp9_raw_reorder_frame_free(&ctx->next_frame);
+        return 0;
+    }
+
     for (s = 0; s < FRAME_SLOTS; s++) {
         if (!(frame->refresh_frame_flags & (1 << s)))
             continue;
         ctx->slot[s] = frame;
     }
     frame->slots = frame->refresh_frame_flags;
-
-    if (!frame->refresh_frame_flags) {
-        err = vp9_raw_reorder_make_output(bsf, out, frame);
-        if (err < 0) {
-            av_log(bsf, AV_LOG_ERROR, "Failed to create output "
-                   "for transient frame.\n");
-            ctx->next_frame = NULL;
-            goto fail;
-        }
-        if (!frame->needs_display) {
-            vp9_raw_reorder_frame_free(&frame);
-            ctx->next_frame = NULL;
-        }
-        return 0;
-    }
 
     ctx->next_frame = NULL;
     return AVERROR(EAGAIN);
