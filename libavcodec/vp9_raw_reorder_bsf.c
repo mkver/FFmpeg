@@ -198,8 +198,7 @@ static int vp9_raw_reorder_make_output(AVBSFContext *bsf,
     else
         frame = next_display;
 
-    if (frame->needs_output && frame->needs_display &&
-        next_output == next_display) {
+    if (frame->needs_output && frame->show_frame) {
         av_log(bsf, AV_LOG_DEBUG, "Output and display frame "
                "%"PRId64" (%"PRId64") in order.\n",
                frame->sequence, frame->pts);
@@ -316,7 +315,14 @@ static int vp9_raw_reorder_filter(AVBSFContext *bsf, AVPacket *out)
         }
 
         frame->needs_output  = 1;
-        frame->needs_display = frame->pts != AV_NOPTS_VALUE;
+        if (frame->pts != AV_NOPTS_VALUE) {
+            frame->needs_display = 1;
+        } else if (frame->show_frame) {
+            av_log(bsf, AV_LOG_ERROR, "Encountered show_frame "
+                   "without pts.\n");
+            err = AVERROR_INVALIDDATA;
+            goto fail;
+        }
 
         if (frame->show_existing_frame)
             av_log(bsf, AV_LOG_DEBUG, "Show frame %"PRId64" "
