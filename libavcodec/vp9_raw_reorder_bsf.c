@@ -49,6 +49,7 @@ typedef struct VP9RawReorderFrame {
 
 typedef struct VP9RawReorderContext {
     int64_t sequence;
+    int     outstanding_show_existing_frames;
     VP9RawReorderFrame *slot[FRAME_SLOTS];
     VP9RawReorderFrame *next_frame;
 } VP9RawReorderContext;
@@ -64,9 +65,12 @@ static void vp9_raw_reorder_clear_slot(VP9RawReorderContext *ctx, int s)
 {
     if (ctx->slot[s]) {
         ctx->slot[s]->slots &= ~(1 << s);
-        if (ctx->slot[s]->slots == 0)
+        if (ctx->slot[s]->slots == 0) {
+            if (ctx->slot[s]->needs_display)
+                ctx->outstanding_show_existing_frames--;
+
             vp9_raw_reorder_frame_free(&ctx->slot[s]);
-        else
+        } else
             ctx->slot[s] = NULL;
     }
 }
@@ -268,6 +272,7 @@ static int vp9_raw_reorder_make_output(AVBSFContext *bsf,
         out->pts = out->dts = frame->pts;
 
         frame->needs_display = 0;
+        ctx->outstanding_show_existing_frames--;
     }
 
     return 0;
@@ -368,8 +373,11 @@ static int vp9_raw_reorder_filter(AVBSFContext *bsf, AVPacket *out)
     // preceding the current frame in decoding order as well as all
     // outstanding show_existing_frame-frames corresponding to frames
     // whose pts is < the pts of the current frame.
+    // Similarly, if there are no outstanding show_existing_frames,
+    // we can also output right away.
     if (frame->needs_output && (!frame->refresh_frame_flags ||
-                                 frame->show_frame)) {
+                                 frame->show_frame          ||
+                                !ctx->outstanding_show_existing_frames)) {
         err = vp9_raw_reorder_make_output(bsf, out, frame);
         if (err < 0) {
             av_log(bsf, AV_LOG_ERROR, "Failed to create output.\n");
@@ -387,6 +395,8 @@ static int vp9_raw_reorder_filter(AVBSFContext *bsf, AVPacket *out)
         ctx->slot[s] = frame;
     }
     frame->slots = frame->refresh_frame_flags;
+    if (frame->needs_display)
+        ctx->outstanding_show_existing_frames++;
 
     ctx->next_frame = NULL;
     return AVERROR(EAGAIN);
@@ -404,6 +414,7 @@ static void vp9_raw_reorder_close_flush(AVBSFContext *bsf)
     for (int s = 0; s < FRAME_SLOTS; s++)
         vp9_raw_reorder_clear_slot(ctx, s);
     ctx->sequence = 0;
+    ctx->outstanding_show_existing_frames = 0;
 }
 
 static const enum AVCodecID vp9_raw_reorder_codec_ids[] = {
