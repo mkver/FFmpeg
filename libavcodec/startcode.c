@@ -30,28 +30,29 @@
 
 int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
 {
-    int i = 0;
-#if HAVE_FAST_UNALIGNED
-    /* we check i < size instead of i + 3 / 7 because it is
-     * simpler and there must be AV_INPUT_BUFFER_PADDING_SIZE
-     * bytes at the end.
-     */
-#if HAVE_FAST_64BIT
-    while (i < size &&
-            !((~*(const uint64_t *)(buf + i) &
-                    (*(const uint64_t *)(buf + i) - 0x0101010101010101ULL)) &
-                    0x8080808080808080ULL))
-        i += 8;
-#else
-    while (i < size &&
-            !((~*(const uint32_t *)(buf + i) &
-                    (*(const uint32_t *)(buf + i) - 0x01010101U)) &
-                    0x80808080U))
-        i += 4;
-#endif
-#endif
-    for (; i < size; i++)
-        if (!buf[i])
+    const uint8_t *start = buf, *end = start + size;
+
+    buf += 2;
+    while (buf < end) {
+        if (buf[0] > 1) {
+            buf += 3;
+        } else if (buf[-1]) {
+            buf += 2;
+        } else if (buf[-2] | (buf[0] == 0))
+            buf++;
+        else
+            goto found_startcode;
+    }
+
+    for (buf = end; buf > (end - start > 3 ? end - 3 : start); buf--)
+        if (buf[-1])
             break;
-    return i;
+
+    return buf - start;
+
+found_startcode:
+    buf -= 2;
+    if (start < buf && (buf[-1] == 0))
+        buf--;
+    return buf - start;
 }
