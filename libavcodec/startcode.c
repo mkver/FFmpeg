@@ -34,6 +34,7 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
     const uint8_t *start = buf, *end = buf + size;
 
 #if HAVE_FAST_UNALIGNED
+    ++buf;
 #define READ(bitness) AV_RN ## bitness
 #define MAIN_LOOP(bitness, mask1, mask2) do {                              \
         /* we check p < end instead of p + 3 / 7 because it is
@@ -46,10 +47,20 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
     } while (0)
 
 #if HAVE_FAST_64BIT
-    MAIN_LOOP(64, 0x0101010101010101ULL, 0x8080808080808080ULL);
+#if HAVE_BIGENDIAN
+    MAIN_LOOP(64, 0x0002000200020002ULL, 0x8000800080008000ULL);
 #else
-    MAIN_LOOP(32, 0x01010101U, 0x80808080U);
+    MAIN_LOOP(64, 0x0010010100100101ULL, 0x8008008080080080ULL);
 #endif
+#else
+#if HAVE_BIGENDIAN
+    MAIN_LOOP(32, 0x00020002U, 0x80008000U);
+#else
+    MAIN_LOOP(32, 0x00100101U, 0x80080080U);
+#endif
+#endif
+
+    buf--;
 #endif
     for (; buf < end; buf++)
         if (!*buf)
