@@ -27,22 +27,27 @@
 
 #include "startcode.h"
 #include "config.h"
+#include "libavutil/intreadwrite.h"
 
 int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
 {
     const uint8_t *start = buf, *end = start + size;
 
-    buf += 2;
+#if HAVE_FAST_UNALIGNED && !HAVE_BIG_ENDIAN
     while (buf < end) {
-        if (buf[0] > 1) {
+        uint32_t val = AV_RN32(buf);
+        if (val & 0xfe0000) {
             buf += 3;
-        } else if (buf[-1]) {
+        } else if (val & 0xff00) {
             buf += 2;
-        } else if (buf[-2] | (buf[0] == 0))
+        } else if ((val & 0xff) || !(val & 0x10000))
             buf++;
         else
             goto found_startcode;
     }
+#else
+    int not_implemented_yet[-1];
+#endif
 
     for (buf = end; buf > (end - start > 3 ? end - 3 : start); buf--)
         if (buf[-1])
@@ -51,7 +56,6 @@ int ff_startcode_find_candidate_c(const uint8_t *buf, int size)
     return buf - start;
 
 found_startcode:
-    buf -= 2;
     if (start < buf && (buf[-1] == 0))
         buf--;
     return buf - start;
