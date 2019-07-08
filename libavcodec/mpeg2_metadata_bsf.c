@@ -26,10 +26,18 @@
 #include "cbs_mpeg2.h"
 #include "mpeg12.h"
 
+enum {
+    PROGRESSIVE_FRAMES   =   1 << 0,
+    SWAP_TBFF            =   1 << 1,
+    NO_REPEAT            =   1 << 2,
+    PROGRESSIVE_SEQUENCE =   1 << 3,
+};
+
 typedef struct MPEG2MetadataContext {
     const AVClass *class;
 
     CodedBitstreamContext *cbc;
+    CodedBitstreamContext *cbc_out;
     CodedBitstreamFragment fragment;
 
     MPEG2RawExtensionData sequence_display_extension;
@@ -37,6 +45,8 @@ typedef struct MPEG2MetadataContext {
     AVRational display_aspect_ratio;
 
     AVRational frame_rate;
+
+    int flags;
 
     int video_format;
     int colour_primaries;
@@ -82,6 +92,17 @@ static int mpeg2_metadata_update_fragment(AVBSFContext *bsf,
             ctx->mpeg1_warned = 1;
         }
         return 0;
+    }
+
+    if (ctx->flags & PROGRESSIVE_SEQUENCE) {
+        if (!se->progressive_sequence) {
+            if ((sh->vertical_size_value + 15) / 16 & 1U) {
+                av_log(bsf, AV_LOG_ERROR, "16 or more pixels of vertical "
+                       "padding are incompatible with progressive_sequence.\n");
+                return AVERROR(EINVAL);
+            }
+            se->progressive_sequence = 1;
+        }
     }
 
     if (ctx->display_aspect_ratio.num && ctx->display_aspect_ratio.den) {
@@ -191,8 +212,66 @@ static int mpeg2_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         av_log(bsf, AV_LOG_ERROR, "Failed to update frame fragment.\n");
         goto fail;
     }
+    if (ctx->flags & (PROGRESSIVE_FRAMES|SWAP_TBFF|NO_REPEAT)) {
+        const CodedBitstreamMPEG2Context *mpeg2 = ctx->cbc->priv_data;
+        int change_progressive = !mpeg2->progressive_sequence && ctx->flags & PROGRESSIVE_SEQUENCE;
+        int progressive        =  mpeg2->progressive_sequence || ctx->flags & PROGRESSIVE_SEQUENCE;
 
-    err = ff_cbs_write_packet(ctx->cbc, pkt, frag);
+        for (int i = 0; i < frag->nb_units; i++) {
+            MPEG2RawExtensionData *ext;
+            MPEG2RawPictureCodingExtension *pic;
+
+            if (frag->units[i].type != MPEG2_START_EXTENSION)
+                continue;
+
+            ext = frag->units[i].content;
+            if (ext->extension_start_code_identifier != MPEG2_EXTENSION_PICTURE_CODING)
+                continue;
+
+            pic = &ext->data.picture_coding;
+
+            if (ctx->flags & PROGRESSIVE_SEQUENCE &&
+                pic->picture_structure != PICT_FRAME) {
+                av_log(bsf, AV_LOG_ERROR, "Field picture "
+                       "incompatible with progressive_sequence.\n");
+                err = AVERROR(EINVAL);
+                goto fail;
+            }
+
+            if (ctx->flags & PROGRESSIVE_SEQUENCE &&
+                !pic->frame_pred_frame_dct) {
+                av_log(bsf, AV_LOG_ERROR, "Frame with frame_pred_frame_dct"
+                       " unset incompatible with progressive_sequence.\n");
+                err = AVERROR(EINVAL);
+                goto fail;
+            }
+
+            if (change_progressive) {
+                /* Reset these flags as their semantics changes
+                 * to repeating the frames. */
+                pic->top_field_first    = 0;
+                pic->repeat_first_field = 0;
+            }
+
+            if (pic->picture_structure == PICT_FRAME) {
+                if (ctx->flags & NO_REPEAT)
+                    pic->repeat_first_field = 0;
+                if (ctx->flags & NO_REPEAT && progressive)
+                    pic->top_field_first = 0;
+                else if (ctx->flags & SWAP_TBFF && !progressive)
+                    pic->top_field_first = !pic->top_field_first;
+
+                if (ctx->flags & PROGRESSIVE_FRAMES)
+                    pic->progressive_frame = 1;
+
+                if (mpeg2->chroma_format == 1)
+                    pic->chroma_420_type = pic->progressive_frame;
+            }
+            break;
+        }
+    }
+
+    err = ff_cbs_write_packet(ctx->cbc_out, pkt, frag);
     if (err < 0) {
         av_log(bsf, AV_LOG_ERROR, "Failed to write packet.\n");
         goto fail;
@@ -212,7 +291,7 @@ static int mpeg2_metadata_init(AVBSFContext *bsf)
 {
     MPEG2MetadataContext *ctx = bsf->priv_data;
     CodedBitstreamFragment *frag = &ctx->fragment;
-    int err;
+    int err, field_order;
 
 #define VALIDITY_CHECK(name) do { \
         if (!ctx->name) { \
@@ -230,6 +309,10 @@ static int mpeg2_metadata_init(AVBSFContext *bsf)
     if (err < 0)
         return err;
 
+    err = ff_cbs_init(&ctx->cbc_out, AV_CODEC_ID_MPEG2VIDEO, bsf);
+    if (err < 0)
+        return err;
+
     if (bsf->par_in->extradata) {
         err = ff_cbs_read_extradata(ctx->cbc, frag, bsf->par_in);
         if (err < 0) {
@@ -243,15 +326,19 @@ static int mpeg2_metadata_init(AVBSFContext *bsf)
             goto fail;
         }
 
-        err = ff_cbs_write_extradata(ctx->cbc, bsf->par_out, frag);
+        err = ff_cbs_write_extradata(ctx->cbc_out, bsf->par_out, frag);
         if (err < 0) {
             av_log(bsf, AV_LOG_ERROR, "Failed to write extradata.\n");
             goto fail;
         }
     }
 
-    ff_cbs_update_video_parameters(ctx->cbc, bsf->par_out, -1, -1, -1,
-                                   -1, -1, -1, ctx->colour_primaries,
+    field_order = (ctx->flags & PROGRESSIVE_SEQUENCE)  ? AV_FIELD_PROGRESSIVE
+                : (bsf->par_out->field_order != AV_FIELD_PROGRESSIVE
+                   && ctx->flags & PROGRESSIVE_FRAMES) ? AV_FIELD_UNKNOWN : -1;
+
+    ff_cbs_update_video_parameters(ctx->cbc, bsf->par_out, -1, -1, -1, -1,
+                                   field_order, -1, ctx->colour_primaries,
                                    ctx->transfer_characteristics,
                                    ctx->matrix_coefficients, -1, -1);
 
@@ -267,6 +354,7 @@ static void mpeg2_metadata_close(AVBSFContext *bsf)
 
     ff_cbs_fragment_free(&ctx->fragment);
     ff_cbs_close(&ctx->cbc);
+    ff_cbs_close(&ctx->cbc_out);
 }
 
 #define OFFSET(x) offsetof(MPEG2MetadataContext, x)
@@ -279,6 +367,22 @@ static const AVOption mpeg2_metadata_options[] = {
     { "frame_rate", "Set frame rate",
         OFFSET(frame_rate), AV_OPT_TYPE_RATIONAL,
         { .dbl = 0.0 }, 0, UINT_MAX, FLAGS },
+
+    { "flags", "flags",
+        OFFSET(flags), AV_OPT_TYPE_FLAGS,
+        { .i64 = 0 }, 0, INT_MAX, FLAGS, "flags" },
+    { "progressive_frames", "Mark all coded frames as progressive",
+        0, AV_OPT_TYPE_CONST, { .i64 = PROGRESSIVE_FRAMES },
+        0, INT_MAX, FLAGS, "flags" },
+    { "swap_t/bff", "Swap TFF/BFF in coded frames",
+        0, AV_OPT_TYPE_CONST, { .i64 = SWAP_TBFF },
+        0, INT_MAX, FLAGS, "flags" },
+    { "no_repeat", "Set flags to not repeat fields/frames",
+        0, AV_OPT_TYPE_CONST, { .i64 = NO_REPEAT },
+        0, INT_MAX, FLAGS, "flags" },
+    { "progressive_sequence", "Mark sequence and all frames as progressive",
+        0, AV_OPT_TYPE_CONST, { .i64 = PROGRESSIVE_FRAMES|PROGRESSIVE_SEQUENCE },
+        0, INT_MAX, FLAGS, "flags" },
 
     { "video_format", "Set video format (table 6-6)",
         OFFSET(video_format), AV_OPT_TYPE_INT,

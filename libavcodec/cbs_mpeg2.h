@@ -224,6 +224,7 @@ typedef struct CodedBitstreamMPEG2Context {
     uint8_t scalable;
     uint8_t scalable_mode;
     uint8_t progressive_sequence;
+    uint8_t chroma_format;
     uint8_t number_of_frame_centre_offsets;
 } CodedBitstreamMPEG2Context;
 

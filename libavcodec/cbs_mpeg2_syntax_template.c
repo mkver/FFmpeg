@@ -103,6 +103,7 @@ static int FUNC(sequence_extension)(CodedBitstreamContext *ctx, RWContext *rw,
     mpeg2->vertical_size = (mpeg2->vertical_size & 0xfff) |
         current->vertical_size_extension << 12;
     mpeg2->progressive_sequence = current->progressive_sequence;
+    mpeg2->chroma_format = current->chroma_format;
 
     ui(12, bit_rate_extension);
     marker_bit();
