@@ -423,6 +423,30 @@ int64_t ff_guess_coded_bitrate(AVCodecContext *avctx);
  */
 int ff_int_from_list_or_default(void *ctx, const char * val_name, int val,
                                 const int * array_valid_values, int default_value);
+/**
+ * Allocate an AVBufferRef of effective size size + grow_by. In addition,
+ * the buffer will have AV_BUFFER_INPUT_PADDING_SIZE bytes of zeroed padding
+ * at the end. The addition is checked for overflow and the size restrictions
+ * are checked, too.
+ *
+ * @param buf     Pointer to pointer to an AVBufferRef. Must not be NULL;
+ *                *buf will be overwritten with the new AVBufferRef *.
+ * @param size    Must be >= 0.
+ * @param grow_by Must be so that size + grow_by >= 0.
+ * @return        Zero on success, negative error code on failure
+ */
+int ff_buffer_padded_alloc(AVBufferRef **buf, int size, int grow_by);
+
+/**
+ * Unreference the packet's buf and replace it with the given buf.
+ * The packet's data and size fields will be updated with the information
+ * from buf, too.
+ *
+ * @param pkt   Pointer to a packet to modify. Must not be NULL.
+ * @param buf   Pointer to an AVBufferRef. Must not be NULL. The
+ *              reference will be owned by pkt afterwards.
+ */
+void ff_packet_replace_buffer(AVPacket *pkt, AVBufferRef *buf);
 
 #if defined(_WIN32) && CONFIG_SHARED && !defined(BUILDING_avcodec)
 #    define av_export_avcodec __declspec(dllimport)

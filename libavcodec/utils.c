@@ -2231,3 +2231,26 @@ int ff_int_from_list_or_default(void *ctx, const char * val_name, int val,
            "%s %d are not supported. Set to default value : %d\n", val_name, val, default_value);
     return default_value;
 }
+
+int ff_buffer_padded_alloc(AVBufferRef **buf, int size, int grow_by)
+{
+    if (size < 0 || (unsigned)size + grow_by > INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE)
+        return AVERROR(EINVAL);
+
+    *buf = av_buffer_alloc(size + grow_by + AV_INPUT_BUFFER_PADDING_SIZE);
+    if (!*buf)
+        return AVERROR(ENOMEM);
+    memset((*buf)->data + size + grow_by, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+    (*buf)->size -= AV_INPUT_BUFFER_PADDING_SIZE;
+
+    return 0;
+}
+
+void ff_packet_replace_buffer(AVPacket *pkt, AVBufferRef *buf)
+{
+    av_buffer_unref(&pkt->buf);
+
+    pkt->buf  = buf;
+    pkt->data = buf->data;
+    pkt->size = buf->size;
+}
