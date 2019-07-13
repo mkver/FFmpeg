@@ -28,25 +28,22 @@
 #include "avcodec.h"
 #include "bsf.h"
 #include "bytestream.h"
+#include "internal.h"
 #include "mjpeg.h"
 
 
-static int mjpega_dump_header(AVBSFContext *ctx, AVPacket *out)
+static int mjpega_dump_header(AVBSFContext *ctx, AVPacket *pkt)
 {
-    AVPacket *in;
+    AVBufferRef *out;
     uint8_t *out_buf;
     unsigned dqt = 0, dht = 0, sof0 = 0;
     int ret = 0, i;
 
-    ret = ff_bsf_get_packet(ctx, &in);
+    ret = ff_bsf_get_packet_ref(ctx, pkt);
     if (ret < 0)
         return ret;
 
-    ret = av_new_packet(out, in->size + 44);
-    if (ret < 0)
-        goto fail;
-
-    ret = av_packet_copy_props(out, in);
+    ret = ff_buffer_padded_alloc(&out, pkt->size, 44);
     if (ret < 0)
         goto fail;
 
@@ -58,13 +55,13 @@ static int mjpega_dump_header(AVBSFContext *ctx, AVPacket *out)
     bytestream_put_be16(&out_buf, 42); /* size */
     bytestream_put_be32(&out_buf, 0);
     bytestream_put_buffer(&out_buf, "mjpg", 4);
-    bytestream_put_be32(&out_buf, in->size + 44); /* field size */
-    bytestream_put_be32(&out_buf, in->size + 44); /* pad field size */
+    bytestream_put_be32(&out_buf, pkt->size + 44); /* field size */
+    bytestream_put_be32(&out_buf, pkt->size + 44); /* pad field size */
     bytestream_put_be32(&out_buf, 0);             /* next ptr */
 
-    for (i = 0; i < in->size - 1; i++) {
-        if (in->data[i] == 0xff) {
-            switch (in->data[i + 1]) {
+    for (i = 0; i < pkt->size - 1; i++) {
+        if (pkt->data[i] == 0xff) {
+            switch (pkt->data[i + 1]) {
             case DQT:  dqt  = i + 46; break;
             case DHT:  dht  = i + 46; break;
             case SOF0: sof0 = i + 46; break;
@@ -73,27 +70,24 @@ static int mjpega_dump_header(AVBSFContext *ctx, AVPacket *out)
                 bytestream_put_be32(&out_buf, dht); /* huff off */
                 bytestream_put_be32(&out_buf, sof0); /* image off */
                 bytestream_put_be32(&out_buf, i + 46); /* scan off */
-                bytestream_put_be32(&out_buf, i + 46 + AV_RB16(in->data + i + 2)); /* data off */
-                bytestream_put_buffer(&out_buf, in->data + 2, in->size - 2); /* skip already written SOI */
+                bytestream_put_be32(&out_buf, i + 46 + AV_RB16(pkt->data + i + 2)); /* data off */
+                bytestream_put_buffer(&out_buf, pkt->data + 2, pkt->size - 2); /* skip already written SOI */
 
-                out->size = out_buf - out->data;
-                av_packet_free(&in);
+                ff_packet_replace_buffer(pkt, out);
                 return 0;
             case APP1:
-                if (i + 8 < in->size && AV_RL32(in->data + i + 8) == AV_RL32("mjpg")) {
+                if (i + 8 < pkt->size && AV_RL32(pkt->data + i + 8) == AV_RL32("mjpg")) {
                     av_log(ctx, AV_LOG_ERROR, "bitstream already formatted\n");
-                    av_packet_unref(out);
-                    av_packet_move_ref(out, in);
-                    av_packet_free(&in);
+                    av_buffer_unref(&out);
                     return 0;
                 }
             }
         }
     }
     av_log(ctx, AV_LOG_ERROR, "could not find SOS marker in bitstream\n");
+    av_buffer_unref(&out);
 fail:
-    av_packet_unref(out);
-    av_packet_free(&in);
+    av_packet_unref(pkt);
     return AVERROR_INVALIDDATA;
 }
 
