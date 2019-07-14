@@ -26,28 +26,25 @@
 #include "mpegaudiodata.h"
 
 
-static int mp3_header_decompress(AVBSFContext *ctx, AVPacket *out)
+static int mp3_header_decompress(AVBSFContext *ctx, AVPacket *pkt)
 {
-    AVPacket *in;
     uint32_t header;
     int sample_rate= ctx->par_in->sample_rate;
     int sample_rate_index=0;
     int lsf, mpeg25, bitrate_index, frame_size, ret;
+    AVBufferRef *out = NULL;
     uint8_t *buf;
     int buf_size;
 
-    ret = ff_bsf_get_packet(ctx, &in);
+    ret = ff_bsf_get_packet_ref(ctx, pkt);
     if (ret < 0)
         return ret;
 
-    buf      = in->data;
-    buf_size = in->size;
+    buf      = pkt->data;
+    buf_size = pkt->size;
 
     header = AV_RB32(buf);
     if(ff_mpa_check_header(header) >= 0){
-        av_packet_move_ref(out, in);
-        av_packet_free(&in);
-
         return 0;
     }
 
@@ -82,15 +79,10 @@ static int mp3_header_decompress(AVBSFContext *ctx, AVPacket *out)
     header |= (bitrate_index>>1)<<12;
     header |= (frame_size == buf_size + 4)<<16; //FIXME actually set a correct crc instead of 0
 
-    ret = av_new_packet(out, frame_size);
+    ret = ff_buffer_padded_realloc(&out, frame_size, 0);
     if (ret < 0)
         goto fail;
-    ret = av_packet_copy_props(out, in);
-    if (ret < 0) {
-        av_packet_unref(out);
-        goto fail;
-    }
-    memcpy(out->data + frame_size - buf_size, buf, buf_size + AV_INPUT_BUFFER_PADDING_SIZE);
+    memcpy(out->data + frame_size - buf_size, buf, buf_size);
 
     if(ctx->par_in->channels==2){
         uint8_t *p= out->data + frame_size - buf_size;
@@ -106,10 +98,13 @@ static int mp3_header_decompress(AVBSFContext *ctx, AVPacket *out)
 
     AV_WB32(out->data, header);
 
+    ff_packet_replace_buffer(pkt, out);
+
     ret = 0;
 
 fail:
-    av_packet_free(&in);
+    if (ret < 0)
+        av_packet_unref(pkt);
     return ret;
 }
 
