@@ -174,7 +174,7 @@ done:
     return res;
 }
 
-static void vp9_superframe_flush(AVBSFContext *ctx)
+static void vp9_superframe_close_flush(AVBSFContext *ctx)
 {
     VP9BSFContext *s = ctx->priv_data;
     int n;
@@ -185,16 +185,6 @@ static void vp9_superframe_flush(AVBSFContext *ctx)
     s->n_cache = 0;
 }
 
-static void vp9_superframe_close(AVBSFContext *ctx)
-{
-    VP9BSFContext *s = ctx->priv_data;
-    int n;
-
-    // unref cached data
-    for (n = 0; n < MAX_CACHE; n++)
-        av_buffer_unref(&s->cache[n]);
-}
-
 static const enum AVCodecID codec_ids[] = {
     AV_CODEC_ID_VP9, AV_CODEC_ID_NONE,
 };
@@ -203,7 +193,7 @@ const AVBitStreamFilter ff_vp9_superframe_bsf = {
     .name           = "vp9_superframe",
     .priv_data_size = sizeof(VP9BSFContext),
     .filter         = vp9_superframe_filter,
-    .flush          = vp9_superframe_flush,
-    .close          = vp9_superframe_close,
+    .flush          = vp9_superframe_close_flush,
+    .close          = vp9_superframe_close_flush,
     .codec_ids      = codec_ids,
 };
