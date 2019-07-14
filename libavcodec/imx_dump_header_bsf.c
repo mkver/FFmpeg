@@ -28,41 +28,38 @@
 #include "avcodec.h"
 #include "bsf.h"
 #include "bytestream.h"
+#include "internal.h"
 
 
-static int imx_dump_header(AVBSFContext *ctx, AVPacket *out)
+static int imx_dump_header(AVBSFContext *ctx, AVPacket *pkt)
 {
     /* MXF essence element key */
     static const uint8_t imx_header[16] = { 0x06,0x0e,0x2b,0x34,0x01,0x02,0x01,0x01,0x0d,0x01,0x03,0x01,0x05,0x01,0x01,0x00 };
 
-    AVPacket *in;
-    int ret = 0;
+    AVBufferRef *out = NULL;
+    int ret;
     uint8_t *out_buf;
 
-    ret = ff_bsf_get_packet(ctx, &in);
+    ret = ff_bsf_get_packet_ref(ctx, pkt);
     if (ret < 0)
         return ret;
 
-    ret = av_new_packet(out, in->size + 20);
-    if (ret < 0)
-        goto fail;
+    ret = ff_buffer_padded_realloc(&out, pkt->size, 20);
+    if (ret < 0) {
+        av_packet_unref(pkt);
+        return ret;
+    }
 
     out_buf = out->data;
 
     bytestream_put_buffer(&out_buf, imx_header, 16);
     bytestream_put_byte(&out_buf, 0x83); /* KLV BER long form */
-    bytestream_put_be24(&out_buf, in->size);
-    bytestream_put_buffer(&out_buf, in->data, in->size);
+    bytestream_put_be24(&out_buf, pkt->size);
+    bytestream_put_buffer(&out_buf, pkt->data, pkt->size);
 
-    ret = av_packet_copy_props(out, in);
-    if (ret < 0)
-        goto fail;
+    ff_packet_replace_buffer(pkt, out);
 
-fail:
-    if (ret < 0)
-        av_packet_unref(out);
-    av_packet_free(&in);
-    return ret;
+    return 0;
 }
 
 static const enum AVCodecID codec_ids[] = {
