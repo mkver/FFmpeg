@@ -23,14 +23,15 @@
 #include "avcodec.h"
 #include "bsf.h"
 #include "get_bits.h"
+#include "internal.h"
 
 #define MAX_CACHE 8
 typedef struct VP9BSFContext {
+    AVBufferRef *cache[MAX_CACHE];
     int n_cache;
-    AVPacket *cache[MAX_CACHE];
 } VP9BSFContext;
 
-static void stats(AVPacket * const *in, int n_in,
+static void stats(AVBufferRef * const *in, int n_in,
                   unsigned *_max, unsigned *_sum)
 {
     int n;
@@ -48,17 +49,17 @@ static void stats(AVPacket * const *in, int n_in,
     *_sum = sum;
 }
 
-static int merge_superframe(AVPacket * const *in, int n_in, AVPacket *out)
+static int merge_superframe(AVBufferRef * const *in, int n_in, AVPacket *pkt)
 {
-    unsigned max, sum, mag, marker, n, sz;
+    unsigned max, sum, mag, marker, n;
+    AVBufferRef *out;
     uint8_t *ptr;
     int res;
 
     stats(in, n_in, &max, &sum);
     mag = av_log2(max) >> 3;
     marker = 0xC0 + (mag << 3) + (n_in - 1);
-    sz = sum + 2 + (mag + 1) * n_in;
-    res = av_new_packet(out, sz);
+    res = ff_buffer_padded_alloc(&out, sum, 2 + (mag + 1) * n_in);
     if (res < 0)
         return res;
     ptr = out->data;
@@ -93,6 +94,8 @@ static int merge_superframe(AVPacket * const *in, int n_in, AVPacket *out)
     }
     *ptr++ = marker;
     av_assert0(ptr == &out->data[out->size]);
+
+    ff_packet_replace_buffer(pkt, out);
 
     return 0;
 }
@@ -145,10 +148,15 @@ static int vp9_superframe_filter(AVBSFContext *ctx, AVPacket *pkt)
         goto done;
     }
 
-    av_packet_move_ref(s->cache[s->n_cache++], pkt);
+    // move the packet's buffer into the cache
+    pkt->buf->data = pkt->data;
+    pkt->buf->size = pkt->size;
+    s->cache[s->n_cache++] = pkt->buf;
+    pkt->buf = NULL;
 
     if (invisible) {
-        return AVERROR(EAGAIN);
+        res = AVERROR(EAGAIN);
+        goto done;
     }
     av_assert0(s->n_cache > 0);
 
@@ -156,33 +164,14 @@ static int vp9_superframe_filter(AVBSFContext *ctx, AVPacket *pkt)
     if ((res = merge_superframe(s->cache, s->n_cache, pkt)) < 0)
         goto done;
 
-    res = av_packet_copy_props(pkt, s->cache[s->n_cache - 1]);
-    if (res < 0)
-        goto done;
-
     for (n = 0; n < s->n_cache; n++)
-        av_packet_unref(s->cache[n]);
+        av_buffer_unref(&s->cache[n]);
     s->n_cache = 0;
 
 done:
     if (res < 0)
         av_packet_unref(pkt);
     return res;
-}
-
-static int vp9_superframe_init(AVBSFContext *ctx)
-{
-    VP9BSFContext *s = ctx->priv_data;
-    int n;
-
-    // alloc cache packets
-    for (n = 0; n < MAX_CACHE; n++) {
-        s->cache[n] = av_packet_alloc();
-        if (!s->cache[n])
-            return AVERROR(ENOMEM);
-    }
-
-    return 0;
 }
 
 static void vp9_superframe_flush(AVBSFContext *ctx)
@@ -192,7 +181,7 @@ static void vp9_superframe_flush(AVBSFContext *ctx)
 
     // unref cached data
     for (n = 0; n < s->n_cache; n++)
-        av_packet_unref(s->cache[n]);
+        av_buffer_unref(&s->cache[n]);
     s->n_cache = 0;
 }
 
@@ -201,9 +190,9 @@ static void vp9_superframe_close(AVBSFContext *ctx)
     VP9BSFContext *s = ctx->priv_data;
     int n;
 
-    // free cached data
+    // unref cached data
     for (n = 0; n < MAX_CACHE; n++)
-        av_packet_free(&s->cache[n]);
+        av_buffer_unref(&s->cache[n]);
 }
 
 static const enum AVCodecID codec_ids[] = {
@@ -214,7 +203,6 @@ const AVBitStreamFilter ff_vp9_superframe_bsf = {
     .name           = "vp9_superframe",
     .priv_data_size = sizeof(VP9BSFContext),
     .filter         = vp9_superframe_filter,
-    .init           = vp9_superframe_init,
     .flush          = vp9_superframe_flush,
     .close          = vp9_superframe_close,
     .codec_ids      = codec_ids,
