@@ -22,38 +22,35 @@
 #include "libavutil/intreadwrite.h"
 #include "avcodec.h"
 #include "bsf.h"
+#include "internal.h"
 
-static int text2movsub(AVBSFContext *ctx, AVPacket *out)
+static int text2movsub(AVBSFContext *ctx, AVPacket *pkt)
 {
-    AVPacket *in;
-    int ret = 0;
+    AVBufferRef *out;
+    int ret;
 
-    ret = ff_bsf_get_packet(ctx, &in);
+    ret = ff_bsf_get_packet_ref(ctx, pkt);
     if (ret < 0)
         return ret;
 
-    if (in->size > 0xffff) {
+    if (pkt->size > 0xffff) {
         ret = AVERROR_INVALIDDATA;
         goto fail;
     }
 
-    ret = av_new_packet(out, in->size + 2);
+    ret = ff_buffer_padded_alloc(&out, pkt->size, 2);
     if (ret < 0) {
-        ret = AVERROR(ENOMEM);
         goto fail;
     }
 
-    ret = av_packet_copy_props(out, in);
-    if (ret < 0)
-        goto fail;
+    AV_WB16(out->data, pkt->size);
+    memcpy(out->data + 2, pkt->data, pkt->size);
 
-    AV_WB16(out->data, in->size);
-    memcpy(out->data + 2, in->data, in->size);
+    ff_packet_replace_buffer(pkt, out);
 
 fail:
     if (ret < 0)
-        av_packet_unref(out);
-    av_packet_free(&in);
+        av_packet_unref(pkt);
     return ret;
 }
 
