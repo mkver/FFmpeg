@@ -78,40 +78,39 @@ static uint8_t *append_dht_segment(uint8_t *buf)
     return buf;
 }
 
-static int mjpeg2jpeg_filter(AVBSFContext *ctx, AVPacket *out)
+static int mjpeg2jpeg_filter(AVBSFContext *ctx, AVPacket *pkt)
 {
-    AVPacket *in;
-    int ret = 0;
-    int input_skip, output_size;
+    AVBufferRef *out;
+    int ret;
+    int input_skip, size_diff;
     uint8_t *output;
 
-    ret = ff_bsf_get_packet(ctx, &in);
+    ret = ff_bsf_get_packet_ref(ctx, pkt);
     if (ret < 0)
         return ret;
 
-    if (in->size < 12) {
+    if (pkt->size < 12) {
         av_log(ctx, AV_LOG_ERROR, "input is truncated\n");
         ret = AVERROR_INVALIDDATA;
         goto fail;
     }
-    if (AV_RB16(in->data) != 0xffd8) {
+    if (AV_RB16(pkt->data) != 0xffd8) {
         av_log(ctx, AV_LOG_ERROR, "input is not MJPEG\n");
         ret = AVERROR_INVALIDDATA;
         goto fail;
     }
-    if (in->data[2] == 0xff && in->data[3] == APP0) {
-        input_skip = (in->data[4] << 8) + in->data[5] + 4;
+    if (pkt->data[2] == 0xff && pkt->data[3] == APP0) {
+        input_skip = (pkt->data[4] << 8) + pkt->data[5] + 4;
     } else {
         input_skip = 2;
     }
-    if (in->size < input_skip) {
+    if (pkt->size < input_skip) {
         av_log(ctx, AV_LOG_ERROR, "input is truncated\n");
         ret = AVERROR_INVALIDDATA;
         goto fail;
     }
-    output_size = in->size - input_skip +
-                  sizeof(jpeg_header) + dht_segment_size;
-    ret = av_new_packet(out, output_size);
+    size_diff = sizeof(jpeg_header) + dht_segment_size - input_skip;
+    ret = ff_buffer_padded_alloc(&out, pkt->size, size_diff);
     if (ret < 0)
         goto fail;
 
@@ -119,16 +118,13 @@ static int mjpeg2jpeg_filter(AVBSFContext *ctx, AVPacket *out)
 
     output = append(output, jpeg_header, sizeof(jpeg_header));
     output = append_dht_segment(output);
-    output = append(output, in->data + input_skip, in->size - input_skip);
+    output = append(output, pkt->data + input_skip, pkt->size - input_skip);
 
-    ret = av_packet_copy_props(out, in);
-    if (ret < 0)
-        goto fail;
+    ff_packet_replace_buffer(pkt, out);
 
 fail:
     if (ret < 0)
-        av_packet_unref(out);
-    av_packet_free(&in);
+        av_packet_unref(pkt);
     return ret;
 }
 
