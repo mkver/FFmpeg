@@ -22,6 +22,7 @@
 
 #include "avcodec.h"
 #include "bsf.h"
+#include "internal.h"
 
 #include "libavutil/log.h"
 #include "libavutil/mem.h"
@@ -34,50 +35,38 @@ enum DumpFreq {
 
 typedef struct DumpExtradataContext {
     const AVClass *class;
-    AVPacket pkt;
     int freq;
 } DumpExtradataContext;
 
-static int dump_extradata(AVBSFContext *ctx, AVPacket *out)
+static int dump_extradata(AVBSFContext *ctx, AVPacket *pkt)
 {
     DumpExtradataContext *s = ctx->priv_data;
-    AVPacket *in = &s->pkt;
-    int ret = 0;
+    int ret;
 
-    ret = ff_bsf_get_packet_ref(ctx, in);
+    ret = ff_bsf_get_packet_ref(ctx, pkt);
     if (ret < 0)
         return ret;
 
     if (ctx->par_in->extradata &&
         (s->freq == DUMP_FREQ_ALL ||
-         (s->freq == DUMP_FREQ_KEYFRAME && in->flags & AV_PKT_FLAG_KEY)) &&
-         in->size >= ctx->par_in->extradata_size &&
-         memcmp(in->data, ctx->par_in->extradata, ctx->par_in->extradata_size)) {
-        if (in->size >= INT_MAX - ctx->par_in->extradata_size) {
-            ret = AVERROR(ERANGE);
-            goto fail;
-        }
+         (s->freq == DUMP_FREQ_KEYFRAME && pkt->flags & AV_PKT_FLAG_KEY)) &&
+         pkt->size >= ctx->par_in->extradata_size &&
+         memcmp(pkt->data, ctx->par_in->extradata, ctx->par_in->extradata_size)) {
+        AVBufferRef *out;
 
-        ret = av_new_packet(out, in->size + ctx->par_in->extradata_size);
-        if (ret < 0)
-            goto fail;
-
-        ret = av_packet_copy_props(out, in);
+        ret = ff_buffer_padded_alloc(&out, pkt->size, ctx->par_in->extradata_size);
         if (ret < 0) {
-            av_packet_unref(out);
-            goto fail;
+            av_packet_unref(pkt);
+            return ret;
         }
 
         memcpy(out->data, ctx->par_in->extradata, ctx->par_in->extradata_size);
-        memcpy(out->data + ctx->par_in->extradata_size, in->data, in->size);
-    } else {
-        av_packet_move_ref(out, in);
+        memcpy(out->data + ctx->par_in->extradata_size, pkt->data, pkt->size);
+
+        ff_packet_replace_buffer(pkt, out);
     }
 
-fail:
-    av_packet_unref(in);
-
-    return ret;
+    return 0;
 }
 
 #define OFFSET(x) offsetof(DumpExtradataContext, x)
