@@ -35,7 +35,7 @@
 static int mjpega_dump_header(AVBSFContext *ctx, AVPacket *pkt)
 {
     unsigned dqt = 0, dht = 0, sof0 = 0;
-    int ret = 0, i;
+    int ret, i;
 
     ret = ff_bsf_get_packet_ref(ctx, pkt);
     if (ret < 0)
@@ -78,7 +78,7 @@ static int mjpega_dump_header(AVBSFContext *ctx, AVPacket *pkt)
                     return 0;
                 }
             case APP1:
-                if (i + 8 < pkt->size && AV_RL32(pkt->data + i + 8) == AV_RL32("mjpg")) {
+                if (i + 8 + 4 <= pkt->size && AV_RN32(pkt->data + i + 8) == AV_RN32("mjpg")) {
                     av_log(ctx, AV_LOG_ERROR, "bitstream already formatted\n");
                     return 0;
                 }
@@ -86,9 +86,10 @@ static int mjpega_dump_header(AVBSFContext *ctx, AVPacket *pkt)
         }
     }
     av_log(ctx, AV_LOG_ERROR, "could not find SOS marker in bitstream\n");
+    ret = AVERROR_INVALIDDATA;
 fail:
     av_packet_unref(pkt);
-    return AVERROR_INVALIDDATA;
+    return ret;
 }
 
 static const enum AVCodecID codec_ids[] = {
