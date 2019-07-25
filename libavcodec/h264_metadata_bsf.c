@@ -102,6 +102,10 @@ typedef struct H264MetadataContext {
     } ref;
     int interlaced;
 
+    int qp;
+    int qp_val;
+    int *qp_histogram;
+
     int level;
 } H264MetadataContext;
 
@@ -357,6 +361,14 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
         sps->vui.pic_struct_present_flag         = 0;
         sps->vui.low_delay_hrd_flag = 1 - sps->vui.fixed_frame_rate_flag;
     }
+    if (sps->bit_depth_luma_minus8) {
+        if (ctx->qp_histogram) {
+            av_log(bsf, AV_LOG_VERBOSE, "qp-statistics unavailable with "
+                                        "bit-depth > 8.\n");
+            ctx->qp_histogram -= 26;
+            av_freep(&ctx->qp_histogram);
+        }
+    }
 
     if (need_vui)
         sps->vui_parameters_present_flag = 1;
@@ -394,6 +406,17 @@ static int h264_metadata_update_pps(AVBSFContext *bsf,
             pps->num_ref_idx_l0_default_active_minus1 = ctx->ref.ref.ref[0];
         if (ctx->ref.ref.state & 4)
             pps->num_ref_idx_l1_default_active_minus1 = ctx->ref.ref.ref[1];
+    }
+
+    if (ctx->qp) {
+        err = ff_cbs_make_unit_writable(ctx->output, unit);
+        if (err < 0)
+            return err;
+        pps = unit->content;
+
+        pps->pic_init_qp_minus26 = ctx->qp_val;
+        if (ctx->qp & 1)
+            pps->weighted_pred_flag = 1;
     }
 
     return 0;
@@ -687,7 +710,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     }
 
     if (ctx->idr != 2 || ctx->ref.ref.state || ctx->interlaced == 2
-        || ctx->frame_num_offset || ctx->poc_offset) {
+        || ctx->qp || ctx->frame_num_offset || ctx->poc_offset) {
         int idr_access = h264_in->last_slice_nal_unit_type == H264_NAL_IDR_SLICE;
         int mmco = 0;
 
@@ -786,6 +809,16 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
 
                 slice->pic_order_cnt_lsb &= poc_max;
             }
+
+            if (ctx->qp) {
+                int qp = pps->pic_init_qp_minus26 + slice->slice_qp_delta;
+
+                if (ctx->qp_histogram)
+                    ctx->qp_histogram[qp]++;
+
+                slice->slice_qp_delta += pps->pic_init_qp_minus26
+                                       - ctx->qp_val;
+            }
         }
 
         if (ctx->idr != 2)
@@ -881,6 +914,20 @@ static int h264_metadata_init(AVBSFContext *bsf)
         }
     }
 
+    if (ctx->qp == 1)
+        ctx->qp = 0;
+
+    if (ctx->qp) {
+        ctx->qp_val = (ctx->qp >> 1) - 27;
+
+        if (av_log_get_level() >= AV_LOG_VERBOSE) {
+            ctx->qp_histogram = av_mallocz_array(52, sizeof(*ctx->qp_histogram));
+            if (!ctx->qp_histogram)
+                return AVERROR(ENOMEM);
+            ctx->qp_histogram += 26;
+        }
+    }
+
     err = ff_cbs_init(&ctx->input,  AV_CODEC_ID_H264, bsf);
     if (err < 0)
         return err;
@@ -929,6 +976,15 @@ static void h264_metadata_close(AVBSFContext *bsf)
     ff_cbs_fragment_free(&ctx->access_unit);
     ff_cbs_close(&ctx->input);
     ff_cbs_close(&ctx->output);
+
+    if (ctx->qp_histogram) {
+        ctx->qp_histogram -= 26;
+        av_log(bsf, AV_LOG_VERBOSE, "qp-values:");
+        for (int i = 0; i < 52; i++)
+            av_log(bsf, AV_LOG_VERBOSE, " %i: %i", i, ctx->qp_histogram[i]);
+        av_log(bsf, AV_LOG_VERBOSE, "\n");
+        av_freep(&ctx->qp_histogram);
+    }
 }
 
 #define OFFSET(x) offsetof(H264MetadataContext, x)
@@ -1040,6 +1096,9 @@ static const AVOption h264_metadata_options[] = {
 
     { "fake_interlaced", "Fix progressive fake-interlaced videos.",
         OFFSET(interlaced), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
+
+    { "qp", "Modify PPS and slice qp values to create static PPS",
+        OFFSET(qp), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 105, FLAGS},
 
     { "level", "Set level (table A-1)",
         OFFSET(level), AV_OPT_TYPE_INT,
