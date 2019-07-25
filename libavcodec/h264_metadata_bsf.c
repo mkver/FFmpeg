@@ -91,6 +91,7 @@ typedef struct H264MetadataContext {
 
     int idr;
     int ref;
+    int interlaced;
 
     int level;
 } H264MetadataContext;
@@ -354,6 +355,29 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
     return 0;
 }
 
+static int h264_metadata_update_pps(AVBSFContext *bsf,
+                                    CodedBitstreamUnit *unit)
+{
+    H264MetadataContext *ctx = bsf->priv_data;
+    CodedBitstreamH264Context *h264_in = ctx->input->priv_data;
+    H264RawPPS *pps = unit->content;
+    H264RawSPS *sps = h264_in->sps[pps->seq_parameter_set_id];
+    int err;
+
+    if (ctx->interlaced && sps->frame_mbs_only_flag &&
+        pps->bottom_field_pic_order_in_frame_present_flag) {
+        err = ff_cbs_make_unit_writable(ctx->output, unit);
+        if (err < 0)
+            return err;
+        pps = unit->content;
+
+        pps->bottom_field_pic_order_in_frame_present_flag = 0;
+        ctx->interlaced = 2;
+    }
+
+    return 0;
+}
+
 static int h264_metadata_update_side_data(AVBSFContext *bsf, AVPacket *pkt)
 {
     H264MetadataContext *ctx = bsf->priv_data;
@@ -577,6 +601,12 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                 goto fail;
             has_sps = 1;
         }
+
+        if (au->units[i].type == H264_NAL_PPS) {
+            err = h264_metadata_update_pps(bsf, &au->units[i]);
+            if (err < 0)
+                goto fail;
+        }
     }
 
     // The current packet should be treated as a seek point for metadata
@@ -635,13 +665,14 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         }
     }
 
-    if (ctx->idr != 2 || ctx->ref) {
+    if (ctx->idr != 2 || ctx->ref || ctx->interlaced == 2) {
         int idr_access = h264_in->last_slice_nal_unit_type == H264_NAL_IDR_SLICE;
 
         for (i = 0; i < au->nb_units; i++) {
             CodedBitstreamUnit    *unit = &au->units[i];
             CodedBitstreamUnitType type = unit->type;
             H264RawSliceHeader *slice;
+            H264RawPPS *pps;
             int idr_slice;
 
             if (type != H264_NAL_SLICE && type != H264_NAL_IDR_SLICE
@@ -649,6 +680,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                 continue;
 
             slice     = unit->content;
+            pps       = h264_in->pps[slice->pic_parameter_set_id];
             idr_slice = type == H264_NAL_IDR_SLICE ||
                         type == H264_NAL_AUXILIARY_SLICE && idr_access;
 
@@ -666,20 +698,33 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
 
                 if (slice_type_p || slice_type_b) {
                     uint8_t ref_default;
-                    ref_default = h264_in->pps[slice->pic_parameter_set_id]
-                                         ->num_ref_idx_l0_default_active_minus1;
+                    ref_default = pps->num_ref_idx_l0_default_active_minus1;
 
                     if (ref_default != slice->num_ref_idx_l0_active_minus1 ||
                         (ref_default > 15 && !slice->field_pic_flag))
                         slice->num_ref_idx_active_override_flag = 1;
                     else if (slice_type_b) {
-                        ref_default = h264_in->pps[slice->pic_parameter_set_id]
-                                             ->num_ref_idx_l1_default_active_minus1;
+                        ref_default = pps->num_ref_idx_l1_default_active_minus1;
 
                         if (ref_default != slice->num_ref_idx_l1_active_minus1 ||
                             (ref_default > 15 && !slice->field_pic_flag))
                             slice->num_ref_idx_active_override_flag = 1;
                     }
+                }
+            }
+
+            if (ctx->interlaced == 2) {
+                const H264RawSPS *sps = h264_in->active_sps;
+
+                if (sps->frame_mbs_only_flag && sps->pic_order_cnt_type == 0 &&
+                    pps->bottom_field_pic_order_in_frame_present_flag) {
+                    uint32_t poc_max = (1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)) - 1;
+
+                    if (slice->delta_pic_order_cnt_bottom < 0) {
+                        slice->pic_order_cnt_lsb += slice->delta_pic_order_cnt_bottom;
+                        slice->pic_order_cnt_lsb &= poc_max;
+                    }
+                    slice->delta_pic_order_cnt_bottom = 0;
                 }
             }
         }
@@ -772,6 +817,12 @@ static int h264_metadata_init(AVBSFContext *bsf)
         for (i = 0; i < au->nb_units; i++) {
             if (au->units[i].type == H264_NAL_SPS) {
                 err = h264_metadata_update_sps(bsf, &au->units[i]);
+                if (err < 0)
+                    goto fail;
+            }
+
+            if (au->units[i].type == H264_NAL_PPS) {
+                err = h264_metadata_update_pps(bsf, &au->units[i]);
                 if (err < 0)
                     goto fail;
             }
@@ -899,6 +950,9 @@ static const AVOption h264_metadata_options[] = {
 
     { "ref", "num_ref_idx_active_override_flag",
         OFFSET(ref), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
+
+    { "fake_interlaced", "Fix progressive fake-interlaced videos.",
+        OFFSET(interlaced), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
 
     { "level", "Set level (table A-1)",
         OFFSET(level), AV_OPT_TYPE_INT,
