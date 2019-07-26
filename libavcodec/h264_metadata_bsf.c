@@ -100,7 +100,7 @@ typedef struct H264MetadataContext {
             uint8_t ref[2];
         } ref;
     } ref;
-    int interlaced;
+    int misc;
 
     int qp;
     int qp_val;
@@ -385,7 +385,7 @@ static int h264_metadata_update_pps(AVBSFContext *bsf,
     H264RawSPS *sps = h264_in->sps[pps->seq_parameter_set_id];
     int err;
 
-    if (ctx->interlaced && sps->frame_mbs_only_flag &&
+    if (ctx->misc & 2 && sps->frame_mbs_only_flag &&
         pps->bottom_field_pic_order_in_frame_present_flag) {
         err = ff_cbs_make_unit_writable(ctx->output, unit);
         if (err < 0)
@@ -393,7 +393,7 @@ static int h264_metadata_update_pps(AVBSFContext *bsf,
         pps = unit->content;
 
         pps->bottom_field_pic_order_in_frame_present_flag = 0;
-        ctx->interlaced = 2;
+        ctx->misc |= 4;
     }
 
     if (ctx->ref.ref.state & 6) {
@@ -709,7 +709,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         }
     }
 
-    if (ctx->idr != 2 || ctx->ref.ref.state || ctx->interlaced == 2
+    if (ctx->idr != 2 || ctx->ref.ref.state || ctx->misc & 5
         || ctx->qp || ctx->frame_num_offset || ctx->poc_offset) {
         int idr_access = h264_in->last_slice_nal_unit_type == H264_NAL_IDR_SLICE;
         int mmco = 0;
@@ -732,6 +732,9 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
 
             if (idr_slice && ctx->idr != 2)
                 slice->idr_pic_id = idr_access & ctx->idr; /* & same as && */
+
+            if (ctx->misc & 1 && slice->slice_type >= 5)
+                slice->slice_type -= 5;
 
             if (ctx->ref.ref.state & !idr_slice) { /* & same as && */
                 int slice_type, slice_type_p, slice_type_b;
@@ -762,12 +765,12 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                 }
             }
 
-            if ((ctx->interlaced == 2 || ctx->frame_num_offset || ctx->poc_offset)
+            if ((ctx->misc & 4 || ctx->frame_num_offset || ctx->poc_offset)
                 && h264_in->active_sps->pic_order_cnt_type == 0) {
                 const H264RawSPS *sps = h264_in->active_sps;
                 uint16_t poc_max = (1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)) - 1;
 
-                if (ctx->interlaced == 2 && sps->frame_mbs_only_flag &&
+                if (ctx->misc & 4 && sps->frame_mbs_only_flag &&
                     pps->bottom_field_pic_order_in_frame_present_flag) {
                     if (slice->delta_pic_order_cnt_bottom < 0)
                         slice->pic_order_cnt_lsb += slice->delta_pic_order_cnt_bottom;
@@ -1105,8 +1108,8 @@ static const AVOption h264_metadata_options[] = {
     { "ref", "num_ref_idx_active_override_flag",
         OFFSET(ref.init), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 4161, FLAGS},
 
-    { "fake_interlaced", "Fix progressive fake-interlaced videos.",
-        OFFSET(interlaced), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
+    { "misc", "bit 1: Fix progressive fake-interlaced videos, Bit 0: Minimize slice_type.",
+        OFFSET(misc), AV_OPT_TYPE_INT, { .i64 = 3 }, 0, 3, FLAGS},
 
     { "qp", "Modify PPS and slice qp values to create static PPS",
         OFFSET(qp), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 105, FLAGS},
