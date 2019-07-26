@@ -31,6 +31,7 @@
 
 enum {
     MINIMIZE,
+    MINIMIZE_2,
     INSERT_2,
     INSERT_3,
     UNDETERMINED,
@@ -58,6 +59,7 @@ enum {
     WRITE                      =  64,
     HEADER_WAS_USED            = 128,
     DIFFERS_OUT_EFF            = DIFFERS_OUT|UNWRITTEN_AFTER_SPS_CHANGE,
+    HEADER_FIRST_USE           = IS_IN_HEADER|DIFFERS_HEADER|HEADER_WAS_USED,
 };
 
 enum {
@@ -163,6 +165,7 @@ typedef struct H264MetadataContext {
     Extradata *extra;
     Header *header;
     int extra_status;
+    int header_unused;
 
     int dts;
     int64_t last_dts;
@@ -178,6 +181,53 @@ static int compare_ps(const void *ps_1, const void *ps_2, int is_sps)
         return 1;
 
     return memcmp(ps_1, ps_2, size);
+}
+
+static int h264_metadata_update_extradata(AVBSFContext *bsf, AVPacket *out)
+{
+    H264MetadataContext   *ctx = bsf->priv_data;
+    CodedBitstreamFragment *au = &ctx->access_unit;
+    Extradata *extra = ctx->extra;
+    Header   *header = ctx->header;
+    uint8_t *data;
+    int err;
+
+    for (int i = 0; i <= header->max_sps; i++) {
+        if ((extra->sps_status[i] & (IS_IN_HEADER|HEADER_WAS_USED)) == IS_IN_HEADER) {
+            av_log(bsf, AV_LOG_VERBOSE, "%cPS with id %d was unused.\n", 'S', i);
+        } else {
+            err = ff_cbs_insert_unit_content(au, -1, H264_NAL_SPS,
+                                             header->sps[i].ps,
+                                             header->sps[i].ps_ref);
+            if (err < 0)
+                return err;
+        }
+    }
+    for (int i = 0; i <= header->max_pps; i++) {
+        if ((extra->pps_status[i] & (IS_IN_HEADER|HEADER_WAS_USED)) == IS_IN_HEADER) {
+            av_log(bsf, AV_LOG_VERBOSE, "%cPS with id %d was unused.\n", 'P', i);
+        } else {
+            err = ff_cbs_insert_unit_content(au, -1, H264_NAL_PPS,
+                                             header->pps[i].ps,
+                                             header->pps[i].ps_ref);
+            if (err < 0)
+                return err;
+        }
+    }
+
+    err = ff_cbs_write_fragment_data(ctx->output, au);
+    if (err < 0)
+        return err;
+
+    data = av_packet_new_side_data(out, AV_PKT_DATA_NEW_EXTRADATA, au->data_size);
+    if (!data)
+        return AVERROR(ENOMEM);
+
+    memcpy(data, au->data, au->data_size);
+    if (ctx->last_dts != AV_NOPTS_VALUE)
+        out->dts = out->pts = ctx->last_dts + 1;
+
+    return 0;
 }
 
 static int h264_metadata_update_sps(AVBSFContext *bsf,
@@ -801,8 +851,17 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     H264RawAUD aud;
 
     err = ff_bsf_get_packet_ref(bsf, pkt);
-    if (err < 0)
+    if (err < 0) {
+        if (err == AVERROR_EOF && ctx->header_unused > 0) {
+            ctx->header_unused = 0;
+
+            if (h264_metadata_update_extradata(bsf, pkt) >= 0)
+                err = 0;
+
+            goto fail;
+        }
         return err;
+    }
 
     err = h264_metadata_update_side_data(bsf, pkt);
     if (err < 0)
@@ -1193,13 +1252,43 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                     }
                 }
             }
-        } else if (!ctx->extra_status || has_ps ||
+        } else {
+            if (!ctx->extra_status || has_ps ||
                    pkt->flags & AV_PKT_FLAG_KEY || !ctx->done_first_au) {
-            err = h264_metadata_handle_ps(bsf, au, pkt->flags & AV_PKT_FLAG_KEY
-                                               || !ctx->done_first_au, has_ps,
-                                                    ctx->qp.qp.num_qp_minus_1);
-            if (err < 0)
-                goto fail;
+                err = h264_metadata_handle_ps(bsf, au, pkt->flags & AV_PKT_FLAG_KEY
+                                                   || !ctx->done_first_au, has_ps,
+                                                        ctx->qp.qp.num_qp_minus_1);
+                if (err < 0)
+                    goto fail;
+            }
+
+            if (ctx->header_unused) {
+                Extradata *extra = ctx->extra;
+                uint8_t id = h264_in->active_sps->seq_parameter_set_id;
+
+                if (!ctx->dts)
+                    ctx->last_dts = pkt->dts;
+
+                if ((extra->sps_status[id] & HEADER_FIRST_USE) == IS_IN_HEADER) {
+                    extra->sps_status[id] |= HEADER_WAS_USED;
+                    ctx->header_unused--;
+                }
+                for (int i = 0; i < au->nb_units; i++) {
+                    CodedBitstreamUnit *unit = &au->units[i];
+
+                    if (unit->type == H264_NAL_SLICE     ||
+                        unit->type == H264_NAL_IDR_SLICE ||
+                        unit->type == H264_NAL_AUXILIARY_SLICE) {
+                        H264RawSliceHeader *slice = unit->content;
+                        id = slice->pic_parameter_set_id;
+
+                        if ((extra->pps_status[id] & HEADER_FIRST_USE) == IS_IN_HEADER) {
+                            extra->pps_status[id] |= HEADER_WAS_USED;
+                            ctx->header_unused--;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1388,6 +1477,7 @@ static int h264_metadata_prepare_header(AVBSFContext *bsf)
     H264MetadataContext *ctx = bsf->priv_data;
     Extradata *extra = ctx->extra;
     Header   *header = ctx->header;
+    int num = 0;
 
     header->max_sps = extra->max_sps;
     header->max_pps = extra->max_pps;
@@ -1399,6 +1489,7 @@ static int h264_metadata_prepare_header(AVBSFContext *bsf)
             if (!header->sps[i].ps_ref)
                 return AVERROR(ENOMEM);
             extra->sps_status[i] |= IS_IN_HEADER;
+            num++;
         }
     }
 
@@ -1409,8 +1500,12 @@ static int h264_metadata_prepare_header(AVBSFContext *bsf)
             if (!header->pps[i].ps_ref)
                 return AVERROR(ENOMEM);
             extra->pps_status[i] |= IS_IN_HEADER;
+            num++;
         }
     }
+
+    if (ctx->header_unused)
+        ctx->header_unused = num;
 
     return 0;
 }
@@ -1435,7 +1530,7 @@ static int h264_metadata_init(AVBSFContext *bsf)
         SET_CONDITIONALLY(qp.init,       -1, 0);
     } else {
         SET_CONDITIONALLY(aud,       UNDETERMINED, REMOVE);
-        SET_CONDITIONALLY(extradata, UNDETERMINED, MINIMIZE);
+        SET_CONDITIONALLY(extradata, UNDETERMINED, MINIMIZE_2);
         SET_CONDITIONALLY(delete_filler, -1, 3);
         SET_CONDITIONALLY(idr,           -1, 1);
         SET_CONDITIONALLY(misc,          -1, 3);
@@ -1459,6 +1554,11 @@ static int h264_metadata_init(AVBSFContext *bsf)
         }
     }
     #undef SET_CONDITIONALLY
+
+    if (ctx->extradata == MINIMIZE_2) {
+        ctx->header_unused = 1;
+        ctx->extradata = MINIMIZE;
+    }
 
     ctx->idr = 2 * !ctx->idr;
 
@@ -1848,17 +1948,19 @@ static const AVOption h264_metadata_options[] = {
         OFFSET(extradata), AV_OPT_TYPE_INT, { .i64 = UNDETERMINED },
         MINIMIZE, REMOVE, FLAGS, "extra" },
     { "minimize", NULL, 0, AV_OPT_TYPE_CONST,
-        { .i64 = MINIMIZE }, .flags = FLAGS, .unit = "extra" },
+        { .i64 = MINIMIZE   }, .flags = FLAGS, .unit = "extra" },
+    { "minimize_2", NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = MINIMIZE_2 }, .flags = FLAGS, .unit = "extra" },
     { "insert_2", NULL, 0, AV_OPT_TYPE_CONST,
-        { .i64 = INSERT_2 }, .flags = FLAGS, .unit = "extra" },
+        { .i64 = INSERT_2   }, .flags = FLAGS, .unit = "extra" },
     { "insert_3", NULL, 0, AV_OPT_TYPE_CONST,
-        { .i64 = INSERT_3 }, .flags = FLAGS, .unit = "extra" },
+        { .i64 = INSERT_3   }, .flags = FLAGS, .unit = "extra" },
     { "pass",     NULL, 0, AV_OPT_TYPE_CONST,
-        { .i64 = PASS     }, .flags = FLAGS, .unit = "extra" },
+        { .i64 = PASS       }, .flags = FLAGS, .unit = "extra" },
     { "insert",   NULL, 0, AV_OPT_TYPE_CONST,
-        { .i64 = INSERT   }, .flags = FLAGS, .unit = "extra" },
+        { .i64 = INSERT     }, .flags = FLAGS, .unit = "extra" },
     { "remove",   NULL, 0, AV_OPT_TYPE_CONST,
-        { .i64 = REMOVE   }, .flags = FLAGS, .unit = "extra" },
+        { .i64 = REMOVE     }, .flags = FLAGS, .unit = "extra" },
 
     { NULL }
 };
