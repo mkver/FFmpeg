@@ -82,6 +82,9 @@ typedef struct H264MetadataContext {
     const char *sei_user_data;
     SEIRawUserDataUnregistered sei_user_data_payload;
 
+    int frame_num_offset;
+    int poc_offset;
+
     int delete_filler;
 
     int display_orientation;
@@ -683,8 +686,10 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         }
     }
 
-    if (ctx->idr != 2 || ctx->ref.ref.state || ctx->interlaced == 2) {
+    if (ctx->idr != 2 || ctx->ref.ref.state || ctx->interlaced == 2
+        || ctx->frame_num_offset || ctx->poc_offset) {
         int idr_access = h264_in->last_slice_nal_unit_type == H264_NAL_IDR_SLICE;
+        int mmco = 0;
 
         for (i = 0; i < au->nb_units; i++) {
             CodedBitstreamUnit    *unit = &au->units[i];
@@ -734,24 +739,61 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                 }
             }
 
-            if (ctx->interlaced == 2) {
+            if ((ctx->interlaced == 2 || ctx->frame_num_offset || ctx->poc_offset)
+                && h264_in->active_sps->pic_order_cnt_type == 0) {
                 const H264RawSPS *sps = h264_in->active_sps;
+                uint16_t poc_max = (1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)) - 1;
 
-                if (sps->frame_mbs_only_flag && sps->pic_order_cnt_type == 0 &&
+                if (ctx->interlaced == 2 && sps->frame_mbs_only_flag &&
                     pps->bottom_field_pic_order_in_frame_present_flag) {
-                    uint32_t poc_max = (1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)) - 1;
-
-                    if (slice->delta_pic_order_cnt_bottom < 0) {
+                    if (slice->delta_pic_order_cnt_bottom < 0)
                         slice->pic_order_cnt_lsb += slice->delta_pic_order_cnt_bottom;
-                        slice->pic_order_cnt_lsb &= poc_max;
-                    }
                     slice->delta_pic_order_cnt_bottom = 0;
                 }
+
+                if ((ctx->frame_num_offset || ctx->poc_offset) && !idr_slice) {
+                    uint16_t frame_num_max = (1 << (sps->log2_max_frame_num_minus4 + 4)) - 1;
+
+                    if (ctx->frame_num_offset == 65536)
+                        ctx->frame_num_offset =  -slice->frame_num;
+                    if (ctx->poc_offset       == 65536)
+                        ctx->poc_offset       =  -slice->pic_order_cnt_lsb;
+
+                    slice->pic_order_cnt_lsb += ctx->poc_offset;
+                    slice->frame_num         += ctx->frame_num_offset;
+                    slice->frame_num         &= frame_num_max;
+
+                    // Look for memory_management_control_operation equal to 5
+                    if (!mmco && slice->adaptive_ref_pic_marking_mode_flag) {
+                        for (int j = 0; slice->mmco[j].memory_management_control_operation; j++) {
+                            if (slice->mmco[j].memory_management_control_operation == 5) {
+                                mmco = 1;
+                                if (slice->frame_num == 1 &
+                                   !slice->redundant_pic_cnt) {
+                                    av_log(bsf, AV_LOG_WARNING,
+                                           "Primary picture with mmco equal to"
+                                           "5 has frame_num 1 post offsetting."
+                                           "Track might be out-of-spec.\n");
+                                } else {
+                                    av_log(bsf, AV_LOG_VERBOSE, "Found mmco "
+                                           "equal to 5.\n");
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                slice->pic_order_cnt_lsb &= poc_max;
             }
         }
 
         if (ctx->idr != 2)
             ctx->idr = idr_access & !ctx->idr; /* & same as && */
+        if (mmco || idr_access) {
+            ctx->frame_num_offset = 0;
+            ctx->poc_offset       = 0;
+        }
     }
 
     if (ctx->display_orientation != PASS) {
@@ -955,6 +997,12 @@ static const AVOption h264_metadata_options[] = {
 
     { "sei_user_data", "Insert SEI user data (UUID+string)",
         OFFSET(sei_user_data), AV_OPT_TYPE_STRING, { .str = NULL }, .flags = FLAGS },
+
+    { "poc_offset", "Offset pic_order_count by the given amount",
+        OFFSET(poc_offset), AV_OPT_TYPE_INT, { .i64 = 0}, -65535, 65536 },
+
+    { "frame_num_offset", "Offset frame_num by the given amount",
+        OFFSET(frame_num_offset), AV_OPT_TYPE_INT, { .i64 = 0}, -65535, 65536 },
 
     { "delete_filler", "Delete all filler (both NAL and SEI); if > 1, also delete SEI",
         OFFSET(delete_filler), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 3, FLAGS},
