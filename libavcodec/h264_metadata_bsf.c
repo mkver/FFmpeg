@@ -90,6 +90,7 @@ typedef struct H264MetadataContext {
     H264RawSEIDisplayOrientation display_orientation_payload;
 
     int idr;
+    int ref;
 
     int level;
 } H264MetadataContext;
@@ -634,21 +635,57 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         }
     }
 
-    if (ctx->idr != 2) {
+    if (ctx->idr != 2 || ctx->ref) {
         int idr_access = h264_in->last_slice_nal_unit_type == H264_NAL_IDR_SLICE;
 
         for (i = 0; i < au->nb_units; i++) {
             CodedBitstreamUnit    *unit = &au->units[i];
             CodedBitstreamUnitType type = unit->type;
+            H264RawSliceHeader *slice;
+            int idr_slice;
 
-            if (type == H264_NAL_IDR_SLICE ||
-                type == H264_NAL_AUXILIARY_SLICE && idr_access) {
-                H264RawSliceHeader *slice = unit->content;
+            if (type != H264_NAL_SLICE && type != H264_NAL_IDR_SLICE
+                                       && type != H264_NAL_AUXILIARY_SLICE)
+                continue;
+
+            slice     = unit->content;
+            idr_slice = type == H264_NAL_IDR_SLICE ||
+                        type == H264_NAL_AUXILIARY_SLICE && idr_access;
+
+            if (idr_slice && ctx->idr != 2)
                 slice->idr_pic_id = idr_access & ctx->idr; /* & same as && */
+
+            if (ctx->ref && !idr_slice) {
+                int slice_type, slice_type_p, slice_type_b;
+                slice_type = slice->slice_type;
+                if (slice_type >= 5)
+                    slice_type -= 5;
+                slice_type_p  = slice_type == 0 || slice_type == 3;
+                slice_type_b  = slice_type == 1;
+                slice->num_ref_idx_active_override_flag = 0;
+
+                if (slice_type_p || slice_type_b) {
+                    uint8_t ref_default;
+                    ref_default = h264_in->pps[slice->pic_parameter_set_id]
+                                         ->num_ref_idx_l0_default_active_minus1;
+
+                    if (ref_default != slice->num_ref_idx_l0_active_minus1 ||
+                        (ref_default > 15 && !slice->field_pic_flag))
+                        slice->num_ref_idx_active_override_flag = 1;
+                    else if (slice_type_b) {
+                        ref_default = h264_in->pps[slice->pic_parameter_set_id]
+                                             ->num_ref_idx_l1_default_active_minus1;
+
+                        if (ref_default != slice->num_ref_idx_l1_active_minus1 ||
+                            (ref_default > 15 && !slice->field_pic_flag))
+                            slice->num_ref_idx_active_override_flag = 1;
+                    }
+                }
             }
         }
 
-        ctx->idr = idr_access & !ctx->idr; /* & same as && */
+        if (ctx->idr != 2)
+            ctx->idr = idr_access & !ctx->idr; /* & same as && */
     }
 
     if (ctx->display_orientation != PASS) {
@@ -859,6 +896,9 @@ static const AVOption h264_metadata_options[] = {
 
     { "idr", "Minimize idr_pic_id",
         OFFSET(idr), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
+
+    { "ref", "num_ref_idx_active_override_flag",
+        OFFSET(ref), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
 
     { "level", "Set level (table A-1)",
         OFFSET(level), AV_OPT_TYPE_INT,
