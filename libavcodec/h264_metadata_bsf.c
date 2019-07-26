@@ -30,6 +30,9 @@
 #include "h264_sei.h"
 
 enum {
+    MINIMIZE,
+    INSERT_2,
+    INSERT_3,
     UNDETERMINED,
     PASS,
     INSERT,
@@ -46,6 +49,18 @@ enum {
 };
 
 enum {
+    IS_IN_EXTRA                =   1,
+    IS_IN_HEADER               =   2,
+    DIFFERS_OUT                =   4,
+    DIFFERS_HEADER             =   8,
+    UNWRITTEN_AFTER_SPS_CHANGE =  16,
+    WRITTEN_THIS_GOP           =  32,
+    WRITE                      =  64,
+    HEADER_WAS_USED            = 128,
+    DIFFERS_OUT_EFF            = DIFFERS_OUT|UNWRITTEN_AFTER_SPS_CHANGE,
+};
+
+enum {
     FLIP_HORIZONTAL = 1,
     FLIP_VERTICAL   = 2,
 };
@@ -54,6 +69,27 @@ enum {
     LEVEL_UNSET = -2,
     LEVEL_AUTO  = -1,
 };
+
+typedef struct PSPack {
+    void        *ps;
+    AVBufferRef *ps_ref;
+} PSPack;
+
+typedef struct Extradata {
+    PSPack sps[H264_MAX_SPS_COUNT];
+    PSPack pps[H264_MAX_PPS_COUNT];
+    uint8_t sps_status[H264_MAX_SPS_COUNT];
+    uint8_t pps_status[H264_MAX_PPS_COUNT];
+    int max_sps;
+    int max_pps;
+} Extradata;
+
+typedef struct Header {
+    PSPack sps[H264_MAX_SPS_COUNT];
+    PSPack pps[H264_MAX_PPS_COUNT];
+    int max_sps;
+    int max_pps;
+} Header;
 
 typedef struct H264MetadataContext {
     const AVClass *class;
@@ -119,12 +155,26 @@ typedef struct H264MetadataContext {
 
     int level;
 
+    int extradata;
+    Extradata *extra;
+    Header *header;
+    int extra_status;
+
     int dts;
     int64_t last_dts;
 
     int preset;
 } H264MetadataContext;
 
+static int compare_ps(const void *ps_1, const void *ps_2, int is_sps)
+{
+    size_t size = is_sps ? sizeof(H264RawSPS) : sizeof(H264RawPPS);
+
+    if (!ps_2)
+        return 1;
+
+    return memcmp(ps_1, ps_2, size);
+}
 
 static int h264_metadata_insert_aud(AVBSFContext *bsf,
                                     CodedBitstreamFragment *au)
@@ -469,6 +519,272 @@ static int h264_metadata_update_pps(AVBSFContext *bsf,
     return 0;
 }
 
+static int h264_metadata_write_ps(CodedBitstreamContext *ctx,
+                                  CodedBitstreamFragment *au, int max_ps,
+                                  int *position, PSPack *ps, uint8_t *status,
+                                  CodedBitstreamUnitType type)
+{
+    int err, pos = *position;
+
+    for (int i = 0; i <= max_ps; i++) {
+        if (status[i] & WRITE) {
+            err = ff_cbs_insert_unit_content(au, pos++, type,
+                                             ps[i].ps, NULL);
+            if (err < 0)
+                return err;
+
+            status[i] = (status[i] & ~(DIFFERS_OUT_EFF|WRITE)) | WRITTEN_THIS_GOP;
+        }
+    }
+
+    *position = pos;
+
+    return 0;
+}
+
+static int h264_metadata_check_status(uint8_t *status, int count, int flag)
+{
+    for (int i = 0; i <= count; i++) {
+        if (status[i] & IS_IN_EXTRA &&
+           (status[i] & DIFFERS_OUT_EFF ||
+           (status[i] & (flag|WRITTEN_THIS_GOP)) == flag))
+            return 0;
+    }
+
+    return 1;
+}
+
+static int h264_metadata_handle_ps(AVBSFContext *bsf,
+                                   CodedBitstreamFragment *au,
+                                   int keyframe, int has_ps)
+{
+    H264MetadataContext *ctx = bsf->priv_data;
+    CodedBitstreamH264Context *out = ctx->output->priv_data;
+    Extradata *extra = ctx->extra;
+    Header   *header = ctx->header;
+    int err, write = 0, mode = ctx->extradata;
+
+    if (has_ps) {
+        // In some cases, the flags usually determined by comparison are either
+        // irrelevant for whether a PS will be written or not (PS in keyframes
+        // in an INSERT mode as the right PS will be written anyway at the latest
+        // when the PS becomes active the first time in a given GOP (if at all)).
+        // Therefore sometimes some checks are omitted if they are unnecessary.
+        // Notice that this implies that in an INSERT mode the DIFFERS_OUT flag
+        // is only valid after the PS has been written in a GOP.
+        int check = !(keyframe == 2 || keyframe && mode != MINIMIZE);
+
+        for (int i = 0; i < au->nb_units; i++) {
+            CodedBitstreamUnit *unit = &au->units[i];
+
+            if (unit->type == H264_NAL_SPS || unit->type == H264_NAL_PPS) {
+                PSPack *ps;
+                int *max, is_sps;
+                uint8_t id;
+
+                if (unit->type == H264_NAL_SPS) {
+                    id     = ((H264RawSPS*)unit->content)->seq_parameter_set_id;
+                    ps     = &extra->sps[id];
+
+                    extra->sps_status[id] |= IS_IN_EXTRA;
+
+                    max    = &extra->max_sps;
+                    is_sps = 1;
+                } else {
+                    id     = ((H264RawPPS*)unit->content)->pic_parameter_set_id;
+                    ps     = &extra->pps[id];
+
+                    extra->pps_status[id] |= IS_IN_EXTRA;
+
+                    max    = &extra->max_pps;
+                    is_sps = 0;
+                }
+
+                *max = FFMAX(*max, id);
+
+                av_buffer_unref(&ps->ps_ref);
+
+                ps->ps     = unit->content;
+                ps->ps_ref = unit->content_ref;
+
+                unit->content_ref = NULL;
+                ff_cbs_delete_unit(au, i);
+                i--;
+
+                if (check) {
+                    int res;
+                    uint8_t *status = is_sps ? &extra->sps_status[id] :
+                                               &extra->pps_status[id];
+
+                    res = compare_ps(ps->ps, is_sps ? (void*)out->sps[id] :
+                                              (void*)out->pps[id], is_sps);
+
+                    if (!res) {
+                        // If the following is true, then the new PS in extra
+                        // and the old PS in extra agree (as they are equal to
+                        // the currently visible PS in the output context) so
+                        // that no flags need to be updated.
+                        if (!(*status & DIFFERS_OUT))
+                            continue;
+                    } else {
+                        res = DIFFERS_OUT;
+                        av_log(bsf, AV_LOG_VERBOSE, "%cPS with id %"PRIu8" "
+                               "likely changed\n", is_sps ? 'S' : 'P', id);
+                    }
+
+                    *status = (*status & ~DIFFERS_OUT) | res;
+
+                    if (header) {
+                        res = compare_ps(ps->ps, is_sps ? header->sps[id].ps :
+                                                  header->pps[id].ps, is_sps);
+
+                        res = res ? DIFFERS_HEADER : 0;
+
+                        *status = (*status & ~DIFFERS_HEADER) | res;
+                    }
+                }
+            } else if (unit->type == H264_NAL_SPS_EXT) {
+                av_log(bsf, AV_LOG_ERROR, "Sequence parameter set extension "
+                                          "not supported.\n");
+                return AVERROR_PATCHWELCOME;
+            }
+        }
+    }
+
+    // In a new GOP, the WRITTEN_THIS_GOP flags need to be reset.
+    // (Except in INSERT mode, as all currently available extradata
+    // from extra is written anyway in every keyframe.)
+    if (keyframe == 1 && mode != INSERT) {
+        for (int i = extra->max_sps; i >= 0; i--)
+            extra->sps_status[i] &= ~WRITTEN_THIS_GOP;
+        for (int i = extra->max_pps; i >= 0; i--)
+            extra->pps_status[i] &= ~WRITTEN_THIS_GOP;
+    }
+
+    if (keyframe == 2 || mode == INSERT && keyframe) {
+        write = 1;
+
+        for (int i = extra->max_sps; i >= 0; i--)
+            if (extra->sps_status[i] & IS_IN_EXTRA)
+                extra->sps_status[i] |= WRITE;
+        for (int i = extra->max_pps; i >= 0; i--)
+            if (extra->pps_status[i] & IS_IN_EXTRA)
+                extra->pps_status[i] |= WRITE;
+    } else {
+        int i;
+        uint8_t sps_id;
+
+        for (i = 0; i < au->nb_units; i++) {
+            CodedBitstreamUnit *unit = &au->units[i];
+
+            if (unit->type == H264_NAL_SLICE     ||
+                unit->type == H264_NAL_IDR_SLICE ||
+                unit->type == H264_NAL_AUXILIARY_SLICE) {
+                H264RawSliceHeader *slice = unit->content;
+
+                sps_id = ((H264RawPPS*)extra->pps[slice->pic_parameter_set_id].ps)
+                                            ->seq_parameter_set_id;
+                break;
+            }
+        }
+
+        if (i == au->nb_units) {
+            av_log(bsf, AV_LOG_ERROR, "No slice in access unit.\n");
+            return AVERROR_INVALIDDATA;
+        }
+
+        if (mode == INSERT_2 && keyframe) {
+            extra->sps_status[sps_id] |= WRITE;
+            write = 1;
+
+            for (i = 0; i <= extra->max_pps; i++) {
+                if (extra->pps[i].ps &&
+                   ((H264RawPPS*)extra->pps[i].ps)->seq_parameter_set_id == sps_id)
+                   extra->pps_status[i] |= WRITE;
+            }
+        } else {
+            int flag = mode == MINIMIZE ? DIFFERS_HEADER : 0;
+
+            if (extra->sps_status[sps_id] & DIFFERS_OUT ||
+               (extra->sps_status[sps_id] & (flag|WRITTEN_THIS_GOP)) == flag) {
+                extra->sps_status[sps_id] |= WRITE;
+                write = 1;
+
+                // A PPS whose underlying SPS has been modified is treated as modified.
+                if (!mode || !keyframe) {
+                    for (int i = 0; i <= extra->max_pps; i++) {
+                        H264RawPPS *pps = extra->pps[i].ps;
+
+                        if (pps && pps->seq_parameter_set_id == sps_id)
+                            extra->pps_status[i] |= UNWRITTEN_AFTER_SPS_CHANGE;
+                    }
+                }
+            }
+
+            for (; i < au->nb_units; i++) {
+                CodedBitstreamUnit *unit = &au->units[i];
+
+                if (unit->type == H264_NAL_SLICE     ||
+                    unit->type == H264_NAL_IDR_SLICE ||
+                    unit->type == H264_NAL_AUXILIARY_SLICE) {
+                    H264RawSliceHeader *slice = unit->content;
+                    uint8_t pps_id = slice->pic_parameter_set_id;
+
+                    if (extra->pps_status[pps_id] & DIFFERS_OUT_EFF ||
+                       (extra->pps_status[pps_id] & (flag|WRITTEN_THIS_GOP)) == flag) {
+                        extra->pps_status[pps_id] |= WRITE;
+                        write = 1;
+                    }
+                }
+            }
+        }
+    }
+
+    if (write) {
+        int position;
+
+        for (position = 0; position < au->nb_units; position++) {
+            if (au->units[position].type != H264_NAL_AUD)
+                break;
+        }
+
+        // All PS marked as WRITE are now written and their flags updated.
+        err = h264_metadata_write_ps(ctx->output, au, extra->max_sps, &position,
+                                     extra->sps, extra->sps_status, H264_NAL_SPS);
+        if (err < 0)
+            goto fail;
+
+        err = h264_metadata_write_ps(ctx->output, au, extra->max_pps, &position,
+                                     extra->pps, extra->pps_status, H264_NAL_PPS);
+        if (err < 0)
+            goto fail;
+    }
+
+    // "Normal" access units (i.e. non-keyframes that don't contain
+    // parameter sets) need only be looked at if there is currently
+    // a parameter set that would need to be written if it were used
+    // in a future access unit. Here we check whether this is so.
+    if (keyframe == 1 || has_ps || write) {
+        int up_to_date, flag = mode == MINIMIZE ? DIFFERS_HEADER : 0;
+
+        up_to_date = h264_metadata_check_status(extra->sps_status,
+                                                extra->max_sps, flag);
+
+        if (up_to_date)
+            up_to_date = h264_metadata_check_status(extra->pps_status,
+                                                    extra->max_pps, flag);
+
+        ctx->extra_status = up_to_date;
+    }
+
+    return 0;
+
+fail:
+    ctx->extradata = PASS;
+
+    return err;
+}
+
 static int h264_metadata_update_side_data(AVBSFContext *bsf, AVPacket *pkt)
 {
     H264MetadataContext *ctx = bsf->priv_data;
@@ -650,7 +966,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     H264MetadataContext *ctx = bsf->priv_data;
     CodedBitstreamH264Context *h264_in = ctx->input->priv_data;
     CodedBitstreamFragment *au = &ctx->access_unit;
-    int err, i, has_sps, seek_point, disposable;
+    int err, i, has_ps, seek_point, disposable;
 
     err = ff_bsf_get_packet_ref(bsf, pkt);
     if (err < 0)
@@ -684,19 +1000,20 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         }
     }
 
-    has_sps = 0;
+    has_ps = 0;
     for (i = 0; i < au->nb_units; i++) {
         if (au->units[i].type == H264_NAL_SPS) {
             err = h264_metadata_update_sps(bsf, &au->units[i]);
             if (err < 0)
                 goto fail;
-            has_sps = 1;
+            has_ps |= 1;
         }
 
         if (au->units[i].type == H264_NAL_PPS) {
             err = h264_metadata_update_pps(bsf, &au->units[i]);
             if (err < 0)
                 goto fail;
+            has_ps |= 2;
         }
     }
 
@@ -705,7 +1022,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     // - It is the first packet in the stream.
     // - It contains an SPS, indicating that a sequence might start here.
     // - It is marked as containing a key frame.
-    seek_point = !ctx->done_first_au || has_sps ||
+    seek_point = !ctx->done_first_au || has_ps & 1 ||
         (pkt->flags & AV_PKT_FLAG_KEY);
 
     if (ctx->sei_user_data && seek_point) {
@@ -879,6 +1196,24 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         }
     }
 
+    if (ctx->extradata != PASS) {
+        if (ctx->extradata == REMOVE) {
+            if (has_ps) {
+                for (int i = au->nb_units; i >= 0; i--) {
+                    if (au->units[i].type == H264_NAL_SPS ||
+                        au->units[i].type == H264_NAL_PPS) {
+                        ff_cbs_delete_unit(au, i);
+                    }
+                }
+            }
+        } else if (!ctx->extra_status || has_ps || seek_point) {
+            err = h264_metadata_handle_ps(bsf, au, pkt->flags & AV_PKT_FLAG_KEY
+                                               || !ctx->done_first_au, has_ps);
+            if (err < 0)
+                goto fail;
+        }
+    }
+
     if (ctx->display_orientation != PASS) {
         err = h264_metadata_handle_display_orientation(bsf, pkt, au,
                                                        seek_point);
@@ -929,6 +1264,57 @@ fail:
     return err;
 }
 
+static int h264_metadata_alloc_ps(AVBSFContext *bsf, int header)
+{
+    H264MetadataContext *ctx = bsf->priv_data;
+
+    ctx->extra = av_mallocz(sizeof(*ctx->extra));
+    if (!ctx->extra)
+        return AVERROR(ENOMEM);
+
+    ctx->extra->max_sps = ctx->extra->max_pps = -1;
+
+    if (header) {
+        ctx->header = av_mallocz(sizeof(*ctx->header));
+        if (!ctx->header)
+            return AVERROR(ENOMEM);
+    }
+
+    return 0;
+}
+
+static int h264_metadata_prepare_header(AVBSFContext *bsf)
+{
+    H264MetadataContext *ctx = bsf->priv_data;
+    Extradata *extra = ctx->extra;
+    Header   *header = ctx->header;
+
+    header->max_sps = extra->max_sps;
+    header->max_pps = extra->max_pps;
+
+    for (int i = 0; i <= extra->max_sps; i++) {
+        if (extra->sps[i].ps) {
+            header->sps[i].ps     = extra->sps[i].ps;
+            header->sps[i].ps_ref = av_buffer_ref(extra->sps[i].ps_ref);
+            if (!header->sps[i].ps_ref)
+                return AVERROR(ENOMEM);
+            extra->sps_status[i] |= IS_IN_HEADER;
+        }
+    }
+
+    for (int i = 0; i <= extra->max_pps; i++) {
+        if (extra->pps[i].ps) {
+            header->pps[i].ps     = extra->pps[i].ps;
+            header->pps[i].ps_ref = av_buffer_ref(extra->pps[i].ps_ref);
+            if (!header->pps[i].ps_ref)
+                return AVERROR(ENOMEM);
+            extra->pps_status[i] |= IS_IN_HEADER;
+        }
+    }
+
+    return 0;
+}
+
 static int h264_metadata_init(AVBSFContext *bsf)
 {
     H264MetadataContext *ctx = bsf->priv_data;
@@ -973,14 +1359,16 @@ static int h264_metadata_init(AVBSFContext *bsf)
             ctx->option = value; \
     } while(0)
     if (ctx->preset == PASSTHROUGH_PRESET) {
-        SET_CONDITIONALLY(aud, UNDETERMINED, PASS);
+        SET_CONDITIONALLY(aud,       UNDETERMINED, PASS);
+        SET_CONDITIONALLY(extradata, UNDETERMINED, PASS);
         SET_CONDITIONALLY(delete_filler, -1, 0);
         SET_CONDITIONALLY(idr,           -1, 0);
         SET_CONDITIONALLY(ref.init,      -1, 0);
         SET_CONDITIONALLY(misc,          -1, 0);
         SET_CONDITIONALLY(qp,            -1, 0);
     } else {
-        SET_CONDITIONALLY(aud, UNDETERMINED, REMOVE);
+        SET_CONDITIONALLY(aud,       UNDETERMINED, REMOVE);
+        SET_CONDITIONALLY(extradata, UNDETERMINED, MINIMIZE);
         SET_CONDITIONALLY(delete_filler, -1, 3);
         SET_CONDITIONALLY(idr,           -1, 1);
         SET_CONDITIONALLY(misc,          -1, 3);
@@ -1039,6 +1427,12 @@ static int h264_metadata_init(AVBSFContext *bsf)
         }
     }
 
+    if (ctx->extradata != PASS && ctx->extradata != REMOVE) {
+        err = h264_metadata_alloc_ps(bsf, ctx->extradata == MINIMIZE);
+        if (err < 0)
+            return err;
+    }
+
     err = ff_cbs_init(&ctx->input,  AV_CODEC_ID_H264, bsf);
     if (err < 0)
         return err;
@@ -1067,11 +1461,32 @@ static int h264_metadata_init(AVBSFContext *bsf)
             }
         }
 
+        if (ctx->extradata != PASS && ctx->extradata != REMOVE) {
+            err = h264_metadata_handle_ps(bsf, au, 2, 1);
+            if (err < 0)
+                goto fail;
+
+            if (ctx->header) {
+                err = h264_metadata_prepare_header(bsf);
+                if (err < 0)
+                    goto fail;
+            }
+        }
+
         err = ff_cbs_write_extradata(ctx->output, bsf->par_out, au);
         if (err < 0) {
             av_log(bsf, AV_LOG_ERROR, "Failed to write extradata.\n");
             goto fail;
         }
+    } else if (ctx->extradata == REMOVE) {
+        av_log(bsf, AV_LOG_WARNING, "Removing in-band extradata would make "
+                           "track without out-of-band extradata unplayable."
+                           " Switching to passthrough mode for extradata.\n");
+        ctx->extradata = PASS;
+    } else if (ctx->extradata == MINIMIZE) {
+        av_log(bsf, AV_LOG_ERROR, "Minimizing in-band extradata not sensible "
+                                  "without out-of-band extradata.\n");
+        return AVERROR_INVALIDDATA;
     }
 
     if (ctx->dts) {
@@ -1088,6 +1503,28 @@ fail:
 static void h264_metadata_close(AVBSFContext *bsf)
 {
     H264MetadataContext *ctx = bsf->priv_data;
+
+    if (ctx->header) {
+        Header *header = ctx->header;
+
+        for (int i = 0; i <= header->max_sps; i++)
+            av_buffer_unref(&header->sps[i].ps_ref);
+        for (int i = 0; i <= header->max_pps; i++)
+            av_buffer_unref(&header->pps[i].ps_ref);
+
+        av_freep(&ctx->header);
+    }
+
+    if (ctx->extra) {
+        Extradata *extra = ctx->extra;
+
+        for (int i = 0; i <= extra->max_sps; i++)
+            av_buffer_unref(&extra->sps[i].ps_ref);
+        for (int i = 0; i <= extra->max_pps; i++)
+            av_buffer_unref(&extra->pps[i].ps_ref);
+
+        av_freep(&ctx->extra);
+    }
 
     ff_cbs_fragment_free(&ctx->access_unit);
     ff_cbs_close(&ctx->input);
@@ -1266,6 +1703,22 @@ static const AVOption h264_metadata_options[] = {
         { .i64 = ZDF_PRESET         }, .flags = FLAGS, .unit = "preset" },
     { "itunes",     NULL, 0, AV_OPT_TYPE_CONST,
         { .i64 = ITUNES_PRESET      }, .flags = FLAGS, .unit = "preset" },
+
+    { "extradata", "How to treat extradata.",
+        OFFSET(extradata), AV_OPT_TYPE_INT, { .i64 = UNDETERMINED },
+        MINIMIZE, REMOVE, FLAGS, "extra" },
+    { "minimize", NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = MINIMIZE }, .flags = FLAGS, .unit = "extra" },
+    { "insert_2", NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = INSERT_2 }, .flags = FLAGS, .unit = "extra" },
+    { "insert_3", NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = INSERT_3 }, .flags = FLAGS, .unit = "extra" },
+    { "pass",     NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = PASS     }, .flags = FLAGS, .unit = "extra" },
+    { "insert",   NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = INSERT   }, .flags = FLAGS, .unit = "extra" },
+    { "remove",   NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = REMOVE   }, .flags = FLAGS, .unit = "extra" },
 
     { NULL }
 };
