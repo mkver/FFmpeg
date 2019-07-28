@@ -90,7 +90,13 @@ typedef struct H264MetadataContext {
     H264RawSEIDisplayOrientation display_orientation_payload;
 
     int idr;
-    int ref;
+    union {
+        int init;
+        struct {
+            uint8_t state;
+            uint8_t ref[2];
+        } ref;
+    } ref;
     int interlaced;
 
     int level;
@@ -373,6 +379,18 @@ static int h264_metadata_update_pps(AVBSFContext *bsf,
 
         pps->bottom_field_pic_order_in_frame_present_flag = 0;
         ctx->interlaced = 2;
+    }
+
+    if (ctx->ref.ref.state & 6) {
+        err = ff_cbs_make_unit_writable(ctx->output, unit);
+        if (err < 0)
+            return err;
+        pps = unit->content;
+
+        if (ctx->ref.ref.state & 2)
+            pps->num_ref_idx_l0_default_active_minus1 = ctx->ref.ref.ref[0];
+        if (ctx->ref.ref.state & 4)
+            pps->num_ref_idx_l1_default_active_minus1 = ctx->ref.ref.ref[1];
     }
 
     return 0;
@@ -665,7 +683,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         }
     }
 
-    if (ctx->idr != 2 || ctx->ref || ctx->interlaced == 2) {
+    if (ctx->idr != 2 || ctx->ref.ref.state || ctx->interlaced == 2) {
         int idr_access = h264_in->last_slice_nal_unit_type == H264_NAL_IDR_SLICE;
 
         for (i = 0; i < au->nb_units; i++) {
@@ -687,7 +705,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
             if (idr_slice && ctx->idr != 2)
                 slice->idr_pic_id = idr_access & ctx->idr; /* & same as && */
 
-            if (ctx->ref && !idr_slice) {
+            if (ctx->ref.ref.state & !idr_slice) { /* & same as && */
                 int slice_type, slice_type_p, slice_type_b;
                 slice_type = slice->slice_type;
                 if (slice_type >= 5)
@@ -697,14 +715,17 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                 slice->num_ref_idx_active_override_flag = 0;
 
                 if (slice_type_p || slice_type_b) {
-                    uint8_t ref_default;
-                    ref_default = pps->num_ref_idx_l0_default_active_minus1;
+                    uint8_t ref_default = ctx->ref.ref.ref[0];
+                    ref_default = ctx->ref.ref.state & 2 ? ref_default :
+                                     pps->num_ref_idx_l0_default_active_minus1;
 
                     if (ref_default != slice->num_ref_idx_l0_active_minus1 ||
                         (ref_default > 15 && !slice->field_pic_flag))
                         slice->num_ref_idx_active_override_flag = 1;
                     else if (slice_type_b) {
-                        ref_default = pps->num_ref_idx_l1_default_active_minus1;
+                        ref_default = ctx->ref.ref.ref[1];
+                        ref_default = ctx->ref.ref.state & 4 ? ref_default :
+                                      pps->num_ref_idx_l1_default_active_minus1;
 
                         if (ref_default != slice->num_ref_idx_l1_active_minus1 ||
                             (ref_default > 15 && !slice->field_pic_flag))
@@ -799,6 +820,24 @@ static int h264_metadata_init(AVBSFContext *bsf)
     }
 
     ctx->idr = 2 * !ctx->idr;
+
+    if (ctx->ref.init) {
+        int ref = ctx->ref.init;
+        ctx->ref.ref.state = 1;
+        ref >>= 1;
+        ctx->ref.ref.ref[0] = ref & 63;
+        if (ctx->ref.ref.ref[0] > 32) {
+            return AVERROR(EINVAL);
+        }
+        ctx->ref.ref.ref[1] = ref >> 6;
+
+        for (i = 1; i >= 0; i--) {
+            if (ctx->ref.ref.ref[i] > 0) {
+                ctx->ref.ref.ref[i]--;
+                ctx->ref.ref.state |= 2 << i;
+            }
+        }
+    }
 
     err = ff_cbs_init(&ctx->input,  AV_CODEC_ID_H264, bsf);
     if (err < 0)
@@ -949,7 +988,7 @@ static const AVOption h264_metadata_options[] = {
         OFFSET(idr), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
 
     { "ref", "num_ref_idx_active_override_flag",
-        OFFSET(ref), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
+        OFFSET(ref.init), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 4161, FLAGS},
 
     { "fake_interlaced", "Fix progressive fake-interlaced videos.",
         OFFSET(interlaced), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
