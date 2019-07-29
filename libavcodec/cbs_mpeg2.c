@@ -207,6 +207,12 @@ static int cbs_mpeg2_split_fragment(CodedBitstreamContext *ctx,
            final     = 1;
         }
 
+        if (unit_size == 0) {
+            // This can only happen if frag->data contained data like
+            // 0x00 00 01 00 00 01 xy, which is treated as two start codes.
+            return AVERROR_INVALIDDATA;
+        }
+
         if (unit_type == MPEG2_START_EXTENSION && unit_size >= 4 &&
             start[1] >> 4 == MPEG2_EXTENSION_PICTURE_CODING) {
             // The values f_code[0][1], f_code[1][1] are used to improve
