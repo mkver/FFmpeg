@@ -446,7 +446,7 @@ static int cbs_vp9_split_fragment(CodedBitstreamContext *ctx,
                 return AVERROR_INVALIDDATA;
             }
 
-            err = ff_cbs_insert_unit_data(ctx, frag, -1, 0,
+            err = ff_cbs_insert_unit_data(frag, -1, 0,
                                           frag->data + pos,
                                           sfi.frame_sizes[i],
                                           frag->data_ref);
@@ -464,7 +464,7 @@ static int cbs_vp9_split_fragment(CodedBitstreamContext *ctx,
         return 0;
 
     } else {
-        err = ff_cbs_insert_unit_data(ctx, frag, -1, 0,
+        err = ff_cbs_insert_unit_data(frag, -1, 0,
                                       frag->data, frag->data_size,
                                       frag->data_ref);
         if (err < 0)
@@ -492,7 +492,7 @@ static int cbs_vp9_read_unit(CodedBitstreamContext *ctx,
     if (err < 0)
         return err;
 
-    err = ff_cbs_alloc_unit_content(ctx, unit, sizeof(*frame),
+    err = ff_cbs_alloc_unit_content(unit, sizeof(*frame),
                                     &cbs_vp9_free_frame);
     if (err < 0)
         return err;
@@ -572,7 +572,7 @@ static int cbs_vp9_write_unit(CodedBitstreamContext *ctx,
         unit->data_size += frame->data_size;
     }
 
-    err = ff_cbs_alloc_unit_data(ctx, unit, unit->data_size);
+    err = ff_cbs_alloc_unit_data(unit, unit->data_size);
     if (err < 0)
         return err;
 

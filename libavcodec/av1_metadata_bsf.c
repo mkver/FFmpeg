@@ -146,13 +146,13 @@ static int av1_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     // If a Temporal Delimiter is present, it must be the first OBU.
     if (frag->units[0].type == AV1_OBU_TEMPORAL_DELIMITER) {
         if (ctx->td == REMOVE)
-            ff_cbs_delete_unit(ctx->cbc, frag, 0);
+            ff_cbs_delete_unit(frag, 0);
     } else if (ctx->td == INSERT) {
         td = (AV1RawOBU) {
             .header.obu_type = AV1_OBU_TEMPORAL_DELIMITER,
         };
 
-        err = ff_cbs_insert_unit_content(ctx->cbc, frag, 0, AV1_OBU_TEMPORAL_DELIMITER,
+        err = ff_cbs_insert_unit_content(frag, 0, AV1_OBU_TEMPORAL_DELIMITER,
                                          &td, NULL);
         if (err < 0) {
             av_log(bsf, AV_LOG_ERROR, "Failed to insert Temporal Delimiter.\n");
@@ -163,7 +163,7 @@ static int av1_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     if (ctx->delete_padding) {
         for (i = frag->nb_units - 1; i >= 0; i--) {
             if (frag->units[i].type == AV1_OBU_PADDING)
-                ff_cbs_delete_unit(ctx->cbc, frag, i);
+                ff_cbs_delete_unit(frag, i);
         }
     }
 
@@ -175,7 +175,7 @@ static int av1_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
 
     err = 0;
 fail:
-    ff_cbs_fragment_reset(ctx->cbc, frag);
+    ff_cbs_fragment_reset(frag);
 
     if (err < 0)
         av_packet_unref(pkt);
@@ -219,7 +219,7 @@ static int av1_metadata_init(AVBSFContext *bsf)
 
     err = 0;
 fail:
-    ff_cbs_fragment_reset(ctx->cbc, frag);
+    ff_cbs_fragment_reset(frag);
     return err;
 }
 
@@ -227,7 +227,7 @@ static void av1_metadata_close(AVBSFContext *bsf)
 {
     AV1MetadataContext *ctx = bsf->priv_data;
 
-    ff_cbs_fragment_free(ctx->cbc, &ctx->access_unit);
+    ff_cbs_fragment_free(&ctx->access_unit);
     ff_cbs_close(&ctx->cbc);
 }
 

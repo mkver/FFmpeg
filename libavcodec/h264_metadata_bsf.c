@@ -294,7 +294,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     // If an AUD is present, it must be the first NAL unit.
     if (au->units[0].type == H264_NAL_AUD) {
         if (ctx->aud == REMOVE)
-            ff_cbs_delete_unit(ctx->cbc, au, 0);
+            ff_cbs_delete_unit(au, 0);
     } else {
         if (ctx->aud == INSERT) {
             static const int primary_pic_type_table[] = {
@@ -335,8 +335,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                 .primary_pic_type = j,
             };
 
-            err = ff_cbs_insert_unit_content(ctx->cbc, au,
-                                             0, H264_NAL_AUD, &aud, NULL);
+            err = ff_cbs_insert_unit_content(au, 0, H264_NAL_AUD, &aud, NULL);
             if (err < 0) {
                 av_log(bsf, AV_LOG_ERROR, "Failed to insert AUD.\n");
                 goto fail;
@@ -393,7 +392,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
             udu->data_length = len + 1;
             memcpy(udu->data, ctx->sei_user_data + i + 1, len + 1);
 
-            err = ff_cbs_h264_add_sei_message(ctx->cbc, au, &payload);
+            err = ff_cbs_h264_add_sei_message(au, &payload);
             if (err < 0) {
                 av_log(bsf, AV_LOG_ERROR, "Failed to add user data SEI "
                        "message to access unit.\n");
@@ -412,7 +411,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     if (ctx->delete_filler) {
         for (i = au->nb_units - 1; i >= 0; i--) {
             if (au->units[i].type == H264_NAL_FILLER_DATA) {
-                ff_cbs_delete_unit(ctx->cbc, au, i);
+                ff_cbs_delete_unit(au, i);
                 continue;
             }
 
@@ -423,8 +422,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                 for (j = sei->payload_count - 1; j >= 0; j--) {
                     if (sei->payload[j].payload_type ==
                         H264_SEI_TYPE_FILLER_PAYLOAD)
-                        ff_cbs_h264_delete_sei_message(ctx->cbc, au,
-                                                       &au->units[i], j);
+                        ff_cbs_h264_delete_sei_message(au, &au->units[i], j);
                 }
             }
         }
@@ -448,8 +446,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
 
                 if (ctx->display_orientation == REMOVE ||
                     ctx->display_orientation == INSERT) {
-                    ff_cbs_h264_delete_sei_message(ctx->cbc, au,
-                                                   &au->units[i], j);
+                    ff_cbs_h264_delete_sei_message(au, &au->units[i], j);
                     continue;
                 }
 
@@ -540,7 +537,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         if (write) {
             disp->display_orientation_repetition_period = 1;
 
-            err = ff_cbs_h264_add_sei_message(ctx->cbc, au, &payload);
+            err = ff_cbs_h264_add_sei_message(au, &payload);
             if (err < 0) {
                 av_log(bsf, AV_LOG_ERROR, "Failed to add display orientation "
                        "SEI message to access unit.\n");
@@ -559,7 +556,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
 
     err = 0;
 fail:
-    ff_cbs_fragment_reset(ctx->cbc, au);
+    ff_cbs_fragment_reset(au);
 
     if (err < 0)
         av_packet_unref(pkt);
@@ -601,7 +598,7 @@ static int h264_metadata_init(AVBSFContext *bsf)
 
     err = 0;
 fail:
-    ff_cbs_fragment_reset(ctx->cbc, au);
+    ff_cbs_fragment_reset(au);
     return err;
 }
 
@@ -609,7 +606,7 @@ static void h264_metadata_close(AVBSFContext *bsf)
 {
     H264MetadataContext *ctx = bsf->priv_data;
 
-    ff_cbs_fragment_free(ctx->cbc, &ctx->access_unit);
+    ff_cbs_fragment_free(&ctx->access_unit);
     ff_cbs_close(&ctx->cbc);
 }
 
