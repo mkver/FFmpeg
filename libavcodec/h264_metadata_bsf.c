@@ -50,6 +50,16 @@ enum {
 };
 
 enum {
+    MIN_IDR                    =   1,
+    MIN_SLICE_TYPE             =   2,
+    SINGLE_QP                  =   4,
+    MOD_REF                    =   8,
+    MOD_FRAME_NUM              =  16,
+    MOD_POC                    =  32,
+    PROGRESSIVE                =  64,
+};
+
+enum {
     IS_IN_EXTRA                =   1,
     IS_IN_HEADER               =   2,
     DIFFERS_OUT                =   4,
@@ -141,7 +151,6 @@ typedef struct H264MetadataContext {
     int flip;
     H264RawSEIDisplayOrientation display_orientation_payload;
 
-    int idr;
     union {
         int init;
         struct {
@@ -149,7 +158,14 @@ typedef struct H264MetadataContext {
             uint8_t ref[2];
         } ref;
     } ref;
-    int misc;
+    union {
+        int init;
+        struct {
+            uint8_t flags;
+            uint8_t idr;
+            uint8_t interlaced;
+        } misc;
+    } misc;
 
     union {
         int init;
@@ -546,7 +562,7 @@ static int h264_metadata_update_pps(AVBSFContext *bsf,
     H264RawSPS *sps = h264_in->sps[pps->seq_parameter_set_id];
     int err;
 
-    if (ctx->misc & 2 && sps->frame_mbs_only_flag &&
+    if (ctx->misc.misc.interlaced && sps->frame_mbs_only_flag &&
         pps->bottom_field_pic_order_in_frame_present_flag) {
         err = ff_cbs_make_unit_writable(ctx->output, unit);
         if (err < 0)
@@ -554,7 +570,7 @@ static int h264_metadata_update_pps(AVBSFContext *bsf,
         pps = unit->content;
 
         pps->bottom_field_pic_order_in_frame_present_flag = 0;
-        ctx->misc |= 4;
+        ctx->misc.misc.flags |= PROGRESSIVE;
     }
 
     if (ctx->ref.ref.state & 6) {
@@ -1157,10 +1173,10 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         }
     }
 
-    if (ctx->idr != 2 || ctx->ref.ref.state || ctx->misc & 5
-        || ctx->qp.qp.state < 0 || ctx->frame_num_offset || ctx->poc_offset) {
+    if (ctx->misc.misc.flags) {
         int idr_access = h264_in->last_slice_nal_unit_type == H264_NAL_IDR_SLICE;
         int mmco = 0;
+        uint8_t flags = ctx->misc.misc.flags;
 
         for (i = 0; i < au->nb_units; i++) {
             CodedBitstreamUnit    *unit = &au->units[i];
@@ -1178,13 +1194,13 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
             idr_slice = type == H264_NAL_IDR_SLICE ||
                         type == H264_NAL_AUXILIARY_SLICE && idr_access;
 
-            if (idr_slice && ctx->idr != 2)
-                slice->idr_pic_id = idr_access & ctx->idr; /* & same as && */
+            if (idr_slice && flags & MIN_IDR)
+                slice->idr_pic_id = idr_access & ctx->misc.misc.idr; /* & same as && */
 
-            if (ctx->misc & 1 && slice->slice_type >= 5)
+            if (flags & MIN_SLICE_TYPE && slice->slice_type >= 5)
                 slice->slice_type -= 5;
 
-            if (ctx->ref.ref.state & !idr_slice) { /* & same as && */
+            if (flags & MOD_REF && !idr_slice) {
                 int slice_type, slice_type_p, slice_type_b;
                 slice_type = slice->slice_type;
                 if (slice_type >= 5)
@@ -1213,25 +1229,37 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                 }
             }
 
-            if ((ctx->misc & 4 || ctx->frame_num_offset || ctx->poc_offset)
+            if (flags & (PROGRESSIVE|MOD_FRAME_NUM|MOD_POC)
                 && h264_in->active_sps->pic_order_cnt_type == 0) {
                 const H264RawSPS *sps = h264_in->active_sps;
                 uint16_t poc_max = (1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)) - 1;
 
-                if (ctx->misc & 4 && sps->frame_mbs_only_flag &&
+                if (flags & PROGRESSIVE && sps->frame_mbs_only_flag &&
                     pps->bottom_field_pic_order_in_frame_present_flag) {
                     if (slice->delta_pic_order_cnt_bottom < 0)
                         slice->pic_order_cnt_lsb += slice->delta_pic_order_cnt_bottom;
                     slice->delta_pic_order_cnt_bottom = 0;
                 }
 
-                if ((ctx->frame_num_offset || ctx->poc_offset) && !idr_slice) {
+                if (flags & (MOD_FRAME_NUM|MOD_POC) && !idr_slice) {
                     uint16_t frame_num_max = (1 << (sps->log2_max_frame_num_minus4 + 4)) - 1;
 
-                    if (ctx->frame_num_offset == 65536)
-                        ctx->frame_num_offset =  -slice->frame_num;
-                    if (ctx->poc_offset       == 65536)
-                        ctx->poc_offset       =  -slice->pic_order_cnt_lsb;
+                    if (ctx->frame_num_offset == 65536) {
+                        if (slice->frame_num) {
+                            ctx->frame_num_offset = -slice->frame_num;
+                        } else {
+                            flags                &= ~MOD_FRAME_NUM;
+                            ctx->misc.misc.flags  = flags;
+                        }
+                    }
+                    if (ctx->poc_offset       == 65536) {
+                        if (slice->pic_order_cnt_lsb) {
+                            ctx->poc_offset       = -slice->pic_order_cnt_lsb;
+                        } else {
+                            flags                &= ~MOD_POC;
+                            ctx->misc.misc.flags  = flags;
+                        }
+                    }
 
                     slice->pic_order_cnt_lsb += ctx->poc_offset;
                     slice->frame_num         += ctx->frame_num_offset;
@@ -1261,7 +1289,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                 slice->pic_order_cnt_lsb &= poc_max;
             }
 
-            if (ctx->qp.qp.state < 0) {
+            if (flags & SINGLE_QP) {
                 int qp = pps->pic_init_qp_minus26 + slice->slice_qp_delta;
 
                 if (ctx->qp_histogram)
@@ -1272,11 +1300,9 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
             }
         }
 
-        if (ctx->idr != 2)
-            ctx->idr = idr_access & !ctx->idr; /* & same as && */
+        ctx->misc.misc.idr = idr_access & !ctx->misc.misc.idr; /* & same as && */
         if (mmco || idr_access) {
-            ctx->frame_num_offset = 0;
-            ctx->poc_offset       = 0;
+            ctx->misc.misc.flags &= ~(MOD_FRAME_NUM|MOD_POC);
         }
     }
 
@@ -1518,7 +1544,7 @@ static int h264_metadata_init(AVBSFContext *bsf)
 {
     H264MetadataContext *ctx = bsf->priv_data;
     CodedBitstreamFragment *au = &ctx->access_unit;
-    int err, i;
+    int err, i, flags;
 
     if (ctx->sei_user_data) {
         SEIRawUserDataUnregistered *udu = &ctx->sei_user_data_payload;
@@ -1561,16 +1587,14 @@ static int h264_metadata_init(AVBSFContext *bsf)
         SET_CONDITIONALLY(aud,       UNDETERMINED, PASS);
         SET_CONDITIONALLY(extradata, UNDETERMINED, PASS);
         SET_CONDITIONALLY(delete_filler, -1, 0);
-        SET_CONDITIONALLY(idr,           -1, 0);
         SET_CONDITIONALLY(ref.init,      -1, 0);
-        SET_CONDITIONALLY(misc,          -1, 0);
+        SET_CONDITIONALLY(misc.init,     -1, 0);
         SET_CONDITIONALLY(qp.init,       -1, 0);
     } else {
         SET_CONDITIONALLY(aud,       UNDETERMINED, REMOVE);
         SET_CONDITIONALLY(extradata, UNDETERMINED, MINIMIZE_2);
         SET_CONDITIONALLY(delete_filler, -1, 3);
-        SET_CONDITIONALLY(idr,           -1, 1);
-        SET_CONDITIONALLY(misc,          -1, 3);
+        SET_CONDITIONALLY(misc.init,     -1, 7);
 
         if (ctx->preset == ZDF_PRESET) {
             SET_CONDITIONALLY(ref.init,     -1,  2);
@@ -1592,16 +1616,24 @@ static int h264_metadata_init(AVBSFContext *bsf)
     }
     #undef SET_CONDITIONALLY
 
+    flags                = ctx->misc.init;
+    ctx->misc.misc.flags = flags & (MIN_IDR|MIN_SLICE_TYPE);
+    ctx->misc.misc.interlaced =  flags & 4;
+    ctx->misc.misc.idr   = 0;
+
+    if (ctx->frame_num_offset)
+        ctx->misc.misc.flags |= MOD_FRAME_NUM;
+    if (ctx->poc_offset)
+        ctx->misc.misc.flags |= MOD_POC;
+
     if (ctx->extradata == MINIMIZE_2) {
         ctx->header_unused = 1;
         ctx->extradata = MINIMIZE;
     }
 
-    ctx->idr = 2 * !ctx->idr;
-
     if (ctx->ref.init) {
         int ref = ctx->ref.init;
-        ctx->ref.ref.state = 1;
+        ctx->misc.misc.flags |= MOD_REF;
         ref >>= 1;
         ctx->ref.ref.ref[0] = ref & 63;
         if (ctx->ref.ref.ref[0] > 32) {
@@ -1654,8 +1686,10 @@ static int h264_metadata_init(AVBSFContext *bsf)
                 }
                 ctx->qp_lut[j] = pps_min;
             }
-        } else
-            ctx->qp.qp.state = -1;
+        } else {
+            ctx->misc.misc.flags |= SINGLE_QP;
+            ctx->qp.qp.state      = -1;
+        }
 
         if (av_log_get_level() >= AV_LOG_VERBOSE) {
             ctx->qp_histogram = av_mallocz_array(52, sizeof(*ctx->qp_histogram));
@@ -1925,14 +1959,11 @@ static const AVOption h264_metadata_options[] = {
         0, AV_OPT_TYPE_CONST,
         { .i64 = FLIP_VERTICAL },   .flags = FLAGS, .unit = "flip" },
 
-    { "idr", "Minimize idr_pic_id",
-        OFFSET(idr), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 1, FLAGS},
-
     { "ref", "num_ref_idx_active_override_flag",
         OFFSET(ref.init), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 4161, FLAGS},
 
-    { "misc", "bit 1: Fix progressive fake-interlaced videos, Bit 0: Minimize slice_type.",
-        OFFSET(misc), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 3, FLAGS},
+    { "misc", "Bit 0: Minimize idr_pic_id, bit 1: Minimize slice_type, bit 2: Fix progressive fake-interlaced videos.",
+        OFFSET(misc.init), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 7, FLAGS},
 
     { "qp", "Modify PPS and slice qp values to create static PPS",
         OFFSET(qp.init), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 1772526184, FLAGS},
