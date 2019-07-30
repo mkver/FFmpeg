@@ -57,6 +57,7 @@ enum {
     MOD_FRAME_NUM              =  16,
     MOD_POC                    =  32,
     PROGRESSIVE                =  64,
+    FORCE_PROGRESSIVE          = 128,
 };
 
 enum {
@@ -562,7 +563,9 @@ static int h264_metadata_update_pps(AVBSFContext *bsf,
     H264RawSPS *sps = h264_in->sps[pps->seq_parameter_set_id];
     int err;
 
-    if (ctx->misc.misc.interlaced && sps->frame_mbs_only_flag &&
+    if (sps->pic_order_cnt_type == 0 &&
+       ((ctx->misc.misc.interlaced & 4 && sps->frame_mbs_only_flag) ||
+         ctx->misc.misc.interlaced & 8) &&
         pps->bottom_field_pic_order_in_frame_present_flag) {
         err = ff_cbs_make_unit_writable(ctx->output, unit);
         if (err < 0)
@@ -571,6 +574,8 @@ static int h264_metadata_update_pps(AVBSFContext *bsf,
 
         pps->bottom_field_pic_order_in_frame_present_flag = 0;
         ctx->misc.misc.flags |= PROGRESSIVE;
+        if (!sps->frame_mbs_only_flag)
+            ctx->misc.misc.flags |= FORCE_PROGRESSIVE;
     }
 
     if (ctx->ref.ref.state & 6) {
@@ -1234,8 +1239,16 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                 const H264RawSPS *sps = h264_in->active_sps;
                 uint16_t poc_max = (1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)) - 1;
 
+                if (flags & FORCE_PROGRESSIVE) {
+                    if (slice->field_pic_flag) {
+                        av_log(bsf, AV_LOG_WARNING, "Encountered field while "
+                               "forcing progressive.\n");
+                    } else
+                        goto make_progressive;
+                }
                 if (flags & PROGRESSIVE && sps->frame_mbs_only_flag &&
                     pps->bottom_field_pic_order_in_frame_present_flag) {
+                make_progressive:
                     if (slice->delta_pic_order_cnt_bottom < 0)
                         slice->pic_order_cnt_lsb += slice->delta_pic_order_cnt_bottom;
                     slice->delta_pic_order_cnt_bottom = 0;
@@ -1618,7 +1631,7 @@ static int h264_metadata_init(AVBSFContext *bsf)
 
     flags                = ctx->misc.init;
     ctx->misc.misc.flags = flags & (MIN_IDR|MIN_SLICE_TYPE);
-    ctx->misc.misc.interlaced =  flags & 4;
+    ctx->misc.misc.interlaced =  flags & 0xC;
     ctx->misc.misc.idr   = 0;
 
     if (ctx->frame_num_offset)
@@ -1962,8 +1975,8 @@ static const AVOption h264_metadata_options[] = {
     { "ref", "num_ref_idx_active_override_flag",
         OFFSET(ref.init), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 4161, FLAGS},
 
-    { "misc", "Bit 0: Minimize idr_pic_id, bit 1: Minimize slice_type, bit 2: Fix progressive fake-interlaced videos.",
-        OFFSET(misc.init), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 7, FLAGS},
+    { "misc", "Bit 0: Minimize idr_pic_id, bit 1: Minimize slice_type, bit 2: Fix progressive fake-interlaced videos, bit 3: Also fix PAFF/MBAFF.",
+        OFFSET(misc.init), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 15, FLAGS},
 
     { "qp", "Modify PPS and slice qp values to create static PPS",
         OFFSET(qp.init), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 1772526184, FLAGS},
