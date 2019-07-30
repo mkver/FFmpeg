@@ -442,13 +442,24 @@ static int cbs_h2645_read_more_rbsp_data(GetBitContext *gbc)
 #undef byte_alignment
 #undef allocate
 
-
-static void cbs_h264_free_pps(void *opaque, uint8_t *content)
+static AVBufferRef *cbs_h264_copy_sps(const H264RawSPS *source)
 {
-    H264RawPPS *pps = (H264RawPPS*)content;
-    av_buffer_unref(&pps->slice_group_id_ref);
-    av_freep(&content);
+    AVBufferRef *ref = av_buffer_alloc(sizeof(H264RawSPS));
+    if (!ref)
+        return NULL;
+    memcpy(ref->data, source, sizeof(H264RawSPS));
+    return ref;
 }
+
+cbs_copy_free(h264, H264RawPPS, pps, slice_group_id,
+              pic_size_in_map_units_minus1, BYTES, 1)
+
+cbs_copy_free(h265, H265RawVPS, vps, extension_data.data,
+              extension_data.bit_length, BITS, 0)
+cbs_copy_free(h265, H265RawSPS, sps, extension_data.data,
+              extension_data.bit_length, BITS, 0)
+cbs_copy_free(h265, H265RawPPS, pps, extension_data.data,
+              extension_data.bit_length, BITS, 0)
 
 static void cbs_h264_free_sei_payload(H264RawSEIPayload *payload)
 {
@@ -486,27 +497,6 @@ static void cbs_h264_free_slice(void *opaque, uint8_t *content)
 {
     H264RawSlice *slice = (H264RawSlice*)content;
     av_buffer_unref(&slice->data_ref);
-    av_freep(&content);
-}
-
-static void cbs_h265_free_vps(void *opaque, uint8_t *content)
-{
-    H265RawVPS *vps = (H265RawVPS*)content;
-    av_buffer_unref(&vps->extension_data.data_ref);
-    av_freep(&content);
-}
-
-static void cbs_h265_free_sps(void *opaque, uint8_t *content)
-{
-    H265RawSPS *sps = (H265RawSPS*)content;
-    av_buffer_unref(&sps->extension_data.data_ref);
-    av_freep(&content);
-}
-
-static void cbs_h265_free_pps(void *opaque, uint8_t *content)
-{
-    H265RawPPS *pps = (H265RawPPS*)content;
-    av_buffer_unref(&pps->extension_data.data_ref);
     av_freep(&content);
 }
 
@@ -747,6 +737,7 @@ static int cbs_h2645_split_fragment(CodedBitstreamContext *ctx,
     return 0;
 }
 
+
 #define cbs_h2645_replace_ps(h26n, ps_name, ps_var, id_element) \
 static int cbs_h26 ## h26n ## _replace_ ## ps_var(CodedBitstreamContext *ctx, \
                                                   CodedBitstreamUnit *unit)  \
@@ -765,12 +756,10 @@ static int cbs_h26 ## h26n ## _replace_ ## ps_var(CodedBitstreamContext *ctx, \
     if (unit->content_ref) \
         priv->ps_var ## _ref[id] = av_buffer_ref(unit->content_ref); \
     else \
-        priv->ps_var ## _ref[id] = av_buffer_alloc(sizeof(*ps_var)); \
+        priv->ps_var ## _ref[id] = cbs_h26 ## h26n ## _copy_ ## ps_var(ps_var); \
     if (!priv->ps_var ## _ref[id]) \
         return AVERROR(ENOMEM); \
     priv->ps_var[id] = (H26 ## h26n ## Raw ## ps_name *)priv->ps_var ## _ref[id]->data; \
-    if (!unit->content_ref) \
-        memcpy(priv->ps_var[id], ps_var, sizeof(*ps_var)); \
     return 0; \
 }
 

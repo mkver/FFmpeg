@@ -127,7 +127,7 @@ enum {
 // free functions for structs with exactly one internal buffer.
 
 #define cbs_copy_free(codec, type, var, buffer, size_element, size_offset, size_unit) \
-static void cbs_ ## codec ## _free_ ## var(void *unit, uint8_t *content) \
+static void cbs_ ## codec ## _free_ ## var(void *opaque, uint8_t *content) \
 { \
     type *var = (type *)content; \
  \
