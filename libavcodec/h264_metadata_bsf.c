@@ -149,9 +149,17 @@ typedef struct H264MetadataContext {
     } ref;
     int misc;
 
-    int qp;
-    int qp_val;
+    union {
+        int init;
+        struct {
+            int8_t state; // > 0: several qp's, == 0: qp unused, < 0: single qp
+            int8_t num_qp_minus_1;
+            int8_t weighted_pred_flag;
+            int8_t qp_val[5];
+        } qp;
+    } qp;
     int *qp_histogram;
+    int8_t *qp_lut;
 
     int level;
 
@@ -442,6 +450,12 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
         sps->vui.low_delay_hrd_flag = 1 - sps->vui.fixed_frame_rate_flag;
     }
     if (sps->bit_depth_luma_minus8) {
+        if (ctx->qp.qp.state > 0) {
+            av_log(bsf, AV_LOG_ERROR, "Multiple qp values with bit-depth "
+                                      "different from 8 are not supported.\n");
+            return AVERROR(EINVAL);
+        }
+
         if (ctx->qp_histogram) {
             av_log(bsf, AV_LOG_VERBOSE, "qp-statistics unavailable with "
                                         "bit-depth > 8.\n");
@@ -505,14 +519,20 @@ static int h264_metadata_update_pps(AVBSFContext *bsf,
             pps->num_ref_idx_l1_default_active_minus1 = ctx->ref.ref.ref[1];
     }
 
-    if (ctx->qp) {
+    if (ctx->qp.qp.state) {
+        if (ctx->qp.qp.state > 0 && pps->pic_parameter_set_id) {
+            av_log(bsf, AV_LOG_ERROR, "Multiple qp values only allowed when "
+                                      "the only input PPS_id is 0.\n");
+            return AVERROR(EINVAL);
+        }
+
         err = ff_cbs_make_unit_writable(ctx->output, unit);
         if (err < 0)
             return err;
         pps = unit->content;
 
-        pps->pic_init_qp_minus26 = ctx->qp_val;
-        if (ctx->qp & 1)
+        pps->pic_init_qp_minus26 = ctx->qp.qp.qp_val[0];
+        if (ctx->qp.qp.weighted_pred_flag)
             pps->weighted_pred_flag = 1;
     }
 
@@ -556,7 +576,7 @@ static int h264_metadata_check_status(uint8_t *status, int count, int flag)
 
 static int h264_metadata_handle_ps(AVBSFContext *bsf,
                                    CodedBitstreamFragment *au,
-                                   int keyframe, int has_ps)
+                                   int keyframe, int has_ps, int forbid_mod)
 {
     H264MetadataContext *ctx = bsf->priv_data;
     CodedBitstreamH264Context *out = ctx->output->priv_data;
@@ -572,7 +592,7 @@ static int h264_metadata_handle_ps(AVBSFContext *bsf,
         // Therefore sometimes some checks are omitted if they are unnecessary.
         // Notice that this implies that in an INSERT mode the DIFFERS_OUT flag
         // is only valid after the PS has been written in a GOP.
-        int check = !(keyframe == 2 || keyframe && mode != MINIMIZE);
+        int check = !(keyframe == 2 || keyframe && mode != MINIMIZE && !forbid_mod);
 
         for (int i = 0; i < au->nb_units; i++) {
             CodedBitstreamUnit *unit = &au->units[i];
@@ -626,6 +646,11 @@ static int h264_metadata_handle_ps(AVBSFContext *bsf,
                         // that no flags need to be updated.
                         if (!(*status & DIFFERS_OUT))
                             continue;
+                    } else if (forbid_mod) {
+                        av_log(bsf, AV_LOG_ERROR, "Extradata changed. Output"
+                                                         " likely corrupt.\n");
+                        err = AVERROR_INVALIDDATA;
+                        goto fail;
                     } else {
                         res = DIFFERS_OUT;
                         av_log(bsf, AV_LOG_VERBOSE, "%cPS with id %"PRIu8" "
@@ -1074,7 +1099,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     }
 
     if (ctx->idr != 2 || ctx->ref.ref.state || ctx->misc & 5
-        || ctx->qp || ctx->frame_num_offset || ctx->poc_offset) {
+        || ctx->qp.qp.state < 0 || ctx->frame_num_offset || ctx->poc_offset) {
         int idr_access = h264_in->last_slice_nal_unit_type == H264_NAL_IDR_SLICE;
         int mmco = 0;
 
@@ -1177,14 +1202,14 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                 slice->pic_order_cnt_lsb &= poc_max;
             }
 
-            if (ctx->qp) {
+            if (ctx->qp.qp.state < 0) {
                 int qp = pps->pic_init_qp_minus26 + slice->slice_qp_delta;
 
                 if (ctx->qp_histogram)
                     ctx->qp_histogram[qp]++;
 
                 slice->slice_qp_delta += pps->pic_init_qp_minus26
-                                       - ctx->qp_val;
+                                       - ctx->qp.qp.qp_val[0];
             }
         }
 
@@ -1193,6 +1218,83 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         if (mmco || idr_access) {
             ctx->frame_num_offset = 0;
             ctx->poc_offset       = 0;
+        }
+    }
+
+    if (ctx->qp.qp.state > 0) {
+        const H264RawPPS *pps = h264_in->active_pps;
+        int qp = 100, pps_id, qp_delta;
+
+        for (i = 0; i < au->nb_units; i++) {
+            const CodedBitstreamUnit *unit = &au->units[i];
+            CodedBitstreamUnitType    type = unit->type;
+
+            if (type == H264_NAL_SLICE || type == H264_NAL_IDR_SLICE
+                                       || type == H264_NAL_AUXILIARY_SLICE) {
+                const H264RawSliceHeader *slice = unit->content;
+
+                if (qp != 100 && slice->slice_qp_delta != qp)
+                    break;
+
+                qp = slice->slice_qp_delta;
+            }
+        }
+
+        if (qp == 100) {
+            av_log(bsf, AV_LOG_ERROR, "No slice in access unit.\n");
+            err = AVERROR(EINVAL);
+            goto fail;
+        }
+
+        if (i == au->nb_units) {
+            qp    += pps->pic_init_qp_minus26;
+            pps_id = ctx->qp_lut[qp];
+        } else {
+            int cost[5] = { 0 }, min, k = ctx->qp.qp.num_qp_minus_1;
+
+            av_log(bsf, AV_LOG_DEBUG, "Found access unit with slices with "
+                                      "different slice_qp_delta values.\n");
+
+            #define GOL_DIFF(i,j) (i == j ? -1 : av_log2(FFABS(i - j)))
+            for (i = 0; i < au->nb_units; i++) {
+                const CodedBitstreamUnit *unit = &au->units[i];
+                CodedBitstreamUnitType    type = unit->type;
+
+                if (type == H264_NAL_SLICE || type == H264_NAL_IDR_SLICE
+                                           || type == H264_NAL_AUXILIARY_SLICE) {
+                    const H264RawSliceHeader *slice = unit->content;
+
+                    for (int j = k; j >= 0; j--)
+                        cost[j] += GOL_DIFF(slice->slice_qp_delta, ctx->qp.qp.qp_val[j]) + (j + 1) / 2;
+                }
+            }
+
+            pps_id = 0;
+            min    = cost[0];
+            for (int j = 1; j <= k; j++) {
+                if (cost[j] < min) {
+                    pps_id = j;
+                    min    = cost[j];
+                }
+            }
+        }
+
+        qp_delta = pps->pic_init_qp_minus26 - ctx->qp.qp.qp_val[pps_id];
+
+        for (i = 0; i < au->nb_units; i++) {
+            CodedBitstreamUnit    *unit = &au->units[i];
+            CodedBitstreamUnitType type = unit->type;
+
+            if (type == H264_NAL_SLICE || type == H264_NAL_IDR_SLICE
+                                       || type == H264_NAL_AUXILIARY_SLICE) {
+                H264RawSliceHeader *slice = unit->content;
+
+                slice->slice_qp_delta      += qp_delta;
+                slice->pic_parameter_set_id = pps_id;
+
+                if (ctx->qp_histogram)
+                    ctx->qp_histogram[slice->slice_qp_delta + ctx->qp.qp.qp_val[pps_id]]++;
+            }
         }
     }
 
@@ -1208,7 +1310,8 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
             }
         } else if (!ctx->extra_status || has_ps || seek_point) {
             err = h264_metadata_handle_ps(bsf, au, pkt->flags & AV_PKT_FLAG_KEY
-                                               || !ctx->done_first_au, has_ps);
+                                               || !ctx->done_first_au, has_ps,
+                                                    ctx->qp.qp.num_qp_minus_1);
             if (err < 0)
                 goto fail;
         }
@@ -1365,7 +1468,7 @@ static int h264_metadata_init(AVBSFContext *bsf)
         SET_CONDITIONALLY(idr,           -1, 0);
         SET_CONDITIONALLY(ref.init,      -1, 0);
         SET_CONDITIONALLY(misc,          -1, 0);
-        SET_CONDITIONALLY(qp,            -1, 0);
+        SET_CONDITIONALLY(qp.init,       -1, 0);
     } else {
         SET_CONDITIONALLY(aud,       UNDETERMINED, REMOVE);
         SET_CONDITIONALLY(extradata, UNDETERMINED, MINIMIZE);
@@ -1375,10 +1478,10 @@ static int h264_metadata_init(AVBSFContext *bsf)
 
         if (ctx->preset == ZDF_PRESET) {
             SET_CONDITIONALLY(ref.init,     -1,  2);
-            SET_CONDITIONALLY(qp,           -1, 58);
+            SET_CONDITIONALLY(qp.init,      -1, 58);
         } else {
             SET_CONDITIONALLY(ref.init,     -1,  1);
-            SET_CONDITIONALLY(qp,           -1,  0);
+            SET_CONDITIONALLY(qp.init,      -1,  0);
         }
 
         if (ctx->preset == ARD_PRESET || ctx->preset == ZDF_PRESET)
@@ -1413,11 +1516,45 @@ static int h264_metadata_init(AVBSFContext *bsf)
         }
     }
 
-    if (ctx->qp == 1)
-        ctx->qp = 0;
+    if (ctx->qp.init > 1) {
+        int8_t *qp_val = ctx->qp.qp.qp_val;
+        int     qp     = ctx->qp.init;
 
-    if (ctx->qp) {
-        ctx->qp_val = (ctx->qp >> 1) - 27;
+        ctx->qp.qp.weighted_pred_flag = qp & 1;
+        qp >>= 1;
+
+        for (i = 0;; i++) {
+            qp_val[i]  = qp & 63;
+            if (qp_val[i] > 52 || (!qp_val[i] && qp))
+                return AVERROR(EINVAL);
+            qp_val[i] -= 27;
+            qp >>= 6;
+            if (!qp)
+                break;
+        }
+        ctx->qp.qp.num_qp_minus_1 = i;
+
+        if (i) {
+            ctx->qp.qp.state = 1;
+
+            ctx->qp_lut  = av_malloc_array(52, sizeof(*ctx->qp_lut));
+            if (!ctx->qp_lut)
+                return AVERROR(ENOMEM);
+            ctx->qp_lut += 26;
+            #define GOL_DIFF(i,j) (i == j ? -1 : av_log2(FFABS(i - j)))
+            for (int j = -26; j < 26; j++) {
+                int pps_min = 0, len_min = GOL_DIFF(j, qp_val[0]);
+                for (int k = 1; k <= i; k++) {
+                    int temp = GOL_DIFF(j, qp_val[k]) + (k + 1) / 2;
+                    if (temp < len_min) {
+                        len_min = temp;
+                        pps_min = k;
+                    }
+                }
+                ctx->qp_lut[j] = pps_min;
+            }
+        } else
+            ctx->qp.qp.state = -1;
 
         if (av_log_get_level() >= AV_LOG_VERBOSE) {
             ctx->qp_histogram = av_mallocz_array(52, sizeof(*ctx->qp_histogram));
@@ -1425,6 +1562,8 @@ static int h264_metadata_init(AVBSFContext *bsf)
                 return AVERROR(ENOMEM);
             ctx->qp_histogram += 26;
         }
+    } else {
+        ctx->qp.qp.state = ctx->qp.qp.num_qp_minus_1 = 0;
     }
 
     if (ctx->extradata != PASS && ctx->extradata != REMOVE) {
@@ -1441,6 +1580,8 @@ static int h264_metadata_init(AVBSFContext *bsf)
         return err;
 
     if (bsf->par_in->extradata) {
+        CodedBitstreamUnit *pps_unit = NULL;
+
         err = ff_cbs_read_extradata(ctx->input, au, bsf->par_in);
         if (err < 0) {
             av_log(bsf, AV_LOG_ERROR, "Failed to read extradata.\n");
@@ -1458,11 +1599,40 @@ static int h264_metadata_init(AVBSFContext *bsf)
                 err = h264_metadata_update_pps(bsf, &au->units[i]);
                 if (err < 0)
                     goto fail;
+                pps_unit = &au->units[i];
+            }
+        }
+
+        if (ctx->qp.qp.state > 0) {
+            if (!pps_unit) {
+                av_log(bsf, AV_LOG_ERROR, "Multiple qp-values need a PPS "
+                                          "in extradata.");
+                err = AVERROR(EINVAL);
+                goto fail;
+            } else {
+                H264RawPPS *pps;
+                for (i = 1; i <= ctx->qp.qp.num_qp_minus_1; i++) {
+                    err = ff_cbs_insert_unit_content(au, -1, H264_NAL_PPS,
+                                                     pps_unit->content,
+                                                     pps_unit->content_ref);
+                    if (err < 0)
+                        goto fail;
+
+                    pps_unit = &au->units[au->nb_units - 1];
+
+                    err = ff_cbs_make_unit_writable(ctx->output, pps_unit);
+                    if (err < 0)
+                        goto fail;
+                    pps = pps_unit->content;
+
+                    pps->pic_parameter_set_id = i;
+                    pps->pic_init_qp_minus26  = ctx->qp.qp.qp_val[i];
+                }
             }
         }
 
         if (ctx->extradata != PASS && ctx->extradata != REMOVE) {
-            err = h264_metadata_handle_ps(bsf, au, 2, 1);
+            err = h264_metadata_handle_ps(bsf, au, 2, 1, 0);
             if (err < 0)
                 goto fail;
 
@@ -1478,6 +1648,10 @@ static int h264_metadata_init(AVBSFContext *bsf)
             av_log(bsf, AV_LOG_ERROR, "Failed to write extradata.\n");
             goto fail;
         }
+    } else if (ctx->qp.qp.state > 0) {
+        av_log(bsf, AV_LOG_ERROR, "Multiple qp values need "
+                                  "a PPS in extradata.\n");
+        return AVERROR_INVALIDDATA;
     } else if (ctx->extradata == REMOVE) {
         av_log(bsf, AV_LOG_WARNING, "Removing in-band extradata would make "
                            "track without out-of-band extradata unplayable."
@@ -1529,6 +1703,11 @@ static void h264_metadata_close(AVBSFContext *bsf)
     ff_cbs_fragment_free(&ctx->access_unit);
     ff_cbs_close(&ctx->input);
     ff_cbs_close(&ctx->output);
+
+    if (ctx->qp_lut) {
+        ctx->qp_lut -= 26;
+        av_freep(&ctx->qp_lut);
+    }
 
     if (ctx->qp_histogram) {
         ctx->qp_histogram -= 26;
@@ -1655,7 +1834,7 @@ static const AVOption h264_metadata_options[] = {
         OFFSET(misc), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 3, FLAGS},
 
     { "qp", "Modify PPS and slice qp values to create static PPS",
-        OFFSET(qp), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 105, FLAGS},
+        OFFSET(qp.init), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 1772526184, FLAGS},
 
     { "level", "Set level (table A-1)",
         OFFSET(level), AV_OPT_TYPE_INT,
