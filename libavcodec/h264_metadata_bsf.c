@@ -30,10 +30,19 @@
 #include "h264_sei.h"
 
 enum {
+    UNDETERMINED,
     PASS,
     INSERT,
     REMOVE,
     EXTRACT,
+};
+
+enum {
+    DEFAULT_PRESET,
+    PASSTHROUGH_PRESET,
+    ARD_PRESET,
+    ZDF_PRESET,
+    ITUNES_PRESET,
 };
 
 enum {
@@ -108,6 +117,8 @@ typedef struct H264MetadataContext {
 
     int dts;
     int64_t last_dts;
+
+    int preset;
 } H264MetadataContext;
 
 
@@ -920,6 +931,43 @@ static int h264_metadata_init(AVBSFContext *bsf)
     CodedBitstreamFragment *au = &ctx->access_unit;
     int err, i;
 
+    #define SET_CONDITIONALLY(option, default, value) do { \
+        if (ctx->option == default) \
+            ctx->option = value; \
+    } while(0)
+    if (ctx->preset == PASSTHROUGH_PRESET) {
+        SET_CONDITIONALLY(aud, UNDETERMINED, PASS);
+        SET_CONDITIONALLY(delete_filler, -1, 0);
+        SET_CONDITIONALLY(idr,           -1, 0);
+        SET_CONDITIONALLY(ref.init,      -1, 0);
+        SET_CONDITIONALLY(misc,          -1, 0);
+        SET_CONDITIONALLY(qp,            -1, 0);
+    } else {
+        SET_CONDITIONALLY(aud, UNDETERMINED, REMOVE);
+        SET_CONDITIONALLY(delete_filler, -1, 3);
+        SET_CONDITIONALLY(idr,           -1, 1);
+        SET_CONDITIONALLY(misc,          -1, 3);
+
+        if (ctx->preset == ZDF_PRESET) {
+            SET_CONDITIONALLY(ref.init,     -1,  2);
+            SET_CONDITIONALLY(qp,           -1, 58);
+        } else {
+            SET_CONDITIONALLY(ref.init,     -1,  1);
+            SET_CONDITIONALLY(qp,           -1,  0);
+        }
+
+        if (ctx->preset == ARD_PRESET || ctx->preset == ZDF_PRESET)
+            SET_CONDITIONALLY(reorder_frames, -1, 2);
+        else if (ctx->preset == ITUNES_PRESET) {
+            SET_CONDITIONALLY(reorder_frames,        -1, 1);
+            SET_CONDITIONALLY(fixed_frame_rate_flag, -1, 1);
+
+            if (!ctx->tick_rate.num)
+                ctx->tick_rate = (AVRational) { 48000, 1001 };
+        }
+    }
+    #undef SET_CONDITIONALLY
+
     ctx->idr = 2 * !ctx->idr;
 
     if (ctx->ref.init) {
@@ -1023,7 +1071,7 @@ static void h264_metadata_close(AVBSFContext *bsf)
 static const AVOption h264_metadata_options[] = {
     { "aud", "Access Unit Delimiter NAL units",
         OFFSET(aud), AV_OPT_TYPE_INT,
-        { .i64 = PASS }, PASS, REMOVE, FLAGS, "aud" },
+        { .i64 = UNDETERMINED }, UNDETERMINED, REMOVE, FLAGS, "aud" },
     { "pass",   NULL, 0, AV_OPT_TYPE_CONST,
         { .i64 = PASS   }, .flags = FLAGS, .unit = "aud" },
     { "insert", NULL, 0, AV_OPT_TYPE_CONST,
@@ -1093,7 +1141,7 @@ static const AVOption h264_metadata_options[] = {
         OFFSET(frame_num_offset), AV_OPT_TYPE_INT, { .i64 = 0}, -65535, 65536 },
 
     { "delete_filler", "Delete all filler (both NAL and SEI); if > 1, also delete SEI",
-        OFFSET(delete_filler), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 3, FLAGS},
+        OFFSET(delete_filler), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 3, FLAGS},
 
     { "display_orientation", "Display orientation SEI",
         OFFSET(display_orientation), AV_OPT_TYPE_INT,
@@ -1121,16 +1169,16 @@ static const AVOption h264_metadata_options[] = {
         { .i64 = FLIP_VERTICAL },   .flags = FLAGS, .unit = "flip" },
 
     { "idr", "Minimize idr_pic_id",
-        OFFSET(idr), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
+        OFFSET(idr), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 1, FLAGS},
 
     { "ref", "num_ref_idx_active_override_flag",
-        OFFSET(ref.init), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 4161, FLAGS},
+        OFFSET(ref.init), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 4161, FLAGS},
 
     { "misc", "bit 1: Fix progressive fake-interlaced videos, Bit 0: Minimize slice_type.",
-        OFFSET(misc), AV_OPT_TYPE_INT, { .i64 = 3 }, 0, 3, FLAGS},
+        OFFSET(misc), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 3, FLAGS},
 
     { "qp", "Modify PPS and slice qp values to create static PPS",
-        OFFSET(qp), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 105, FLAGS},
+        OFFSET(qp), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 105, FLAGS},
 
     { "level", "Set level (table A-1)",
         OFFSET(level), AV_OPT_TYPE_INT,
@@ -1164,6 +1212,20 @@ static const AVOption h264_metadata_options[] = {
 
     { "dts", "Offset dts in ms",
         OFFSET(dts), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, FLAGS },
+
+    { "preset", "Set some values with lower priority than a given argument.",
+        OFFSET(preset), AV_OPT_TYPE_INT, { .i64 = DEFAULT_PRESET },
+        DEFAULT_PRESET, ITUNES_PRESET, FLAGS, "preset" },
+    { "default", NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = DEFAULT_PRESET     }, .flags = FLAGS, .unit = "preset" },
+    { "pass",    NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = PASSTHROUGH_PRESET }, .flags = FLAGS, .unit = "preset" },
+    { "ARD",     NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = ARD_PRESET         }, .flags = FLAGS, .unit = "preset" },
+    { "ZDF",     NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = ZDF_PRESET         }, .flags = FLAGS, .unit = "preset" },
+    { "itunes",     NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = ITUNES_PRESET      }, .flags = FLAGS, .unit = "preset" },
 
     { NULL }
 };
