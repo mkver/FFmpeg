@@ -156,6 +156,11 @@ static av_always_inline unsigned int bytestream2_get_bytes_left(GetByteContext *
     return g->buffer_end - g->buffer;
 }
 
+static av_always_inline ptrdiff_t bytestream2_get_bytes_leftu(GetByteContext *g)
+{
+    return g->buffer_end - g->buffer;
+}
+
 static av_always_inline unsigned int bytestream2_get_bytes_left_p(PutByteContext *p)
 {
     return p->buffer_end - p->buffer;
