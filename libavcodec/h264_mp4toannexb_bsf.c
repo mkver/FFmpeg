@@ -29,6 +29,7 @@
 #include "bsf.h"
 #include "bytestream.h"
 #include "h264.h"
+#include "internal.h"
 
 typedef struct H264BSFContext {
     uint8_t *sps;
@@ -165,36 +166,34 @@ static int h264_mp4toannexb_init(AVBSFContext *ctx)
     return 0;
 }
 
-static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
+static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *pkt)
 {
     H264BSFContext *s = ctx->priv_data;
 
-    AVPacket *in;
     uint8_t unit_type, new_idr, sps_seen, pps_seen;
     const uint8_t *buf;
     const uint8_t *buf_end;
+    AVBufferRef *out_buf = NULL;
     uint8_t *out;
     uint64_t out_size;
     int ret;
 
-    ret = ff_bsf_get_packet(ctx, &in);
+    ret = ff_bsf_get_packet_ref(ctx, pkt);
     if (ret < 0)
         return ret;
 
     /* nothing to filter */
     if (!s->extradata_parsed) {
-        av_packet_move_ref(opkt, in);
-        av_packet_free(&in);
         return 0;
     }
 
-    buf_end  = in->data + in->size;
+    buf_end = pkt->data + pkt->size;
 
 #define LOG_ONCE(...) \
     if (j) \
         av_log(__VA_ARGS__)
     for (int j = 0; j < 2; j++) {
-        buf      = in->data;
+        buf      = pkt->data;
         new_idr  = s->new_idr;
         sps_seen = s->idr_sps_seen;
         pps_seen = s->idr_pps_seen;
@@ -269,28 +268,25 @@ static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
                 ret = AVERROR(EINVAL);
                 goto fail;
             }
-            ret = av_new_packet(opkt, out_size);
+            ret = ff_buffer_padded_realloc(&out_buf, out_size, 0);
             if (ret < 0)
                 goto fail;
-            out = opkt->data;
+            out = out_buf->data;
         }
     }
 #undef LOG_ONCE
 
-    av_assert1(out_size == opkt->size);
+    ff_packet_replace_buffer(pkt, out_buf);
+
+    av_assert1(out_size == pkt->size);
 
     s->new_idr      = new_idr;
     s->idr_sps_seen = sps_seen;
     s->idr_pps_seen = pps_seen;
 
-    ret = av_packet_copy_props(opkt, in);
-    if (ret < 0)
-        goto fail;
-
 fail:
     if (ret < 0)
-        av_packet_unref(opkt);
-    av_packet_free(&in);
+        av_packet_unref(pkt);
 
     return ret;
 }
