@@ -34,14 +34,23 @@
 
 static int mjpega_dump_header(AVBSFContext *ctx, AVPacket *pkt)
 {
-    AVBufferRef *out = NULL;
-    uint8_t *out_buf;
     unsigned dqt = 0, dht = 0, sof0 = 0;
     int ret = 0, i;
 
     ret = ff_bsf_get_packet_ref(ctx, pkt);
     if (ret < 0)
         return ret;
+
+    for (i = 0; i < pkt->size - 1; i++) {
+        if (pkt->data[i] == 0xff) {
+            switch (pkt->data[i + 1]) {
+            case DQT:  dqt  = i + 46; break;
+            case DHT:  dht  = i + 46; break;
+            case SOF0: sof0 = i + 46; break;
+            case SOS:
+                {
+    AVBufferRef *out = NULL;
+    uint8_t *out_buf;
 
     ret = ff_buffer_padded_realloc(&out, pkt->size, 44);
     if (ret < 0)
@@ -58,14 +67,6 @@ static int mjpega_dump_header(AVBSFContext *ctx, AVPacket *pkt)
     bytestream_put_be32(&out_buf, pkt->size + 44); /* field size */
     bytestream_put_be32(&out_buf, pkt->size + 44); /* pad field size */
     bytestream_put_be32(&out_buf, 0);             /* next ptr */
-
-    for (i = 0; i < pkt->size - 1; i++) {
-        if (pkt->data[i] == 0xff) {
-            switch (pkt->data[i + 1]) {
-            case DQT:  dqt  = i + 46; break;
-            case DHT:  dht  = i + 46; break;
-            case SOF0: sof0 = i + 46; break;
-            case SOS:
                 bytestream_put_be32(&out_buf, dqt); /* quant off */
                 bytestream_put_be32(&out_buf, dht); /* huff off */
                 bytestream_put_be32(&out_buf, sof0); /* image off */
@@ -75,17 +76,16 @@ static int mjpega_dump_header(AVBSFContext *ctx, AVPacket *pkt)
 
                 ff_packet_replace_buffer(pkt, out);
                 return 0;
+                }
             case APP1:
                 if (i + 8 < pkt->size && AV_RL32(pkt->data + i + 8) == AV_RL32("mjpg")) {
                     av_log(ctx, AV_LOG_ERROR, "bitstream already formatted\n");
-                    av_buffer_unref(&out);
                     return 0;
                 }
             }
         }
     }
     av_log(ctx, AV_LOG_ERROR, "could not find SOS marker in bitstream\n");
-    av_buffer_unref(&out);
 fail:
     av_packet_unref(pkt);
     return AVERROR_INVALIDDATA;
