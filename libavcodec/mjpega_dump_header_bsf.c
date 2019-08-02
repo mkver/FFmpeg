@@ -49,33 +49,33 @@ static int mjpega_dump_header(AVBSFContext *ctx, AVPacket *pkt)
             case SOF0: sof0 = i + 46; break;
             case SOS:
                 {
-    AVBufferRef *out = NULL;
-    uint8_t *out_buf;
+                    AVBufferRef *out = NULL;
+                    uint8_t *out_buf;
 
-    ret = ff_buffer_padded_realloc(&out, pkt->size, 44);
-    if (ret < 0)
-        goto fail;
+                    ret = ff_buffer_padded_realloc(&out, pkt->size, 44);
+                    if (ret < 0)
+                        goto fail;
 
-    out_buf = out->data;
-    bytestream_put_byte(&out_buf, 0xff);
-    bytestream_put_byte(&out_buf, SOI);
-    bytestream_put_byte(&out_buf, 0xff);
-    bytestream_put_byte(&out_buf, APP1);
-    bytestream_put_be16(&out_buf, 42); /* size */
-    bytestream_put_be32(&out_buf, 0);
-    bytestream_put_buffer(&out_buf, "mjpg", 4);
-    bytestream_put_be32(&out_buf, pkt->size + 44); /* field size */
-    bytestream_put_be32(&out_buf, pkt->size + 44); /* pad field size */
-    bytestream_put_be32(&out_buf, 0);             /* next ptr */
-                bytestream_put_be32(&out_buf, dqt); /* quant off */
-                bytestream_put_be32(&out_buf, dht); /* huff off */
-                bytestream_put_be32(&out_buf, sof0); /* image off */
-                bytestream_put_be32(&out_buf, i + 46); /* scan off */
-                bytestream_put_be32(&out_buf, i + 46 + AV_RB16(pkt->data + i + 2)); /* data off */
-                bytestream_put_buffer(&out_buf, pkt->data + 2, pkt->size - 2); /* skip already written SOI */
+                    out_buf = out->data;
+                    bytestream_put_byte(&out_buf, 0xff);
+                    bytestream_put_byte(&out_buf, SOI);
+                    bytestream_put_byte(&out_buf, 0xff);
+                    bytestream_put_byte(&out_buf, APP1);
+                    bytestream_put_be16(&out_buf, 42); /* size */
+                    bytestream_put_be32(&out_buf, 0);
+                    bytestream_put_buffer(&out_buf, "mjpg", 4);
+                    bytestream_put_be32(&out_buf, pkt->size + 44); /* field size */
+                    bytestream_put_be32(&out_buf, pkt->size + 44); /* pad field size */
+                    bytestream_put_be32(&out_buf, 0);             /* next ptr */
+                    bytestream_put_be32(&out_buf, dqt); /* quant off */
+                    bytestream_put_be32(&out_buf, dht); /* huff off */
+                    bytestream_put_be32(&out_buf, sof0); /* image off */
+                    bytestream_put_be32(&out_buf, i + 46); /* scan off */
+                    bytestream_put_be32(&out_buf, i + 46 + AV_RB16(pkt->data + i + 2)); /* data off */
+                    bytestream_put_buffer(&out_buf, pkt->data + 2, pkt->size - 2); /* skip already written SOI */
 
-                ff_packet_replace_buffer(pkt, out);
-                return 0;
+                    ff_packet_replace_buffer(pkt, out);
+                    return 0;
                 }
             case APP1:
                 if (i + 8 < pkt->size && AV_RL32(pkt->data + i + 8) == AV_RL32("mjpg")) {
