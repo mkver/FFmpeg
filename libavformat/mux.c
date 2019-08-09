@@ -1241,7 +1241,11 @@ int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
             return s->pb->error;
     }
 fail:
-    av_packet_unref(pkt);
+    // This is a deviation from the usual behaviour
+    // of av_interleaved_write_frame: We leave cleaning
+    // up uncoded frames to write_uncoded_frame_internal.
+    if (!(pkt->flags & AV_PKT_FLAG_UNCODED_FRAME))
+        av_packet_unref(pkt);
     return ret;
 }
 
@@ -1334,10 +1338,13 @@ static int write_uncoded_frame_internal(AVFormatContext *s, int stream_index,
                                         AVFrame *frame, int interleaved)
 {
     AVPacket pkt, *pktp;
+    int ret;
 
     av_assert0(s->oformat);
-    if (!s->oformat->write_uncoded_frame)
-        return AVERROR(ENOSYS);
+    if (!s->oformat->write_uncoded_frame) {
+        ret = AVERROR(ENOSYS);
+        goto free;
+    }
 
     if (!frame) {
         pktp = NULL;
@@ -1353,8 +1360,14 @@ static int write_uncoded_frame_internal(AVFormatContext *s, int stream_index,
         pkt.flags |= AV_PKT_FLAG_UNCODED_FRAME;
     }
 
-    return interleaved ? av_interleaved_write_frame(s, pktp) :
-                         av_write_frame(s, pktp);
+    ret = interleaved ? av_interleaved_write_frame(s, pktp) :
+                        av_write_frame(s, pktp);
+    if (ret < 0 && pktp && pktp->data) {
+        frame = (AVFrame*)pktp->data;
+    free:
+        av_frame_free(&frame);
+    }
+    return ret;
 }
 
 int av_write_uncoded_frame(AVFormatContext *s, int stream_index,
