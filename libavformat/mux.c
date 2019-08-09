@@ -763,9 +763,6 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
 
 static int check_packet(AVFormatContext *s, AVPacket *pkt)
 {
-    if (!pkt)
-        return 0;
-
     if (pkt->stream_index < 0 || pkt->stream_index >= s->nb_streams) {
         av_log(s, AV_LOG_ERROR, "Invalid packet stream index: %d\n",
                pkt->stream_index);
@@ -879,10 +876,6 @@ int av_write_frame(AVFormatContext *s, AVPacket *pkt)
 {
     int ret;
 
-    ret = prepare_input_packet(s, pkt);
-    if (ret < 0)
-        return ret;
-
     if (!pkt) {
         if (s->oformat->flags & AVFMT_ALLOW_FLUSH) {
             ret = s->oformat->write_packet(s, NULL);
@@ -893,6 +886,10 @@ int av_write_frame(AVFormatContext *s, AVPacket *pkt)
         }
         return 1;
     }
+
+    ret = prepare_input_packet(s, pkt);
+    if (ret < 0)
+        return ret;
 
     ret = do_packet_auto_bsf(s, pkt);
     if (ret <= 0)
@@ -1189,12 +1186,12 @@ int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
 {
     int ret, flush = 0;
 
-    ret = prepare_input_packet(s, pkt);
-    if (ret < 0)
-        goto fail;
-
     if (pkt) {
-        AVStream *st = s->streams[pkt->stream_index];
+        AVStream *st;
+
+        ret = prepare_input_packet(s, pkt);
+        if (ret < 0)
+            goto fail;
 
         ret = do_packet_auto_bsf(s, pkt);
         if (ret == 0)
@@ -1207,6 +1204,7 @@ int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
                 pkt->size, av_ts2str(pkt->dts), av_ts2str(pkt->pts));
 
 #if FF_API_COMPUTE_PKT_FIELDS2 && FF_API_LAVF_AVCTX
+        st = s->streams[pkt->stream_index];
         if ((ret = compute_muxer_pkt_fields(s, st, pkt)) < 0 && !(s->oformat->flags & AVFMT_NOTIMESTAMPS))
             goto fail;
 #endif
