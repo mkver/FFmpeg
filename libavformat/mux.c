@@ -1164,20 +1164,13 @@ int ff_interleaved_peek(AVFormatContext *s, int stream,
 
 /**
  * Interleave an AVPacket correctly so it can be muxed.
- * @param out the interleaved packet will be output here
- * @param in the input packet
- * @param flush 1 if no further packets are available as input and all
- *              remaining packets should be output
- * @return 1 if a packet was output, 0 if no packet could be output,
- *         < 0 if an error occurred
+ *
+ * See the description of ff_interleave_packet_per_dts for details.
  */
 static int interleave_packet(AVFormatContext *s, AVPacket *out, AVPacket *in, int flush)
 {
     if (s->oformat->interleave_packet) {
-        int ret = s->oformat->interleave_packet(s, out, in, flush);
-        if (in)
-            av_packet_unref(in);
-        return ret;
+        return s->oformat->interleave_packet(s, out, in, flush);
     } else
         return ff_interleave_packet_per_dts(s, out, in, flush);
 }
@@ -1220,14 +1213,13 @@ int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
 
     for (;; ) {
         AVPacket opkt;
-        int ret = interleave_packet(s, &opkt, pkt, flush);
-        if (pkt) {
-            memset(pkt, 0, sizeof(*pkt));
-            av_init_packet(pkt);
-            pkt = NULL;
-        }
-        if (ret <= 0) //FIXME cleanup needed for ret<0 ?
-            return ret;
+        ret = interleave_packet(s, &opkt, pkt, flush);
+        if (ret < 0)
+            goto fail;
+        if (!ret)
+            return 0;
+
+        pkt = NULL;
 
         ret = write_packet(s, &opkt);
         if (ret >= 0)
@@ -1244,7 +1236,7 @@ fail:
     // This is a deviation from the usual behaviour
     // of av_interleaved_write_frame: We leave cleaning
     // up uncoded frames to write_uncoded_frame_internal.
-    if (!(pkt->flags & AV_PKT_FLAG_UNCODED_FRAME))
+    if (pkt && !(pkt->flags & AV_PKT_FLAG_UNCODED_FRAME))
         av_packet_unref(pkt);
     return ret;
 }

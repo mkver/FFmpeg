@@ -558,6 +558,7 @@ typedef struct AVOutputFormat {
     /**
      * A format-specific function for interleavement.
      * If unset, packets will be interleaved by dts.
+     * See the description of ff_interleave_packet_per_dts for details.
      */
     int (*interleave_packet)(struct AVFormatContext *, AVPacket *out,
                              AVPacket *in, int flush);

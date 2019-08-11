@@ -123,6 +123,7 @@ int ff_audio_rechunk_interleave(AVFormatContext *s, AVPacket *out, AVPacket *pkt
                 aic->fifo_size = new_size;
             }
             av_fifo_generic_write(aic->fifo, pkt->data, pkt->size, NULL);
+            av_packet_unref(pkt);
         } else {
             // rewrite pts and dts to be decoded time line position
             pkt->pts = pkt->dts = aic->dts;

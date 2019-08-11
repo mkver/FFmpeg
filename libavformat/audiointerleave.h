@@ -47,6 +47,10 @@ void ff_audio_interleave_close(AVFormatContext *s);
  *
  * @param get_packet function will output a packet when streams are correctly interleaved.
  * @param compare_ts function will compare AVPackets and decide interleaving order.
+ *
+ * Apart from these two functions, this function behaves like ff_interleave_packet_per_dts.
+ *
+ * @note  This function must not be used with uncoded audio frames.
  */
 int ff_audio_rechunk_interleave(AVFormatContext *s, AVPacket *out, AVPacket *pkt, int flush,
                         int (*get_packet)(AVFormatContext *, AVPacket *, AVPacket *, int),
