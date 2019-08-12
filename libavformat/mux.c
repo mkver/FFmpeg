@@ -921,13 +921,13 @@ int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
 {
     int ret;
     AVPacketList **next_point, *this_pktl;
-    AVStream *st   = s->streams[pkt->stream_index];
-    int chunked    = s->max_chunk_size || s->max_chunk_duration;
+    AVStream *st = s->streams[pkt->stream_index];
+    int chunked  = s->max_chunk_size || s->max_chunk_duration;
 
-    this_pktl      = av_malloc(sizeof(AVPacketList));
+    this_pktl    = av_malloc(sizeof(AVPacketList));
     if (!this_pktl)
         return AVERROR(ENOMEM);
-    if ((pkt->flags & AV_PKT_FLAG_UNCODED_FRAME)) {
+    if (pkt->flags & AV_PKT_FLAG_UNCODED_FRAME) {
         av_assert0(pkt->size == UNCODED_FRAME_PACKET_SIZE);
         av_assert0(((AVFrame *)pkt->data)->buf);
     } else {
@@ -940,7 +940,7 @@ int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
     av_packet_move_ref(&this_pktl->pkt, pkt);
     pkt = &this_pktl->pkt;
 
-    if (s->streams[pkt->stream_index]->last_in_packet_buffer) {
+    if (st->last_in_packet_buffer) {
         next_point = &(st->last_in_packet_buffer->next);
     } else {
         next_point = &s->internal->packet_buffer;
@@ -952,8 +952,8 @@ int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
         st->interleaver_chunk_duration += pkt->duration;
         if (   (s->max_chunk_size && st->interleaver_chunk_size > s->max_chunk_size)
             || (max && st->interleaver_chunk_duration           > max)) {
-            st->interleaver_chunk_size      = 0;
-            this_pktl->pkt.flags |= CHUNK_START;
+            st->interleaver_chunk_size = 0;
+            pkt->flags |= CHUNK_START;
             if (max && st->interleaver_chunk_duration > max) {
                 int64_t syncoffset = (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)*max/2;
                 int64_t syncto = av_rescale(pkt->dts + syncoffset, 1, max)*max - syncoffset;
@@ -964,7 +964,7 @@ int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
         }
     }
     if (*next_point) {
-        if (chunked && !(this_pktl->pkt.flags & CHUNK_START))
+        if (chunked && !(pkt->flags & CHUNK_START))
             goto next_non_null;
 
         if (compare(s, &s->internal->packet_buffer_end->pkt, pkt)) {
@@ -985,8 +985,7 @@ next_non_null:
 
     this_pktl->next = *next_point;
 
-    s->streams[pkt->stream_index]->last_in_packet_buffer =
-        *next_point                                      = this_pktl;
+    st->last_in_packet_buffer = *next_point = this_pktl;
 
     return 0;
 }
