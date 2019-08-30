@@ -4106,22 +4106,21 @@ static int64_t webm_dash_manifest_compute_bandwidth(AVFormatContext *s, int64_t 
 static int webm_dash_manifest_cues(AVFormatContext *s, int64_t init_range)
 {
     MatroskaDemuxContext *matroska = s->priv_data;
-    EbmlList *seekhead_list = &matroska->seekhead;
-    MatroskaSeekhead *seekhead = seekhead_list->elem;
+    MatroskaLevel1Element *elem = matroska->level1_elems;
     char *buf;
     int64_t cues_start = -1, cues_end = -1, before_pos, bandwidth;
     int i;
     int end = 0;
 
     // determine cues start and end positions
-    for (i = 0; i < seekhead_list->nb_elem; i++)
-        if (seekhead[i].id == MATROSKA_ID_CUES)
+    for (i = 0; i < matroska->num_level1_elems; i++)
+        if (elem[i].id == MATROSKA_ID_CUES)
             break;
 
-    if (i >= seekhead_list->nb_elem) return -1;
+    if (i >= matroska->num_level1_elems) return -1;
 
     before_pos = avio_tell(matroska->ctx->pb);
-    cues_start = seekhead[i].pos + matroska->segment_start;
+    cues_start = elem[i].pos;
     if (avio_seek(matroska->ctx->pb, cues_start, SEEK_SET) == cues_start) {
         // cues_end is computed as cues_start + cues_length + length of the
         // Cues element ID (i.e. 4) + EBML length of the Cues element.
