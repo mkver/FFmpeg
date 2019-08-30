@@ -3686,9 +3686,9 @@ static int matroska_parse_cluster(MatroskaDemuxContext *matroska)
             cluster->pos = avio_tell(matroska->ctx->pb) - 4;
 
             res = ebml_parse(matroska, matroska_cluster_enter, cluster);
-            if (res < 0)
-                return res;
         }
+        if (res < 0)
+            return res;
     }
 
     if (matroska->num_levels == 2) {
