@@ -1885,7 +1885,6 @@ static void matroska_add_index_entries(MatroskaDemuxContext *matroska)
 {
     EbmlList *index_list;
     MatroskaIndex *index;
-    uint64_t index_scale = 1;
     int i, j;
 
     if (matroska->ctx->flags & AVFMT_FLAG_IGNIDX)
@@ -1915,7 +1914,7 @@ static void matroska_add_index_entries(MatroskaDemuxContext *matroska)
 
             if (track && track->stream)
                 av_add_index_entry(track->stream, abs_pos,
-                                   index[i].time / index_scale, 0, 0,
+                                   index[i].time, 0, 0,
                                    AVINDEX_KEYFRAME);
         }
     }
