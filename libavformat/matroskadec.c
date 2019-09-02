@@ -630,7 +630,7 @@ static EbmlSyntax matroska_chapters[] = {
 
 static EbmlSyntax matroska_index_pos[] = {
     { MATROSKA_ID_CUETRACK,           EBML_UINT, 0, offsetof(MatroskaIndexPos, track) },
-    { MATROSKA_ID_CUECLUSTERPOSITION, EBML_UINT, 0, offsetof(MatroskaIndexPos, pos) },
+    { MATROSKA_ID_CUECLUSTERPOSITION, EBML_UINT, 0, offsetof(MatroskaIndexPos, pos),   { .u = UINT64_MAX } },
     { MATROSKA_ID_CUERELATIVEPOSITION,EBML_NONE },
     { MATROSKA_ID_CUEDURATION,        EBML_NONE },
     { MATROSKA_ID_CUEBLOCKNUMBER,     EBML_NONE },
@@ -638,7 +638,7 @@ static EbmlSyntax matroska_index_pos[] = {
 };
 
 static EbmlSyntax matroska_index_entry[] = {
-    { MATROSKA_ID_CUETIME,          EBML_UINT, 0,                        offsetof(MatroskaIndex, time) },
+    { MATROSKA_ID_CUETIME,          EBML_UINT, 0,                        offsetof(MatroskaIndex, time), { .u = UINT64_MAX } },
     { MATROSKA_ID_CUETRACKPOSITION, EBML_NEST, sizeof(MatroskaIndexPos), offsetof(MatroskaIndex, pos), { .n = matroska_index_pos } },
     CHILD_OF(matroska_index)
 };
@@ -1896,22 +1896,34 @@ static void matroska_add_index_entries(MatroskaDemuxContext *matroska)
     if (index_list->nb_elem < 2)
         return;
     if (index[1].time > 1E14 / matroska->time_scale) {
-        av_log(matroska->ctx, AV_LOG_WARNING, "Dropping apparently-broken index.\n");
-        return;
+        goto fail;
     }
     for (i = 0; i < index_list->nb_elem; i++) {
         EbmlList *pos_list    = &index[i].pos;
         MatroskaIndexPos *pos = pos_list->elem;
+
+        if ((int64_t)index[i].time < 0 || !pos_list->nb_elem)
+            goto fail;
+
         for (j = 0; j < pos_list->nb_elem; j++) {
             MatroskaTrack *track = matroska_find_track_by_num(matroska,
                                                               pos[j].track);
+            int64_t abs_pos = pos[j].pos + matroska->segment_start;
+
+            if (abs_pos < matroska->segment_start)
+                goto fail;
+
             if (track && track->stream)
-                av_add_index_entry(track->stream,
-                                   pos[j].pos + matroska->segment_start,
+                av_add_index_entry(track->stream, abs_pos,
                                    index[i].time / index_scale, 0, 0,
                                    AVINDEX_KEYFRAME);
         }
     }
+    return;
+fail:
+    av_log(matroska->ctx, AV_LOG_WARNING,
+           "Dropping apparently broken index.\n");
+    return;
 }
 
 static void matroska_parse_cues(MatroskaDemuxContext *matroska) {
