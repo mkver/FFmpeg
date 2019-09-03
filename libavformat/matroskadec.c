@@ -3888,40 +3888,27 @@ static CueDesc get_cue_desc(AVFormatContext *s, int64_t ts, int64_t cues_start) 
     return cue_desc;
 }
 
-static int webm_clusters_start_with_keyframe(AVFormatContext *s)
+static int webm_subsegments_start_with_keyframe(AVFormatContext *s)
 {
     MatroskaDemuxContext *matroska = s->priv_data;
     uint32_t id = matroska->current_id;
-    int64_t cluster_pos, before_pos;
-    int index, rv = 1;
+    int64_t before_pos = avio_tell(s->pb);
+    int rv = 1;
     if (s->streams[0]->nb_index_entries <= 0) return 0;
-    // seek to the first cluster using cues.
-    index = av_index_search_timestamp(s->streams[0], 0, 0);
-    if (index < 0)  return 0;
-    cluster_pos = s->streams[0]->index_entries[index].pos;
-    before_pos = avio_tell(s->pb);
-    while (1) {
-        uint64_t cluster_id, cluster_length;
-        int read;
-        AVPacket *pkt;
-        avio_seek(s->pb, cluster_pos, SEEK_SET);
-        // read cluster id and length
-        read = ebml_read_num(matroska, matroska->ctx->pb, 4, &cluster_id, 1);
-        if (read < 0 || cluster_id != 0xF43B675) // done with all clusters
-            break;
-        read = ebml_read_length(matroska, matroska->ctx->pb, &cluster_length);
-        if (read < 0)
-            break;
 
+    for (int i = 0; i < s->streams[0]->nb_index_entries; i++) {
+        AVPacket *pkt;
+        int64_t cluster_pos = s->streams[0]->index_entries[i].pos;
+
+        // Seek to the i. referenced cluster and prepare to parse it.
         matroska_reset_status(matroska, 0, cluster_pos);
+
         matroska_clear_queue(matroska);
         if (matroska_parse_cluster(matroska) < 0 ||
             !matroska->queue) {
             break;
         }
         pkt = &matroska->queue->pkt;
-        // 4 + read is the length of the cluster id and the cluster length field.
-        cluster_pos += 4 + read + cluster_length;
         if (!(pkt->flags & AV_PKT_FLAG_KEY)) {
             rv = 0;
             break;
@@ -4157,7 +4144,7 @@ static int webm_dash_manifest_cues(AVFormatContext *s, int64_t init_range)
     av_dict_set_int(&s->streams[0]->metadata, BANDWIDTH, bandwidth, 0);
 
     // check if all clusters start with key frames
-    av_dict_set_int(&s->streams[0]->metadata, CLUSTER_KEYFRAME, webm_clusters_start_with_keyframe(s), 0);
+    av_dict_set_int(&s->streams[0]->metadata, CLUSTER_KEYFRAME, webm_subsegments_start_with_keyframe(s), 0);
 
     // store cue point timestamps as a comma separated list for checking subsegment alignment in
     // the muxer. assumes that each timestamp cannot be more than 20 characters long.
