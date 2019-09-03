@@ -3676,7 +3676,13 @@ static int matroska_parse_cluster(MatroskaDemuxContext *matroska)
     MatroskaBlock     *block = &cluster->block;
     int res;
 
-    av_assert0(matroska->num_levels <= 2);
+    if (matroska->num_levels > 2) {
+        /* This can only happen if a reset has failed.
+         * So resync now in order to be able to parse again. */
+         res = matroska_resync(matroska, avio_tell(matroska->ctx->pb));
+         if (res < 0)
+             return res;
+    }
 
     if (matroska->num_levels == 1) {
         res = ebml_parse(matroska, matroska_segment, NULL);
