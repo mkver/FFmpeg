@@ -77,6 +77,9 @@ typedef struct H264MetadataContext {
 
     const char *sei_user_data;
 
+    H264RawSEIPayload x264_sei;
+    int x264_sei_status;
+
     int delete_filler;
 
     int display_orientation;
@@ -275,6 +278,26 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
     return 0;
 }
 
+static int h264_metadata_copy_x264_sei(H264RawSEIPayload *dst,
+                                       const H264RawSEIPayload *src)
+{
+    H264RawSEIUserDataUnregistered *udu = &dst->payload.user_data_unregistered;
+    AVBufferRef *data_ref;
+
+    av_buffer_unref(&udu->data_ref);
+
+    data_ref = av_buffer_ref(src->payload.user_data_unregistered.data_ref);
+    if (!data_ref) {
+        memset(dst, 0, sizeof(*dst));
+        return AVERROR(ENOMEM);
+    }
+
+    memcpy(dst, src, sizeof(*dst));
+    udu->data_ref = data_ref;
+
+    return 0;
+}
+
 static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
 {
     H264MetadataContext *ctx = bsf->priv_data;
@@ -413,6 +436,58 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
                    "must be \"UUID+string\".\n");
             err = AVERROR(EINVAL);
             goto fail;
+        }
+    }
+
+    if (ctx->x264_sei_status) {
+        int has_x264_sei = 0;
+
+        for (i = 0; i < au->nb_units; i++) {
+            CodedBitstreamUnit *unit = &au->units[i];
+            H264RawSEI *sei;
+
+            if (unit->type != H264_NAL_SEI)
+                continue;
+
+            sei = unit->content;
+
+            for (j = 0; j < sei->payload_count; j++) {
+                H264RawSEIPayload *payload = &sei->payload[j];
+                H264RawSEIUserDataUnregistered *udu;
+                int e, build;
+
+                if (payload->payload_type != H264_SEI_TYPE_USER_DATA_UNREGISTERED)
+                    continue;
+
+                udu = &payload->payload.user_data_unregistered;
+                // The following is safe because udu->data always
+                // contains zeroed padding at the end.
+                e = sscanf(udu->data, "x264 - core %d", &build);
+                if (e == 1 && build > 0) {
+                    err = h264_metadata_copy_x264_sei(&ctx->x264_sei,
+                                                      payload);
+                    if (err < 0) {
+                        ctx->x264_sei_status = 1;
+                        goto fail;
+                    }
+                    ctx->x264_sei_status = -1;
+                    has_x264_sei = 1;
+                }
+            }
+        }
+
+        if (!has_x264_sei && ctx->x264_sei_status < 0
+                          && pkt->flags & AV_PKT_FLAG_KEY) {
+            H264RawSEIPayload payload = { 0 };
+
+            err = h264_metadata_copy_x264_sei(&payload,
+                                              &ctx->x264_sei);
+            if (err < 0)
+                goto fail;
+
+            err = ff_cbs_h264_add_sei_message(ctx->cbc, au, &payload);
+            if (err < 0)
+                goto fail;
         }
     }
 
@@ -616,6 +691,8 @@ static void h264_metadata_close(AVBSFContext *bsf)
 {
     H264MetadataContext *ctx = bsf->priv_data;
 
+    av_buffer_unref(&ctx->x264_sei.payload.user_data_unregistered.data_ref);
+
     ff_cbs_fragment_free(ctx->cbc, &ctx->access_unit);
     ff_cbs_close(&ctx->cbc);
 }
@@ -683,6 +760,9 @@ static const AVOption h264_metadata_options[] = {
 
     { "sei_user_data", "Insert SEI user data (UUID+string)",
         OFFSET(sei_user_data), AV_OPT_TYPE_STRING, { .str = NULL }, .flags = FLAGS },
+
+    { "x264_sei", "Repeat x264 SEI in every keyframe",
+        OFFSET(x264_sei_status), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, FLAGS },
 
     { "delete_filler", "Delete all filler (both NAL and SEI)",
         OFFSET(delete_filler), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, FLAGS},

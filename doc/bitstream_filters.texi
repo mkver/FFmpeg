@@ -273,6 +273,12 @@ possibly separated by hyphens, and the string can be anything.
 For example, @samp{086f3693-b7b3-4f2c-9653-21492feee5b8+hello} will
 insert the string ``hello'' associated with the given UUID.
 
+@item x264_sei
+Repeat the x264 SEI message containing the x264 version and encoding
+parameters used in every keyframe.  This allows to split the file while
+retaining this information and also fixes decoding problems with
+spec-incompliant content created by old versions of x264.
+
 @item delete_filler
 Deletes both filler NAL units and filler SEI messages.
 
