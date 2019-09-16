@@ -4837,7 +4837,7 @@ int ff_mkdir_p(const char *path)
         }
     }
 
-    if ((*(pos - 1) != '/') || (*(pos - 1) != '\\')) {
+    if ((*(pos - 1) != '/') && (*(pos - 1) != '\\')) {
         ret = mkdir(temp, 0755);
     }
 
