@@ -1989,20 +1989,22 @@ static int check_output_constraints(InputStream *ist, OutputStream *ost)
     return 1;
 }
 
-static void do_streamcopy(InputStream *ist, OutputStream *ost, const AVPacket *pkt)
+// If pkt_const is set, pkt should be treated as if it was const.
+static void do_streamcopy(InputStream *ist, OutputStream *ost,
+                          AVPacket *pkt, int pkt_const)
 {
     OutputFile *of = output_files[ost->file_index];
     InputFile   *f = input_files [ist->file_index];
     int64_t start_time = (of->start_time == AV_NOPTS_VALUE) ? 0 : of->start_time;
     int64_t ost_tb_start_time = av_rescale_q(start_time, AV_TIME_BASE_Q, ost->mux_timebase);
-    AVPacket opkt;
+    AVPacket *opkt, pkt2;
 
     // EOF: flush output bitstream filters.
     if (!pkt) {
-        av_init_packet(&opkt);
-        opkt.data = NULL;
-        opkt.size = 0;
-        output_packet(of, &opkt, ost, 1);
+        av_init_packet(&pkt2);
+        pkt2.data = NULL;
+        pkt2.size = 0;
+        output_packet(of, &pkt2, ost, 1);
         return;
     }
 
@@ -2040,30 +2042,34 @@ static void do_streamcopy(InputStream *ist, OutputStream *ost, const AVPacket *p
     if (ost->enc_ctx->codec_type == AVMEDIA_TYPE_VIDEO)
         ost->sync_opts++;
 
-    if (av_packet_ref(&opkt, pkt) < 0)
-        exit_program(1);
+    if (pkt_const) {
+        opkt = &pkt2;
+        if (av_packet_ref(opkt, pkt) < 0)
+            exit_program(1);
+    } else
+        opkt = pkt;
 
     if (pkt->pts != AV_NOPTS_VALUE)
-        opkt.pts = av_rescale_q(pkt->pts, ist->st->time_base, ost->mux_timebase) - ost_tb_start_time;
+        opkt->pts = av_rescale_q(pkt->pts, ist->st->time_base, ost->mux_timebase) - ost_tb_start_time;
 
     if (pkt->dts == AV_NOPTS_VALUE) {
-        opkt.dts = av_rescale_q(ist->dts, AV_TIME_BASE_Q, ost->mux_timebase);
+        opkt->dts = av_rescale_q(ist->dts, AV_TIME_BASE_Q, ost->mux_timebase);
     } else if (ost->st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
         int duration = av_get_audio_frame_duration(ist->dec_ctx, pkt->size);
         if(!duration)
             duration = ist->dec_ctx->frame_size;
-        opkt.dts = av_rescale_delta(ist->st->time_base, pkt->dts,
-                                    (AVRational){1, ist->dec_ctx->sample_rate}, duration,
-                                    &ist->filter_in_rescale_delta_last, ost->mux_timebase);
+        opkt->dts = av_rescale_delta(ist->st->time_base, pkt->dts,
+                                     (AVRational){1, ist->dec_ctx->sample_rate}, duration,
+                                     &ist->filter_in_rescale_delta_last, ost->mux_timebase);
         /* dts will be set immediately afterwards to what pts is now */
-        opkt.pts = opkt.dts - ost_tb_start_time;
+        opkt->pts = opkt->dts - ost_tb_start_time;
     } else
-        opkt.dts = av_rescale_q(pkt->dts, ist->st->time_base, ost->mux_timebase);
-    opkt.dts -= ost_tb_start_time;
+        opkt->dts = av_rescale_q(pkt->dts, ist->st->time_base, ost->mux_timebase);
+    opkt->dts -= ost_tb_start_time;
 
-    opkt.duration = av_rescale_q(pkt->duration, ist->st->time_base, ost->mux_timebase);
+    opkt->duration = av_rescale_q(pkt->duration, ist->st->time_base, ost->mux_timebase);
 
-    output_packet(of, &opkt, ost, 0);
+    output_packet(of, opkt, ost, 0);
 }
 
 int guess_input_channel_layout(InputStream *ist)
@@ -2557,9 +2563,9 @@ static int send_filter_eof(InputStream *ist)
 }
 
 /* pkt = NULL means EOF (needed to flush decoder buffers) */
-static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eof)
+static int process_input_packet(InputStream *ist, AVPacket *pkt, int no_eof)
 {
-    int ret = 0, i;
+    int ret = 0;
     int repeating = 0;
     int eof_reached = 0;
 
@@ -2727,13 +2733,24 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
         ist->pts = ist->dts;
         ist->next_pts = ist->next_dts;
     }
-    for (i = 0; i < nb_output_streams; i++) {
-        OutputStream *ost = output_streams[i];
+    for (int i = 0, j = -1;; i++) {
+        OutputStream *ost;
+
+        if (i == nb_output_streams) {
+            if (j >= 0)
+                do_streamcopy(ist, output_streams[j], pkt, 0);
+            break;
+        }
+
+        ost = output_streams[i];
 
         if (!check_output_constraints(ist, ost) || ost->encoding_needed)
             continue;
 
-        do_streamcopy(ist, ost, pkt);
+        if (j >= 0)
+            do_streamcopy(ist, output_streams[j], pkt, 1);
+
+        j = i;
     }
 
     return !eof_reached;
