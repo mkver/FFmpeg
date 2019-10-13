@@ -95,11 +95,11 @@ typedef struct mkv_track {
     int             write_dts;
     int             has_cue;
     int             sample_rate;
-    int64_t         sample_rate_offset;
+    int             sample_rate_offset;
     int64_t         last_timestamp;
     int64_t         duration;
-    int64_t         duration_offset;
-    int64_t         codecpriv_offset;
+    int             duration_offset;
+    int             codecpriv_offset;
     int64_t         ts_offset;
 } mkv_track;
 
@@ -134,7 +134,7 @@ typedef struct MatroskaMuxContext {
     AVIOContext     *cluster_bc;
     int64_t         cluster_pos;        ///< file offset of the current cluster
     int64_t         cluster_pts;
-    int64_t         duration_offset;
+    int             duration_offset;
     int64_t         duration;
     mkv_seekhead    *seekhead;
     mkv_cues        *cues;
