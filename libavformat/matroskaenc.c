@@ -2567,7 +2567,7 @@ static int mkv_write_trailer(AVFormatContext *s)
         if (ret < 0) {
             av_log(s, AV_LOG_ERROR,
                    "Could not write cached audio packet ret:%d\n", ret);
-            return ret;
+            goto fail;
         }
     }
 
@@ -2577,7 +2577,7 @@ static int mkv_write_trailer(AVFormatContext *s)
 
     ret = mkv_write_chapters(s);
     if (ret < 0)
-        return ret;
+        goto fail;
 
 
     if ((pb->seekable & AVIO_SEEKABLE_NORMAL) && !mkv->is_live) {
@@ -2595,7 +2595,8 @@ static int mkv_write_trailer(AVFormatContext *s)
                            "Insufficient space reserved for cues: %d "
                            "(needed: %" PRId64 ").\n",
                            mkv->reserve_cues_space, cues_end - cuespos);
-                    return AVERROR(EINVAL);
+                    ret = AVERROR(EINVAL);
+                    goto fail;
                 }
 
                 if (cues_end < cuespos + mkv->reserve_cues_space)
@@ -2610,7 +2611,7 @@ static int mkv_write_trailer(AVFormatContext *s)
             ret = mkv_add_seekhead_entry(mkv->seekhead, MATROSKA_ID_CUES,
                                          cuespos);
             if (ret < 0)
-                return ret;
+                goto fail;
         }
 
         mkv_write_seekhead(pb, mkv);
@@ -2664,8 +2665,9 @@ static int mkv_write_trailer(AVFormatContext *s)
         end_ebml_master(pb, mkv->segment);
     }
 
+fail:
     mkv_free(mkv);
-    return 0;
+    return ret;
 }
 
 static int mkv_query_codec(enum AVCodecID codec_id, int std_compliance)
