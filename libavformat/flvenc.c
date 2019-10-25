@@ -74,7 +74,6 @@ typedef enum {
 typedef struct FLVFileposition {
     int64_t keyframe_position;
     double keyframe_timestamp;
-    struct FLVFileposition *next;
 } FLVFileposition;
 
 typedef struct FLVContext {
@@ -108,9 +107,9 @@ typedef struct FLVContext {
     int acurframeindex;
     int64_t keyframes_info_offset;
 
-    int64_t filepositions_count;
     FLVFileposition *filepositions;
-    FLVFileposition *head_filepositions;
+    unsigned filepositions_count;
+    unsigned filepositions_allocated;
 
     AVCodecParameters *audio_par;
     AVCodecParameters *video_par;
@@ -549,27 +548,17 @@ static void flv_write_codec_header(AVFormatContext* s, AVCodecParameters* par, i
 
 static int flv_append_keyframe_info(AVFormatContext *s, FLVContext *flv, double ts, int64_t pos)
 {
-    FLVFileposition *position = av_malloc(sizeof(FLVFileposition));
-
-    if (!position) {
-        av_log(s, AV_LOG_WARNING, "no mem for add keyframe index!\n");
-        return AVERROR(ENOMEM);
+    int ret = av_fast_realloc_array(&flv->filepositions,
+                                    &flv->filepositions_allocated,
+                                    flv->filepositions_count + 1,
+                                    UINT_MAX - 1,
+                                    sizeof(*flv->filepositions));
+    if (ret < 0) {
+        av_log(s, AV_LOG_WARNING, "Adding entry to keyframe index failed.\n");
+        return ret;
     }
 
-    position->keyframe_timestamp = ts;
-    position->keyframe_position = pos;
-
-    if (!flv->filepositions_count) {
-        flv->filepositions = position;
-        flv->head_filepositions = flv->filepositions;
-        position->next = NULL;
-    } else {
-        flv->filepositions->next = position;
-        position->next = NULL;
-        flv->filepositions = flv->filepositions->next;
-    }
-
-    flv->filepositions_count++;
+    flv->filepositions[flv->filepositions_count++] = (FLVFileposition){ pos, ts };
 
     return 0;
 }
@@ -586,7 +575,7 @@ static int shift_data(AVFormatContext *s)
     int read_size[2];
     AVIOContext *read_pb;
 
-    metadata_size = flv->filepositions_count * 9 * 2 + 10; /* filepositions and times value */
+    metadata_size = flv->filepositions_count * 9LL * 2 + 10; /* filepositions and times value */
     metadata_size += 2 + 13; /* filepositions String */
     metadata_size += 2 + 5; /* times String */
     metadata_size += 3; /* Object end */
@@ -781,7 +770,7 @@ static int flv_write_trailer(AVFormatContext *s)
     int64_t cur_pos = avio_tell(s->pb);
 
     if (build_keyframes_idx) {
-        FLVFileposition *newflv_posinfo, *p;
+        FLVFileposition *flv_posinfo = flv->filepositions;
 
         avio_seek(pb, flv->videosize_offset, SEEK_SET);
         put_amf_double(pb, flv->videosize);
@@ -806,28 +795,17 @@ static int flv_write_trailer(AVFormatContext *s)
         avio_seek(pb, flv->keyframes_info_offset, SEEK_SET);
         put_amf_string(pb, "filepositions");
         put_amf_dword_array(pb, flv->filepositions_count);
-        for (newflv_posinfo = flv->head_filepositions; newflv_posinfo; newflv_posinfo = newflv_posinfo->next) {
-            put_amf_double(pb, newflv_posinfo->keyframe_position + flv->keyframe_index_size);
+        for (unsigned i = 0; i < flv->filepositions_count; i++) {
+            put_amf_double(pb, flv_posinfo[i].keyframe_position + flv->keyframe_index_size);
         }
 
         put_amf_string(pb, "times");
         put_amf_dword_array(pb, flv->filepositions_count);
-        for (newflv_posinfo = flv->head_filepositions; newflv_posinfo; newflv_posinfo = newflv_posinfo->next) {
-            put_amf_double(pb, newflv_posinfo->keyframe_timestamp);
+        for (unsigned i = 0; i < flv->filepositions_count; i++) {
+            put_amf_double(pb, flv_posinfo[i].keyframe_timestamp);
         }
 
-        newflv_posinfo = flv->head_filepositions;
-        while (newflv_posinfo) {
-            p = newflv_posinfo->next;
-            if (p) {
-                newflv_posinfo->next = p->next;
-                av_free(p);
-                p = NULL;
-            } else {
-                av_free(newflv_posinfo);
-                newflv_posinfo = NULL;
-            }
-        }
+        av_freep(&flv->filepositions);
 
         put_amf_string(pb, "");
         avio_w8(pb, AMF_END_OF_OBJECT);
