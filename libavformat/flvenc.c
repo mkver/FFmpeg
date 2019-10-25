@@ -805,8 +805,6 @@ static int flv_write_trailer(AVFormatContext *s)
             put_amf_double(pb, flv_posinfo[i].keyframe_timestamp);
         }
 
-        av_freep(&flv->filepositions);
-
         put_amf_string(pb, "");
         avio_w8(pb, AMF_END_OF_OBJECT);
 
@@ -1073,6 +1071,14 @@ static int flv_check_bitstream(struct AVFormatContext *s, const AVPacket *pkt)
     return ret;
 }
 
+static void flv_deinit(AVFormatContext *s)
+{
+    FLVContext *flv = s->priv_data;
+
+    av_freep(&flv->filepositions);
+    flv->filepositions_count = flv->filepositions_allocated = 0;
+}
+
 static const AVOption options[] = {
     { "flvflags", "FLV muxer flags", offsetof(FLVContext, flags), AV_OPT_TYPE_FLAGS, {.i64 = 0}, INT_MIN, INT_MAX, AV_OPT_FLAG_ENCODING_PARAM, "flvflags" },
     { "aac_seq_header_detect", "Put AAC sequence header based on stream data", 0, AV_OPT_TYPE_CONST, {.i64 = FLV_AAC_SEQ_HEADER_DETECT}, INT_MIN, INT_MAX, AV_OPT_FLAG_ENCODING_PARAM, "flvflags" },
@@ -1102,6 +1108,7 @@ AVOutputFormat ff_flv_muxer = {
     .write_header   = flv_write_header,
     .write_packet   = flv_write_packet,
     .write_trailer  = flv_write_trailer,
+    .deinit         = flv_deinit,
     .check_bitstream= flv_check_bitstream,
     .codec_tag      = (const AVCodecTag* const []) {
                           flv_video_codec_ids, flv_audio_codec_ids, 0
