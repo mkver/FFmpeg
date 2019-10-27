@@ -1757,7 +1757,7 @@ static int mkv_write_attachments(AVFormatContext *s)
         mkv_track *track = &mkv->tracks[i];
         ebml_master attached_file;
         const AVDictionaryEntry *t;
-        const char *mimetype;
+        const char *filename, *mimetype;
         const uint8_t *data;
         int size;
 
@@ -1768,12 +1768,14 @@ static int mkv_write_attachments(AVFormatContext *s)
 
         if (t = av_dict_get(st->metadata, "title", NULL, 0))
             put_ebml_string(dyn_cp, MATROSKA_ID_FILEDESC, t->value);
-        if (!(t = av_dict_get(st->metadata, "filename", NULL, 0))) {
-            av_log(s, AV_LOG_ERROR, "Attachment stream %d has no filename tag.\n", i);
-            ffio_free_dyn_buf(&dyn_cp);
-            return AVERROR(EINVAL);
+        if (t = av_dict_get(st->metadata, "filename", NULL, 0)) {
+            filename = t->value;
+        } else {
+            av_log(s, AV_LOG_WARNING, "Stream %d lacking filename tag needed "
+                   "for Matroska attachments. Using empty filename.\n", i);
+            filename = "";
         }
-        put_ebml_string(dyn_cp, MATROSKA_ID_FILENAME, t->value);
+        put_ebml_string(dyn_cp, MATROSKA_ID_FILENAME, filename);
 
         mimetype = get_mimetype(st);
         av_assert0(mimetype);
