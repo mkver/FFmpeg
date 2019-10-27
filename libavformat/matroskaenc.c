@@ -1691,6 +1691,7 @@ static int mkv_write_attachments(AVFormatContext *s)
         ebml_master attached_file;
         AVDictionaryEntry *t;
         const char *mimetype = NULL;
+        const char *filename;
 
         if (st->codecpar->codec_type != AVMEDIA_TYPE_ATTACHMENT)
             continue;
@@ -1699,11 +1700,11 @@ static int mkv_write_attachments(AVFormatContext *s)
 
         if (t = av_dict_get(st->metadata, "title", NULL, 0))
             put_ebml_string(dyn_cp, MATROSKA_ID_FILEDESC, t->value);
-        if (!(t = av_dict_get(st->metadata, "filename", NULL, 0))) {
-            av_log(s, AV_LOG_ERROR, "Attachment stream %d has no filename tag.\n", i);
-            return AVERROR(EINVAL);
-        }
-        put_ebml_string(dyn_cp, MATROSKA_ID_FILENAME, t->value);
+        if (t = av_dict_get(st->metadata, "filename", NULL, 0)) {
+            filename = t->value;
+        } else
+            filename = "";
+        put_ebml_string(dyn_cp, MATROSKA_ID_FILENAME, filename);
         if (t = av_dict_get(st->metadata, "mimetype", NULL, 0))
             mimetype = t->value;
         else if (st->codecpar->codec_id != AV_CODEC_ID_NONE ) {
