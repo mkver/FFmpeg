@@ -50,7 +50,6 @@
 #include "libavutil/random_seed.h"
 #include "libavutil/rational.h"
 #include "libavutil/samplefmt.h"
-#include "libavutil/sha.h"
 #include "libavutil/stereo3d.h"
 
 #include "libavcodec/xiph.h"
@@ -104,16 +103,6 @@ typedef struct mkv_track {
     int64_t         ts_offset;
 } mkv_track;
 
-typedef struct mkv_attachment {
-    int             stream_idx;
-    uint32_t        fileuid;
-} mkv_attachment;
-
-typedef struct mkv_attachments {
-    mkv_attachment  *entries;
-    int             num_entries;
-} mkv_attachments;
-
 #define MODE_MATROSKAv2 0x01
 #define MODE_WEBM       0x02
 
@@ -140,7 +129,6 @@ typedef struct MatroskaMuxContext {
     mkv_seekhead    *seekhead;
     mkv_cues        *cues;
     mkv_track       *tracks;
-    mkv_attachments *attachments;
 
     AVPacket        cur_audio_pkt;
 
@@ -407,10 +395,6 @@ static void mkv_deinit(AVFormatContext *s)
     if (mkv->cues) {
         av_freep(&mkv->cues->entries);
         av_freep(&mkv->cues);
-    }
-    if (mkv->attachments) {
-        av_freep(&mkv->attachments->entries);
-        av_freep(&mkv->attachments);
     }
     av_freep(&mkv->tracks);
 }
@@ -1700,14 +1684,17 @@ static int mkv_write_tags(AVFormatContext *s)
     }
 
     if (mkv->have_attachments && mkv->mode != MODE_WEBM) {
-        for (i = 0; i < mkv->attachments->num_entries; i++) {
-            mkv_attachment *attachment = &mkv->attachments->entries[i];
-            AVStream *st = s->streams[attachment->stream_idx];
+        for (i = 0; i < s->nb_streams; i++) {
+            mkv_track *track = &mkv->tracks[i];
+            AVStream *st = s->streams[i];
+
+            if (st->codecpar->codec_type != AVMEDIA_TYPE_ATTACHMENT)
+                continue;
 
             if (!mkv_check_tag(st->metadata, MATROSKA_ID_TAGTARGETS_ATTACHUID))
                 continue;
 
-            ret = mkv_write_tag(s, st->metadata, MATROSKA_ID_TAGTARGETS_ATTACHUID, attachment->fileuid);
+            ret = mkv_write_tag(s, st->metadata, MATROSKA_ID_TAGTARGETS_ATTACHUID, track->uid);
             if (ret < 0)
                 return ret;
         }
@@ -1726,17 +1713,10 @@ static int mkv_write_attachments(AVFormatContext *s)
 {
     MatroskaMuxContext *mkv = s->priv_data;
     AVIOContext *dyn_cp, *pb = s->pb;
-    AVLFG c;
     int i, ret;
 
     if (!mkv->have_attachments)
         return 0;
-
-    mkv->attachments = av_mallocz(sizeof(*mkv->attachments));
-    if (!mkv->attachments)
-        return AVERROR(ENOMEM);
-
-    av_lfg_init(&c, av_get_random_seed());
 
     ret = mkv_add_seekhead_entry(mkv->seekhead, MATROSKA_ID_ATTACHMENTS, avio_tell(pb));
     if (ret < 0) return ret;
@@ -1746,19 +1726,13 @@ static int mkv_write_attachments(AVFormatContext *s)
 
     for (i = 0; i < s->nb_streams; i++) {
         AVStream *st = s->streams[i];
+        mkv_track *track = &mkv->tracks[i];
         ebml_master attached_file;
-        mkv_attachment *attachment = mkv->attachments->entries;
         AVDictionaryEntry *t;
         const char *mimetype = NULL;
-        uint32_t fileuid;
 
         if (st->codecpar->codec_type != AVMEDIA_TYPE_ATTACHMENT)
             continue;
-
-        attachment = av_realloc_array(attachment, mkv->attachments->num_entries + 1, sizeof(mkv_attachment));
-        if (!attachment)
-            return AVERROR(ENOMEM);
-        mkv->attachments->entries = attachment;
 
         attached_file = start_ebml_master(dyn_cp, MATROSKA_ID_ATTACHEDFILE, 0);
 
@@ -1790,29 +1764,10 @@ static int mkv_write_attachments(AVFormatContext *s)
             return AVERROR(EINVAL);
         }
 
-        if (s->flags & AVFMT_FLAG_BITEXACT) {
-            struct AVSHA *sha = av_sha_alloc();
-            uint8_t digest[20];
-            if (!sha)
-                return AVERROR(ENOMEM);
-            av_sha_init(sha, 160);
-            av_sha_update(sha, st->codecpar->extradata, st->codecpar->extradata_size);
-            av_sha_final(sha, digest);
-            av_free(sha);
-            fileuid = AV_RL32(digest);
-        } else {
-            fileuid = av_lfg_get(&c);
-        }
-        av_log(s, AV_LOG_VERBOSE, "Using %.8"PRIx32" for attachment %d\n",
-               fileuid, mkv->attachments->num_entries);
-
         put_ebml_string(dyn_cp, MATROSKA_ID_FILEMIMETYPE, mimetype);
         put_ebml_binary(dyn_cp, MATROSKA_ID_FILEDATA, st->codecpar->extradata, st->codecpar->extradata_size);
-        put_ebml_uint(dyn_cp, MATROSKA_ID_FILEUID, fileuid);
+        put_ebml_uint(dyn_cp, MATROSKA_ID_FILEUID, track->uid);
         end_ebml_master(dyn_cp, attached_file);
-
-        mkv->attachments->entries[mkv->attachments->num_entries].stream_idx = i;
-        mkv->attachments->entries[mkv->attachments->num_entries++].fileuid  = fileuid;
     }
     end_ebml_master_crc32(pb, &dyn_cp, mkv);
 
