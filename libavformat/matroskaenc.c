@@ -94,6 +94,7 @@ typedef struct mkv_cues {
 typedef struct mkv_track {
     int             write_dts;
     int             has_cue;
+    uint64_t        uid;
     int             sample_rate;
     int64_t         sample_rate_offset;
     int64_t         last_timestamp;
@@ -1199,8 +1200,7 @@ static int mkv_write_track(AVFormatContext *s, MatroskaMuxContext *mkv,
     track = start_ebml_master(pb, MATROSKA_ID_TRACKENTRY, 0);
     put_ebml_uint (pb, MATROSKA_ID_TRACKNUMBER,
                    mkv->is_dash ? mkv->dash_track_number : i + 1);
-    put_ebml_uint (pb, MATROSKA_ID_TRACKUID,
-                   mkv->is_dash ? mkv->dash_track_number : i + 1);
+    put_ebml_uint (pb, MATROSKA_ID_TRACKUID, mkv->tracks[i].uid);
     put_ebml_uint (pb, MATROSKA_ID_TRACKFLAGLACING , 0);    // no lacing (yet)
 
     if ((tag = av_dict_get(st->metadata, "title", NULL, 0)))
@@ -1651,7 +1651,8 @@ static int mkv_write_tags(AVFormatContext *s)
         if (!mkv_check_tag(st->metadata, MATROSKA_ID_TAGTARGETS_TRACKUID))
             continue;
 
-        ret = mkv_write_tag(s, st->metadata, MATROSKA_ID_TAGTARGETS_TRACKUID, i + 1);
+        ret = mkv_write_tag(s, st->metadata, MATROSKA_ID_TAGTARGETS_TRACKUID,
+                            mkv->tracks[i].uid);
         if (ret < 0) return ret;
     }
 
@@ -1659,13 +1660,15 @@ static int mkv_write_tags(AVFormatContext *s)
         for (i = 0; i < s->nb_streams; i++) {
             AVIOContext *pb;
             AVStream *st = s->streams[i];
+            mkv_track *track = &mkv->tracks[i];
             ebml_master tag_target;
             ebml_master tag;
 
             if (st->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT)
                 continue;
 
-            mkv_write_tag_targets(s, MATROSKA_ID_TAGTARGETS_TRACKUID, i + 1, &tag_target);
+            mkv_write_tag_targets(s, MATROSKA_ID_TAGTARGETS_TRACKUID,
+                                  track->uid, &tag_target);
             pb = mkv->tags_bc;
 
             tag = start_ebml_master(pb, MATROSKA_ID_SIMPLETAG, 0);
@@ -1865,10 +1868,6 @@ static int mkv_write_header(AVFormatContext *s)
             version = 4;
     }
 
-    mkv->tracks = av_mallocz_array(s->nb_streams, sizeof(*mkv->tracks));
-    if (!mkv->tracks) {
-        return AVERROR(ENOMEM);
-    }
     ebml_header = start_ebml_master(pb, EBML_ID_HEADER, MAX_EBML_HEADER_SIZE);
     put_ebml_uint  (pb, EBML_ID_EBMLVERSION       ,           1);
     put_ebml_uint  (pb, EBML_ID_EBMLREADVERSION   ,           1);
@@ -2670,8 +2669,42 @@ static int webm_query_codec(enum AVCodecID codec_id, int std_compliance)
     return 0;
 }
 
+static uint64_t mkv_get_uid(const mkv_track *tracks, int i, AVLFG *c)
+{
+    uint64_t uid;
+
+    for (int j = 0, k; j < 5; j++) {
+        uid  = (uint64_t)av_lfg_get(c) << 32;
+        uid |= av_lfg_get(c);
+        if (!uid)
+            continue;
+        for (k = 0; k < i; k++) {
+            if (tracks[k].uid == uid)
+                break;
+        }
+        if (k == i)
+            return uid;
+    }
+
+    /* Make the uid odd so that it is invertible mod 2^n.
+     * This implies that the multiples of uid below are all distinct. */
+    uid |= 1;
+    for (int j = 1, k; j < i + 1; j++) {
+        for (k = 0; k < i; k++) {
+            if (tracks[k].uid == j * uid)
+                break;
+        }
+        if (k == i)
+            return j * uid;
+    }
+    /* Return (i + 1) * uid. It can't coincide with another uid. */
+    return (i + 1) * uid;
+}
+
 static int mkv_init(struct AVFormatContext *s)
 {
+    MatroskaMuxContext *mkv = s->priv_data;
+    AVLFG c;
     int i;
 
     if (s->nb_streams > MAX_TRACKS) {
@@ -2700,7 +2733,23 @@ static int mkv_init(struct AVFormatContext *s)
         s->internal->avoid_negative_ts_use_pts = 1;
     }
 
+    mkv->tracks = av_mallocz_array(s->nb_streams, sizeof(*mkv->tracks));
+    if (!mkv->tracks) {
+        return AVERROR(ENOMEM);
+    }
+
+    if (!(s->flags & AVFMT_FLAG_BITEXACT))
+        av_lfg_init(&c, av_get_random_seed());
+
     for (i = 0; i < s->nb_streams; i++) {
+        mkv_track *track = &mkv->tracks[i];
+
+        if (s->flags & AVFMT_FLAG_BITEXACT) {
+            track->uid = i + 1;
+        } else {
+            track->uid = mkv_get_uid(mkv->tracks, i, &c);
+        }
+
         // ms precision is the de-facto standard timescale for mkv files
         avpriv_set_pts_info(s->streams[i], 64, 1, 1000);
     }
