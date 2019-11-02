@@ -108,9 +108,9 @@ typedef struct mkv_track {
 #define MODE_MATROSKAv2 0x01
 #define MODE_WEBM       0x02
 
-/** Maximum number of tracks allowed in a Matroska file (with track numbers in
- * range 1 to 126 (inclusive) */
-#define MAX_TRACKS 126
+/** Maximum number of tracks supported by this muxer (with track numbers
+ *  in the range 1 to 127 (inclusive)) */
+#define MAX_TRACKS 127
 
 typedef struct MatroskaMuxContext {
     const AVClass   *class;
@@ -2066,7 +2066,7 @@ static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
 
     put_ebml_id(pb, blockid);
     put_ebml_num(pb, size + 4, 0);
-    // this assumes stream_index is less than 126
+    // this assumes track_number is <= 127
     avio_w8(pb, 0x80 | track_number);
     avio_wb16(pb, ts - mkv->cluster_pts);
     avio_w8(pb, (blockid == MATROSKA_ID_SIMPLEBLOCK && keyframe) ? (1 << 7) : 0);
@@ -2131,7 +2131,7 @@ static int mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, AVPacket *p
 
     put_ebml_id(pb, MATROSKA_ID_BLOCK);
     put_ebml_num(pb, size + 4, 0);
-    avio_w8(pb, 0x80 | track->track_num);     // this assumes track_num is less than 126
+    avio_w8(pb, 0x80 | track->track_num);     // this assumes track_num <= 127
     avio_wb16(pb, ts - mkv->cluster_pts);
     avio_w8(pb, flags);
     avio_printf(pb, "%.*s\n%.*s\n%.*s", id_size, id, settings_size, settings, pkt->size, pkt->data);
