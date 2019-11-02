@@ -134,7 +134,7 @@ typedef struct MatroskaMuxContext {
 
     AVPacket        cur_audio_pkt;
 
-    int have_attachments;
+    int nb_attachments;
     int have_video;
 
     int reserve_cues_space;
@@ -1124,7 +1124,6 @@ static int mkv_write_track(AVFormatContext *s, MatroskaMuxContext *mkv,
     AVDictionaryEntry *tag;
 
     if (par->codec_type == AVMEDIA_TYPE_ATTACHMENT) {
-        mkv->have_attachments = 1;
         return 0;
     }
 
@@ -1386,6 +1385,9 @@ static int mkv_write_tracks(AVFormatContext *s)
     AVIOContext *pb = s->pb;
     int i, ret, default_stream_exists = 0;
 
+    if (mkv->nb_attachments == s->nb_streams)
+        return 0;
+
     mkv_add_seekhead_entry(mkv, MATROSKA_ID_TRACKS, avio_tell(pb));
 
     ret = start_ebml_master_crc32(pb, &mkv->tracks_bc, mkv, MATROSKA_ID_TRACKS);
@@ -1645,7 +1647,7 @@ static int mkv_write_tags(AVFormatContext *s)
         }
     }
 
-    if (mkv->have_attachments && mkv->mode != MODE_WEBM) {
+    if (mkv->nb_attachments && mkv->mode != MODE_WEBM) {
         for (i = 0; i < s->nb_streams; i++) {
             mkv_track *track = &mkv->tracks[i];
             AVStream *st = s->streams[i];
@@ -1692,7 +1694,7 @@ static int mkv_write_attachments(AVFormatContext *s)
     AVIOContext *dyn_cp, *pb = s->pb;
     int i, ret;
 
-    if (!mkv->have_attachments)
+    if (!mkv->nb_attachments)
         return 0;
 
     mkv_add_seekhead_entry(mkv, MATROSKA_ID_ATTACHMENTS, avio_tell(pb));
@@ -2496,9 +2498,11 @@ static int mkv_write_trailer(AVFormatContext *s)
         avio_seek(pb, mkv->info_pos, SEEK_SET);
         end_ebml_master_crc32(pb, &mkv->info_bc, mkv);
 
-        // write tracks master
-        avio_seek(pb, mkv->tracks_pos, SEEK_SET);
-        end_ebml_master_crc32(pb, &mkv->tracks_bc, mkv);
+        if (mkv->tracks_bc) {
+            // write tracks master
+            avio_seek(pb, mkv->tracks_pos, SEEK_SET);
+            end_ebml_master_crc32(pb, &mkv->tracks_bc, mkv);
+        }
 
         // update stream durations
         if (mkv->tags_bc) {
@@ -2664,6 +2668,7 @@ static int mkv_init(struct AVFormatContext *s)
                                     "it cannot be deduced from the codec id.\n", i);
             return AVERROR(EINVAL);
             }
+            mkv->nb_attachments++;
             continue;
         }
 
