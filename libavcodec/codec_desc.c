@@ -3021,6 +3021,7 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .name      = "text",
         .long_name = NULL_IF_CONFIG_SMALL("raw UTF-8 text"),
         .props     = AV_CODEC_PROP_TEXT_SUB,
+        .mime_types= MT("text/plain"),
     },
     {
         .id        = AV_CODEC_ID_XSUB,
