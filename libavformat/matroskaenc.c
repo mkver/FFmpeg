@@ -1671,6 +1671,21 @@ static int mkv_write_tags(AVFormatContext *s)
     return 0;
 }
 
+static const char *get_mimetype(const AVStream *st)
+{
+    AVDictionaryEntry *t;
+
+    if (t = av_dict_get(st->metadata, "mimetype", NULL, 0))
+        return t->value;
+    if (st->codecpar->codec_id != AV_CODEC_ID_NONE) {
+        const AVCodecDescriptor *desc = avcodec_descriptor_get(st->codecpar->codec_id);
+        if (desc && desc->mime_types)
+            return desc->mime_types[0];
+    }
+
+    return NULL;
+}
+
 static int mkv_write_attachments(AVFormatContext *s)
 {
     MatroskaMuxContext *mkv = s->priv_data;
@@ -1690,7 +1705,7 @@ static int mkv_write_attachments(AVFormatContext *s)
         mkv_track *track = &mkv->tracks[i];
         ebml_master attached_file;
         AVDictionaryEntry *t;
-        const char *mimetype = NULL;
+        const char *mimetype;
         const char *filename;
 
         if (st->codecpar->codec_type != AVMEDIA_TYPE_ATTACHMENT)
@@ -1705,18 +1720,8 @@ static int mkv_write_attachments(AVFormatContext *s)
         } else
             filename = "";
         put_ebml_string(dyn_cp, MATROSKA_ID_FILENAME, filename);
-        if (t = av_dict_get(st->metadata, "mimetype", NULL, 0))
-            mimetype = t->value;
-        else if (st->codecpar->codec_id != AV_CODEC_ID_NONE ) {
-            const AVCodecDescriptor *desc = avcodec_descriptor_get(st->codecpar->codec_id);
-            if (desc && desc->mime_types)
-                mimetype = desc->mime_types[0];
-        }
-        if (!mimetype) {
-            av_log(s, AV_LOG_ERROR, "Attachment stream %d has no mimetype tag and "
-                                    "it cannot be deduced from the codec id.\n", i);
-            return AVERROR(EINVAL);
-        }
+        mimetype = get_mimetype(st);
+        av_assert0(mimetype);
 
         put_ebml_string(dyn_cp, MATROSKA_ID_FILEMIMETYPE, mimetype);
         put_ebml_binary(dyn_cp, MATROSKA_ID_FILEDATA, st->codecpar->extradata, st->codecpar->extradata_size);
@@ -2654,6 +2659,10 @@ static int mkv_init(struct AVFormatContext *s)
             if (mkv->mode == MODE_WEBM) {
                 av_log(s, AV_LOG_WARNING, "Stream %d will be ignored "
                        "as WebM doesn't support attachments.\n", i);
+            } else if (!get_mimetype(st)) {
+            av_log(s, AV_LOG_ERROR, "Attachment stream %d has no mimetype tag and "
+                                    "it cannot be deduced from the codec id.\n", i);
+            return AVERROR(EINVAL);
             }
             continue;
         }
