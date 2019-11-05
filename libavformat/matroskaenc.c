@@ -2363,6 +2363,7 @@ static int mkv_write_packet(AVFormatContext *s, AVPacket *pkt)
     if (ret < 0)
         return ret;
 
+    if (mkv->cluster_pos != -1) {
     if (mkv->tracks[pkt->stream_index].write_dts)
         cluster_time = pkt->dts - mkv->cluster_pts;
     else
@@ -2390,8 +2391,9 @@ static int mkv_write_packet(AVFormatContext *s, AVPacket *pkt)
         start_new_cluster = 0;
     }
 
-    if (mkv->cluster_pos != -1 && start_new_cluster) {
+    if (start_new_cluster) {
         mkv_end_cluster(s);
+    }
     }
 
     if (!mkv->cluster_pos)
@@ -2507,7 +2509,7 @@ static int mkv_write_trailer(AVFormatContext *s)
         end_ebml_master_crc32(pb, &mkv->tracks_bc, mkv);
 
         // update stream durations
-        if (!mkv->is_live) {
+        if (mkv->tags_bc) {
             int i;
             int64_t curr = avio_tell(mkv->tags_bc);
             for (i = 0; i < s->nb_streams; ++i) {
@@ -2531,8 +2533,6 @@ static int mkv_write_trailer(AVFormatContext *s)
                 }
             }
             avio_seek(mkv->tags_bc, curr, SEEK_SET);
-        }
-        if (mkv->tags_bc && !mkv->is_live) {
             avio_seek(pb, mkv->tags_pos, SEEK_SET);
             end_ebml_master_crc32(pb, &mkv->tags_bc, mkv);
         }
