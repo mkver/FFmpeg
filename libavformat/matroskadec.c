@@ -2881,7 +2881,10 @@ static int matroska_read_header(AVFormatContext *s)
             AVStream *st = avformat_new_stream(s, NULL);
             if (!st)
                 break;
-            av_dict_set(&st->metadata, "filename", attachments[j].filename, 0);
+
+            // Empty filenames are legal and accepted, but useless.
+            if (attachments[j].filename[0])
+                av_dict_set(&st->metadata, "filename", attachments[j].filename, 0);
             av_dict_set(&st->metadata, "mimetype", attachments[j].mime, 0);
             st->codecpar->codec_id   = AV_CODEC_ID_NONE;
 
