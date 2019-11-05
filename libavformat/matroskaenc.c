@@ -60,6 +60,13 @@
  * Info, Tracks, Chapters, Attachments, Tags and Cues */
 #define MAX_SEEKHEAD_ENTRIES 6
 
+enum {
+    NO_ATTACHMENT,
+    ATTACHMENT_NOT_WRITTEN,
+    ATTACHMENT_WRITTEN,
+    ATTACHMENT_LATE,
+};
+
 typedef struct ebml_master {
     int64_t         pos;                ///< absolute offset in the containing AVIOContext where the master's elements start
     int             sizebytes;          ///< how many bytes were reserved for the size
@@ -122,6 +129,9 @@ typedef struct MatroskaMuxContext {
     int64_t         info_pos;
     AVIOContext     *tracks_bc;
     int64_t         tracks_pos;
+    AVIOContext     *attachments_bc;
+    int             nb_attachments;
+    int             attachments_left;
     ebml_master     segment;
     int64_t         segment_offset;
     AVIOContext     *cluster_bc;
@@ -135,8 +145,9 @@ typedef struct MatroskaMuxContext {
 
     AVPacket        cur_audio_pkt;
 
-    int nb_attachments;
     int have_video;
+
+    int attachments_tags_delayed;
 
     int reserve_cues_space;
     int cluster_size_limit;
@@ -400,6 +411,7 @@ static void mkv_deinit(AVFormatContext *s)
     ffio_free_dyn_buf(&mkv->info_bc);
     ffio_free_dyn_buf(&mkv->tracks_bc);
     ffio_free_dyn_buf(&mkv->tags_bc);
+    ffio_free_dyn_buf(&mkv->attachments_bc);
 
     if (mkv->cues) {
         av_freep(&mkv->cues->entries);
@@ -1655,7 +1667,7 @@ static int mkv_write_tags(AVFormatContext *s)
             mkv_track *track = &mkv->tracks[i];
             AVStream *st = s->streams[i];
 
-            if (!track->is_attachment)
+            if (track->is_attachment != ATTACHMENT_WRITTEN)
                 continue;
 
             if (!mkv_check_tag(st->metadata, MATROSKA_ID_TAGTARGETS_ATTACHUID))
@@ -1693,7 +1705,8 @@ static const char *get_mimetype(const AVStream *st)
 }
 
 static int mkv_write_attachment(AVFormatContext *s, AVStream *st, AVIOContext *pb,
-                                mkv_track *track, const uint8_t *data, int size)
+                                mkv_track *track, int *attachments_left,
+                                const uint8_t *data, int size)
 {
     ebml_master attached_file;
     AVDictionaryEntry *t;
@@ -1716,21 +1729,57 @@ static int mkv_write_attachment(AVFormatContext *s, AVStream *st, AVIOContext *p
     put_ebml_uid(pb, MATROSKA_ID_FILEUID, track->uid);
     end_ebml_master(pb, attached_file);
 
+    track->is_attachment = ATTACHMENT_WRITTEN;
+    (*attachments_left)--;
+
     return 0;
+}
+
+static int mkv_output_attachments(AVFormatContext *s)
+{
+    MatroskaMuxContext *mkv = s->priv_data;
+    AVIOContext *pb = s->pb;
+    int ret = 0;
+
+    if (mkv->attachments_left) {
+        av_log(s, AV_LOG_WARNING, "Did not receive a packet "
+               "for every attached_pic stream in time.\n");
+    }
+    if (mkv->attachments_left < mkv->nb_attachments) {
+        mkv_add_seekhead_entry(mkv, MATROSKA_ID_ATTACHMENTS, avio_tell(pb));
+        end_ebml_master_crc32(pb, &mkv->attachments_bc,
+                              mkv, MATROSKA_ID_ATTACHMENTS);
+    } else {
+        ffio_free_dyn_buf(&mkv->attachments_bc);
+    }
+    if (mkv->attachments_tags_delayed) {
+        int64_t new_cluster_pos;
+
+        ret = mkv_write_tags(s);
+
+        mkv->cluster_pos = avio_tell(pb);
+        new_cluster_pos  = mkv->cluster_pos - mkv->segment_offset;
+
+        for (int i = 0; i < mkv->cues->num_entries; i++)
+            mkv->cues->entries[i].cluster_pos = new_cluster_pos;
+
+        mkv->attachments_tags_delayed = 0;
+    }
+
+    return ret;
 }
 
 static int mkv_write_attachments(AVFormatContext *s)
 {
     MatroskaMuxContext *mkv = s->priv_data;
-    AVIOContext *dyn_cp, *pb = s->pb;
     int i, ret;
 
     if (!mkv->nb_attachments)
         return 0;
 
-    mkv_add_seekhead_entry(mkv, MATROSKA_ID_ATTACHMENTS, avio_tell(pb));
+    mkv->attachments_left = mkv->nb_attachments;
 
-    ret = start_ebml_master_crc32(&dyn_cp, mkv);
+    ret = start_ebml_master_crc32(&mkv->attachments_bc, mkv);
     if (ret < 0) return ret;
 
     for (i = 0; i < s->nb_streams; i++) {
@@ -1749,11 +1798,19 @@ static int mkv_write_attachments(AVFormatContext *s)
             data = st->attached_pic.data;
             size = st->attached_pic.size;
         }
-        ret = mkv_write_attachment(s, st, dyn_cp, track, data, size);
+        if (!size)
+            continue;
+
+        ret = mkv_write_attachment(s, st, mkv->attachments_bc, track,
+                                   &mkv->attachments_left, data, size);
         if (ret < 0)
             return ret;
     }
-    end_ebml_master_crc32(pb, &dyn_cp, mkv, MATROSKA_ID_ATTACHMENTS);
+
+    if (!mkv->attachments_left)
+       return mkv_output_attachments(s);
+
+    mkv->attachments_tags_delayed = 1;
 
     return 0;
 }
@@ -1899,9 +1956,11 @@ static int mkv_write_header(AVFormatContext *s)
             return ret;
     }
 
-    ret = mkv_write_tags(s);
-    if (ret < 0)
-        return ret;
+    if (!mkv->attachments_tags_delayed) {
+        ret = mkv_write_tags(s);
+        if (ret < 0)
+            return ret;
+    }
 
     if (!(s->pb->seekable & AVIO_SEEKABLE_NORMAL) && !mkv->is_live)
         mkv_write_seekhead(pb, mkv);
@@ -2160,10 +2219,15 @@ static int mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, const AVPac
     return pkt->duration;
 }
 
-static void mkv_end_cluster(AVFormatContext *s)
+static int mkv_end_cluster(AVFormatContext *s)
 {
     MatroskaMuxContext *mkv = s->priv_data;
 
+    if (mkv->attachments_tags_delayed) {
+        int ret = mkv_output_attachments(s);
+        if (ret < 0)
+            return ret;
+    }
     end_ebml_master_crc32(s->pb, &mkv->cluster_bc, mkv, MATROSKA_ID_CLUSTER);
     if (!mkv->have_video) {
         for (int i = 0; i < s->nb_streams; i++)
@@ -2171,6 +2235,8 @@ static void mkv_end_cluster(AVFormatContext *s)
     }
     mkv->cluster_pos = -1;
     avio_flush(s->pb);
+
+    return 0;
 }
 
 static int mkv_check_new_extra_data(AVFormatContext *s, const AVPacket *pkt)
@@ -2294,7 +2360,10 @@ static int mkv_write_packet_internal(AVFormatContext *s, const AVPacket *pkt)
     if (mkv->cluster_pos != -1) {
         int64_t cluster_time = ts - mkv->cluster_pts;
         if ((int16_t)cluster_time != cluster_time) {
-            mkv_end_cluster(s);
+            ret = mkv_end_cluster(s);
+            if (ret < 0)
+                return ret;
+
             av_log(s, AV_LOG_WARNING, "Starting new cluster due to timestamp\n");
         }
     }
@@ -2402,7 +2471,9 @@ static int mkv_write_packet(AVFormatContext *s, const AVPacket *pkt)
         }
 
         if (start_new_cluster) {
-            mkv_end_cluster(s);
+            ret = mkv_end_cluster(s);
+            if (ret < 0)
+                return ret;
         }
     }
 
@@ -2435,18 +2506,50 @@ static int mkv_write_packet(AVFormatContext *s, const AVPacket *pkt)
 static int mkv_write_flush_packet(AVFormatContext *s, AVPacket *pkt)
 {
     MatroskaMuxContext *mkv = s->priv_data;
+    mkv_track *track;
+    int ret, idx;
 
     if (!pkt) {
         if (mkv->cluster_pos != -1) {
-            mkv_end_cluster(s);
+            ret = mkv_end_cluster(s);
+            if (ret < 0)
+                return ret;
+
             av_log(s, AV_LOG_DEBUG,
                    "Flushing cluster at offset %" PRIu64 " bytes\n",
                    avio_tell(s->pb));
         }
         return 1;
     }
-    if (mkv->tracks[pkt->stream_index].is_attachment)
+    if ((track = &mkv->tracks[idx = pkt->stream_index])->is_attachment) {
+        if (mkv->mode == MODE_WEBM)
+            return 0;
+        if (track->is_attachment == ATTACHMENT_WRITTEN) {
+            if (s->streams[idx]->nb_frames == 1) {
+                av_log(s, AV_LOG_WARNING, "Got more than one picture "
+                       "in stream %d, ignoring.\n", idx);
+            }
+            return 0;
+        }
+        if (!mkv->attachments_tags_delayed) {
+            if (track->is_attachment != ATTACHMENT_LATE) {
+                av_log(s, AV_LOG_WARNING, "Packet for attachment stream %d "
+                       "came too late to be used.\n", idx);
+                track->is_attachment = ATTACHMENT_LATE;
+                mkv->attachments_left--;
+            }
+            return 0;
+        }
+        ret = mkv_write_attachment(s, s->streams[idx], mkv->attachments_bc,
+                                   track, &mkv->attachments_left,
+                                   pkt->data, pkt->size);
+        if (ret < 0)
+            return ret;
+
+        if (!mkv->attachments_left)
+            return mkv_output_attachments(s);
         return 0;
+    }
 
     return mkv_write_packet(s, pkt);
 }
@@ -2469,13 +2572,20 @@ static int mkv_write_trailer(AVFormatContext *s)
     }
 
     if (mkv->cluster_bc) {
-        end_ebml_master_crc32(pb, &mkv->cluster_bc, mkv, MATROSKA_ID_CLUSTER);
+        ret = mkv_end_cluster(s);
+        if (ret < 0)
+            return ret;
     }
 
     ret = mkv_write_chapters(s);
     if (ret < 0)
         return ret;
 
+    if (mkv->attachments_tags_delayed) {
+        ret = mkv_output_attachments(s);
+        if (ret < 0)
+            return ret;
+    }
 
     if ((pb->seekable & AVIO_SEEKABLE_NORMAL) && !mkv->is_live) {
         if (mkv->cues->num_entries) {
@@ -2682,11 +2792,6 @@ static int mkv_init(struct AVFormatContext *s)
             st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
             st->disposition & AV_DISPOSITION_ATTACHED_PIC  &&
             !(st->disposition & AV_DISPOSITION_TIMED_THUMBNAILS)) {
-            if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
-                !st->attached_pic.size) {
-                av_log(s, AV_LOG_WARNING, "Stream with disposition attached_pic"
-                         " contains no attached pic. Treating as video track.\n");
-            } else {
                 if (mkv->mode == MODE_WEBM) {
                     av_log(s, AV_LOG_WARNING, "Stream %d will be ignored "
                            "as WebM doesn't support attachments.\n", i);
@@ -2696,9 +2801,8 @@ static int mkv_init(struct AVFormatContext *s)
                     return AVERROR(EINVAL);
                 }
                 mkv->nb_attachments++;
-                track->is_attachment = 1;
+                track->is_attachment = ATTACHMENT_NOT_WRITTEN;
                 continue;
-            }
         }
 
         nb_tracks++;
