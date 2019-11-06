@@ -415,9 +415,9 @@ static void mkv_deinit(AVFormatContext *s)
 static void mkv_start_seekhead(MatroskaMuxContext *mkv, AVIOContext *pb)
 {
     mkv->seekhead.filepos = avio_tell(pb);
-        // 21 bytes max for a seek entry, 10 bytes max for the SeekHead ID
-        // and size, 6 bytes for a CRC32 element, and 3 bytes to guarantee
-        // that an EBML void element will fit afterwards
+    // 21 bytes max for a seek entry, 10 bytes max for the SeekHead ID
+    // and size, 6 bytes for a CRC32 element, and 3 bytes to guarantee
+    // that an EBML void element will fit afterwards
     mkv->seekhead.reserved_size = MAX_SEEKHEAD_ENTRIES * MAX_SEEKENTRY_SIZE + 19;
     put_ebml_void(pb, mkv->seekhead.reserved_size);
 }
@@ -448,10 +448,10 @@ static int64_t mkv_write_seekhead(AVIOContext *pb, MatroskaMuxContext *mkv)
 
     currentpos = avio_tell(pb);
 
-        if (avio_seek(pb, seekhead->filepos, SEEK_SET) < 0) {
-            currentpos = -1;
-            goto fail;
-        }
+    if (avio_seek(pb, seekhead->filepos, SEEK_SET) < 0) {
+        currentpos = -1;
+        goto fail;
+    }
 
     if (start_ebml_master_crc32(pb, &dyn_cp, mkv, MATROSKA_ID_SEEKHEAD) < 0) {
         currentpos = -1;
@@ -473,10 +473,10 @@ static int64_t mkv_write_seekhead(AVIOContext *pb, MatroskaMuxContext *mkv)
     end_ebml_master_crc32(pb, &dyn_cp, mkv);
 
     remaining = seekhead->filepos + seekhead->reserved_size - avio_tell(pb);
-        put_ebml_void(pb, remaining);
-        avio_seek(pb, currentpos, SEEK_SET);
+    put_ebml_void(pb, remaining);
+    avio_seek(pb, currentpos, SEEK_SET);
 
-        currentpos = seekhead->filepos;
+    currentpos = seekhead->filepos;
 
 fail:
     return currentpos;
@@ -1623,7 +1623,7 @@ static int mkv_write_tags(AVFormatContext *s)
 
             tag = start_ebml_master(pb, MATROSKA_ID_SIMPLETAG, 2 + 1 + 8 + 23);
             put_ebml_string(pb, MATROSKA_ID_TAGNAME, "DURATION");
-            mkv->tracks[i].duration_offset = avio_tell(pb);
+            track->duration_offset = avio_tell(pb);
 
             // Reserve space to write duration as a 20-byte string.
             // 2 (ebml id) + 1 (data size) + 20 (data)
@@ -2358,36 +2358,36 @@ static int mkv_write_packet(AVFormatContext *s, AVPacket *pkt)
         return ret;
 
     if (mkv->cluster_pos != -1) {
-    if (mkv->tracks[pkt->stream_index].write_dts)
-        cluster_time = pkt->dts - mkv->cluster_pts;
-    else
-        cluster_time = pkt->pts - mkv->cluster_pts;
-    cluster_time += mkv->tracks[pkt->stream_index].ts_offset;
+        if (mkv->tracks[pkt->stream_index].write_dts)
+            cluster_time = pkt->dts - mkv->cluster_pts;
+        else
+            cluster_time = pkt->pts - mkv->cluster_pts;
+        cluster_time += mkv->tracks[pkt->stream_index].ts_offset;
 
-    cluster_size = avio_tell(mkv->cluster_bc);
+        cluster_size  = avio_tell(mkv->cluster_bc);
 
-    if (mkv->is_dash && codec_type == AVMEDIA_TYPE_VIDEO) {
-        // WebM DASH specification states that the first block of every cluster
-        // has to be a key frame. So for DASH video, we only create a cluster
-        // on seeing key frames.
-        start_new_cluster = keyframe;
-    } else if (mkv->is_dash && codec_type == AVMEDIA_TYPE_AUDIO &&
-               cluster_time > mkv->cluster_time_limit) {
-        // For DASH audio, we create a Cluster based on cluster_time_limit
-        start_new_cluster = 1;
-    } else if (!mkv->is_dash &&
-               (cluster_size > mkv->cluster_size_limit ||
-                cluster_time > mkv->cluster_time_limit ||
-                (codec_type == AVMEDIA_TYPE_VIDEO && keyframe &&
-                 cluster_size > 4 * 1024))) {
-        start_new_cluster = 1;
-    } else {
-        start_new_cluster = 0;
-    }
+        if (mkv->is_dash && codec_type == AVMEDIA_TYPE_VIDEO) {
+            // WebM DASH specification states that the first block of
+            // every cluster has to be a key frame. So for DASH video,
+            // we only create a cluster on seeing key frames.
+            start_new_cluster = keyframe;
+        } else if (mkv->is_dash && codec_type == AVMEDIA_TYPE_AUDIO &&
+                   cluster_time > mkv->cluster_time_limit) {
+            // For DASH audio, we create a Cluster based on cluster_time_limit.
+            start_new_cluster = 1;
+        } else if (!mkv->is_dash &&
+                   (cluster_size > mkv->cluster_size_limit ||
+                    cluster_time > mkv->cluster_time_limit ||
+                    (codec_type == AVMEDIA_TYPE_VIDEO && keyframe &&
+                     cluster_size > 4 * 1024))) {
+            start_new_cluster = 1;
+        } else {
+            start_new_cluster = 0;
+        }
 
-    if (start_new_cluster) {
-        mkv_end_cluster(s);
-    }
+        if (start_new_cluster) {
+            mkv_end_cluster(s);
+        }
     }
 
     if (!mkv->cluster_pos)
@@ -2657,16 +2657,16 @@ static int mkv_init(struct AVFormatContext *s)
         }
 
         // ms precision is the de-facto standard timescale for mkv files
-        avpriv_set_pts_info(s->streams[i], 64, 1, 1000);
+        avpriv_set_pts_info(st, 64, 1, 1000);
 
         if (st->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT) {
             if (mkv->mode == MODE_WEBM) {
                 av_log(s, AV_LOG_WARNING, "Stream %d will be ignored "
                        "as WebM doesn't support attachments.\n", i);
             } else if (!get_mimetype(st)) {
-            av_log(s, AV_LOG_ERROR, "Attachment stream %d has no mimetype tag and "
-                                    "it cannot be deduced from the codec id.\n", i);
-            return AVERROR(EINVAL);
+                av_log(s, AV_LOG_ERROR, "Attachment stream %d has no mimetype tag"
+                       " and it cannot be deduced from the codec id.\n", i);
+                return AVERROR(EINVAL);
             }
             mkv->nb_attachments++;
             continue;
