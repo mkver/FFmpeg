@@ -1092,24 +1092,33 @@ static int cbs_h265_read_nal_unit(CodedBitstreamContext *ctx,
 }
 
 static int cbs_h2645_write_slice_data(CodedBitstreamContext *ctx,
+                                      CodedBitstreamUnit *unit,
                                       PutBitContext *pbc, const uint8_t *data,
                                       size_t data_size, int data_bit_start)
 {
     size_t rest  = data_size - (data_bit_start + 7) / 8;
+    int size = (put_bits_count(pbc) - data_bit_start + 7) / 8;
     const uint8_t *pos = data + data_bit_start / 8;
+    int err;
 
     av_assert0(data_bit_start >= 0 &&
                data_size > data_bit_start / 8);
 
-    if (data_size * 8 + 8 > put_bits_left(pbc))
-        return AVERROR(ENOSPC);
+    if (data_size > INT_MAX / 8 - size)
+        return AVERROR(ENOMEM);
 
-    if (!rest)
-        goto rbsp_stop_one_bit;
+    // size might be one too big if in- and output are misaligned.
+    size += data_size;
 
-    // First copy the remaining bits of the first byte
-    // The above check ensures that we do not accidentally
-    // copy beyond the rbsp_stop_one_bit.
+    err = ff_cbs_alloc_unit_data(ctx, unit, size);
+    if (err < 0)
+        return err;
+
+    // Rebase pbc onto the new buffer.
+    memcpy(unit->data, pbc->buf, put_bits_ptr(pbc) - pbc->buf);
+    rebase_put_bits(pbc, unit->data, size);
+
+    // First copy the remaining bits of the first byte.
     if (data_bit_start % 8)
         put_bits(pbc, 8 - data_bit_start % 8,
                  *pos++ & MAX_UINT_BITS(8 - data_bit_start % 8));
@@ -1120,31 +1129,24 @@ static int cbs_h2645_write_slice_data(CodedBitstreamContext *ctx,
         // This happens normally for CABAC.
         flush_put_bits(pbc);
         memcpy(put_bits_ptr(pbc), pos, rest);
-        skip_put_bytes(pbc, rest);
     } else {
         // If not, we have to copy manually.
-        // rbsp_stop_one_bit forces us to special-case
-        // the last byte.
-        uint8_t temp;
-        int i;
 
-        for (; rest > 4; rest -= 4, pos += 4)
+        for (; rest >= 4; rest -= 4, pos += 4)
             put_bits32(pbc, AV_RB32(pos));
 
-        for (; rest > 1; rest--, pos++)
+        for (; rest > 0; rest--, pos++)
             put_bits(pbc, 8, *pos);
 
-    rbsp_stop_one_bit:
-        temp = rest ? *pos : *pos & MAX_UINT_BITS(8 - data_bit_start % 8);
+        // Pad with zeroes
+        flush_put_bits(pbc);
 
-        av_assert0(temp);
-        i = ff_ctz(*pos);
-        temp = temp >> i;
-        i = rest ? (8 - i) : (8 - i - data_bit_start % 8);
-        put_bits(pbc, i, temp);
-        if (put_bits_count(pbc) % 8)
-            put_bits(pbc, 8 - put_bits_count(pbc) % 8, 0);
+        // Correct size if it is too big because of misalignment.
+        if (!unit->data[size - 1])
+            unit->data_size = size - 1;
     }
+
+    unit->data_bit_padding = 0;
 
     return 0;
 }
@@ -1205,11 +1207,9 @@ static int cbs_h264_write_nal_unit(CodedBitstreamContext *ctx,
                 return err;
 
             if (slice->data) {
-                err = cbs_h2645_write_slice_data(ctx, pbc, slice->data,
-                                                 slice->data_size,
-                                                 slice->data_bit_start);
-                if (err < 0)
-                    return err;
+                return cbs_h2645_write_slice_data(ctx, unit, pbc, slice->data,
+                                                  slice->data_size,
+                                                  slice->data_bit_start);
             } else {
                 // No slice data - that was just the header.
                 // (Bitstream may be unaligned!)
@@ -1339,11 +1339,9 @@ static int cbs_h265_write_nal_unit(CodedBitstreamContext *ctx,
                 return err;
 
             if (slice->data) {
-                err = cbs_h2645_write_slice_data(ctx, pbc, slice->data,
-                                                 slice->data_size,
-                                                 slice->data_bit_start);
-                if (err < 0)
-                    return err;
+                return cbs_h2645_write_slice_data(ctx, unit, pbc, slice->data,
+                                                  slice->data_size,
+                                                  slice->data_bit_start);
             } else {
                 // No slice data - that was just the header.
             }
