@@ -330,23 +330,36 @@ static int cbs_jpeg_write_scan(CodedBitstreamContext *ctx,
                                PutBitContext *pbc)
 {
     JPEGRawScan *scan = unit->content;
+    size_t header_size, size;
     int err;
 
     err = cbs_jpeg_write_scan_header(ctx, pbc, &scan->header);
     if (err < 0)
         return err;
 
+    av_assert0(put_bits_count(pbc) % 8 == 0);
+
+    flush_put_bits(pbc);
+    header_size = size = put_bits_count(pbc) / 8;
+
     if (scan->data) {
-        if (scan->data_size * 8 > put_bits_left(pbc))
-            return AVERROR(ENOSPC);
+        if (scan->data_size > INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE
+                                      - header_size)
+            return AVERROR(ENOMEM);
 
-        av_assert0(put_bits_count(pbc) % 8 == 0);
-
-        flush_put_bits(pbc);
-
-        memcpy(put_bits_ptr(pbc), scan->data, scan->data_size);
-        skip_put_bytes(pbc, scan->data_size);
+        size += scan->data_size;
     }
+
+    err = ff_cbs_alloc_unit_data(ctx, unit, size);
+    if (err < 0)
+        return err;
+
+    unit->data_bit_padding = 0;
+
+    memcpy(unit->data, pbc->buf, header_size);
+
+    if (scan->data)
+        memcpy(unit->data + header_size, scan->data, scan->data_size);
 
     return 0;
 }
@@ -387,9 +400,9 @@ static int cbs_jpeg_write_unit(CodedBitstreamContext *ctx,
     int err;
 
     if (unit->type == JPEG_MARKER_SOS)
-        err = cbs_jpeg_write_scan   (ctx, unit, pbc);
-    else
-        err = cbs_jpeg_write_segment(ctx, unit, pbc);
+        return cbs_jpeg_write_scan(ctx, unit, pbc);
+
+    err = cbs_jpeg_write_segment(ctx, unit, pbc);
     if (err < 0)
         return err;
 
