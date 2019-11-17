@@ -337,13 +337,25 @@ static int cbs_mpeg2_write_slice(CodedBitstreamContext *ctx,
 
     if (slice->data) {
         size_t rest = slice->data_size - (slice->data_bit_start + 7) / 8;
+        size_t size = (put_bits_count(pbc) + 7) / 8 +
+                      (slice->data_bit_start % 8 < put_bits_count(pbc) % 8);
         uint8_t *pos = slice->data + slice->data_bit_start / 8;
 
         av_assert0(slice->data_bit_start >= 0 &&
                    slice->data_size > slice->data_bit_start / 8);
 
-        if (slice->data_size * 8 + 8 > put_bits_left(pbc))
-            return AVERROR(ENOSPC);
+        if (rest > INT_MAX / 8 - size)
+            return AVERROR(ENOMEM);
+
+        size += rest;
+
+        err = ff_cbs_alloc_unit_data(ctx, unit, size);
+        if (err < 0)
+            return err;
+
+        // Rebase pbc onto the new buffer.
+        memcpy(unit->data, pbc->buf, put_bits_ptr(pbc) - pbc->buf);
+        rebase_put_bits(pbc, unit->data, size);
 
         // First copy the remaining bits of the first byte
         if (slice->data_bit_start % 8)
@@ -355,8 +367,7 @@ static int cbs_mpeg2_write_slice(CodedBitstreamContext *ctx,
             // memcpy can be used to improve performance.
             // This is the normal case.
             flush_put_bits(pbc);
-            memcpy(put_bits_ptr(pbc), pos, rest);
-            skip_put_bytes(pbc, rest);
+            memcpy(unit->data + put_bits_count(pbc) / 8, pos, rest);
         } else {
             // If not, we have to copy manually:
             for (; rest > 3; rest -= 4, pos += 4)
@@ -366,8 +377,12 @@ static int cbs_mpeg2_write_slice(CodedBitstreamContext *ctx,
                 put_bits(pbc, 8, *pos);
 
             // Align with zeros
-            put_bits(pbc, 8 - put_bits_count(pbc) % 8, 0);
+            flush_put_bits(pbc);
         }
+
+        unit->data_bit_padding = 0;
+
+        return 1;
     }
 
     return 0;
