@@ -532,6 +532,7 @@ static int cbs_vp9_write_unit(CodedBitstreamContext *ctx,
                               PutBitContext *pbc)
 {
     VP9RawFrame *frame = unit->content;
+    size_t data_size, header_size;
     int err;
 
     err = cbs_vp9_write_frame(ctx, pbc, frame);
@@ -541,16 +542,28 @@ static int cbs_vp9_write_unit(CodedBitstreamContext *ctx,
     // Frame must be byte-aligned.
     av_assert0(put_bits_count(pbc) % 8 == 0);
 
-    if (frame->data) {
-        if (frame->data_size > put_bits_left(pbc) / 8)
-            return AVERROR(ENOSPC);
+    flush_put_bits(pbc);
+    data_size = header_size = put_bits_count(pbc) / 8;
+    unit->data_bit_padding = 0;
 
-        flush_put_bits(pbc);
-        memcpy(put_bits_ptr(pbc), frame->data, frame->data_size);
-        skip_put_bytes(pbc, frame->data_size);
+    if (frame->data) {
+        if (frame->data_size > INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE
+                                       - header_size)
+            return AVERROR(ENOMEM);
+
+        data_size += frame->data_size;
     }
 
-    return ff_cbs_default_write_unit_data(ctx, unit, pbc);
+    err = ff_cbs_alloc_unit_data(ctx, unit, data_size);
+    if (err < 0)
+        return err;
+
+    memcpy(unit->data, pbc->buf, header_size);
+
+    if (frame->data)
+        memcpy(unit->data + header_size, frame->data, frame->data_size);
+
+    return 0;
 }
 
 static int cbs_vp9_assemble_fragment(CodedBitstreamContext *ctx,
