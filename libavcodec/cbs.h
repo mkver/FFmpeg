@@ -66,7 +66,10 @@ typedef struct CodedBitstreamUnit {
      * Codec-specific type of this unit.
      */
     CodedBitstreamUnitType type;
-
+    /**
+     * Codec-specific flags. If used, documented in the codec-specific headers.
+     */
+    uint32_t flags;
     /**
      * Pointer to the directly-parsable bitstream form of this unit.
      *
@@ -381,7 +384,7 @@ int ff_cbs_insert_unit_content(CodedBitstreamContext *ctx,
  */
 int ff_cbs_insert_unit_data(CodedBitstreamContext *ctx,
                             CodedBitstreamFragment *frag,
-                            int position,
+                            int position, uint32_t flags,
                             CodedBitstreamUnitType type,
                             uint8_t *data, size_t data_size,
                             AVBufferRef *data_buf);

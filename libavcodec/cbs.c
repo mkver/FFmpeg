@@ -764,7 +764,7 @@ int ff_cbs_insert_unit_content(CodedBitstreamContext *ctx,
 
 int ff_cbs_insert_unit_data(CodedBitstreamContext *ctx,
                             CodedBitstreamFragment *frag,
-                            int position,
+                            int position, uint32_t flags,
                             CodedBitstreamUnitType type,
                             uint8_t *data, size_t data_size,
                             AVBufferRef *data_buf)
@@ -795,6 +795,7 @@ int ff_cbs_insert_unit_data(CodedBitstreamContext *ctx,
 
     unit = &frag->units[position];
     unit->type      = type;
+    unit->flags     = flags;
     unit->data      = data;
     unit->data_size = data_size;
     unit->data_ref  = data_ref;

@@ -564,6 +564,7 @@ static int cbs_h2645_fragment_add_nals(CodedBitstreamContext *ctx,
         const H2645NAL *nal = &packet->nals[i];
         AVBufferRef *ref;
         size_t size = nal->size;
+        uint32_t flags = nal->skipped_bytes ? 0 : 1U << 31;
 
         if (nal->nuh_layer_id > 0)
             continue;
@@ -576,10 +577,10 @@ static int cbs_h2645_fragment_add_nals(CodedBitstreamContext *ctx,
             continue;
         }
 
-        ref = (nal->data == nal->raw_data) ? frag->data_ref
+        ret = (nal->data == nal->raw_data) ? frag->data_ref
                                            : packet->rbsp.rbsp_buffer_ref;
 
-        err = ff_cbs_insert_unit_data(ctx, frag, -1, nal->type,
+        err = ff_cbs_insert_unit_data(ctx, frag, -1, flags, nal->type,
                             (uint8_t*)nal->data, size, ref);
         if (err < 0)
             return err;
@@ -1157,6 +1158,8 @@ static int cbs_h264_write_nal_unit(CodedBitstreamContext *ctx,
 {
     int err;
 
+    unit->flags = 0;
+
     switch (unit->type) {
     case H264_NAL_SPS:
         {
@@ -1238,6 +1241,8 @@ static int cbs_h264_write_nal_unit(CodedBitstreamContext *ctx,
             err = cbs_h264_write_filler(ctx, pbc, unit->content);
             if (err < 0)
                 return err;
+
+            unit->flags = 1U << 31;
         }
         break;
 
@@ -1271,6 +1276,8 @@ static int cbs_h265_write_nal_unit(CodedBitstreamContext *ctx,
                                    PutBitContext *pbc)
 {
     int err;
+
+    unit->flags = 0;
 
     switch (unit->type) {
     case HEVC_NAL_VPS:
@@ -1380,7 +1387,7 @@ static int cbs_h2645_assemble_fragment(CodedBitstreamContext *ctx,
                                        CodedBitstreamFragment *frag)
 {
     uint8_t *data;
-    size_t max_size, dp, sp;
+    size_t max_size, dp, sp, escape_limit;
     int err, i, zero_run;
 
     for (i = 0; i < frag->nb_units; i++) {
@@ -1393,11 +1400,9 @@ static int cbs_h2645_assemble_fragment(CodedBitstreamContext *ctx,
         // Start code + content with worst-case emulation prevention.
         max_size += 4 + frag->units[i].data_size * 3 / 2;
     }
-
     data = av_realloc(NULL, max_size + AV_INPUT_BUFFER_PADDING_SIZE);
     if (!data)
         return AVERROR(ENOMEM);
-
     dp = 0;
     for (i = 0; i < frag->nb_units; i++) {
         CodedBitstreamUnit *unit = &frag->units[i];
@@ -1426,8 +1431,14 @@ static int cbs_h2645_assemble_fragment(CodedBitstreamContext *ctx,
         data[dp++] = 0;
         data[dp++] = 1;
 
+        if (unit->flags & (1U << 31)) {
+            escape_limit = unit->flags & MAX_UINT_BITS(30);
+        } else {
+            escape_limit = unit->data_size;
+        }
+
         zero_run = 0;
-        for (sp = 0; sp < unit->data_size; sp++) {
+        for (sp = 0; sp < escape_limit; sp++) {
             if (zero_run < 2) {
                 if (unit->data[sp] == 0)
                     ++zero_run;
@@ -1442,8 +1453,13 @@ static int cbs_h2645_assemble_fragment(CodedBitstreamContext *ctx,
             }
             data[dp++] = unit->data[sp];
         }
-    }
 
+        if (unit->flags & (1U << 31)) {
+            memcpy(data + dp, unit->data + escape_limit,
+                   unit->data_size - escape_limit);
+            dp += unit->data_size - escape_limit;
+        }
+    }
     av_assert0(dp <= max_size);
     err = av_reallocp(&data, dp + AV_INPUT_BUFFER_PADDING_SIZE);
     if (err)

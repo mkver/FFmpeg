@@ -797,7 +797,7 @@ static int cbs_av1_split_fragment(CodedBitstreamContext *ctx,
             goto fail;
         }
 
-        err = ff_cbs_insert_unit_data(ctx, frag, -1, header.obu_type,
+        err = ff_cbs_insert_unit_data(ctx, frag, -1, 0, header.obu_type,
                                       data, obu_length, frag->data_ref);
         if (err < 0)
             goto fail;

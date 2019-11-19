@@ -452,7 +452,7 @@ static int cbs_vp9_split_fragment(CodedBitstreamContext *ctx,
                 return AVERROR_INVALIDDATA;
             }
 
-            err = ff_cbs_insert_unit_data(ctx, frag, -1, 0,
+            err = ff_cbs_insert_unit_data(ctx, frag, -1, 0, 0,
                                           frag->data + pos,
                                           sfi.frame_sizes[i],
                                           frag->data_ref);
@@ -470,7 +470,7 @@ static int cbs_vp9_split_fragment(CodedBitstreamContext *ctx,
         return 0;
 
     } else {
-        err = ff_cbs_insert_unit_data(ctx, frag, -1, 0,
+        err = ff_cbs_insert_unit_data(ctx, frag, -1, 0, 0,
                                       frag->data, frag->data_size,
                                       frag->data_ref);
         if (err < 0)
