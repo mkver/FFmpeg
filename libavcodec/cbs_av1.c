@@ -1064,28 +1064,9 @@ static int cbs_av1_write_obu(CodedBitstreamContext *ctx,
     CodedBitstreamAV1Context *priv = ctx->priv_data;
     AV1RawOBU *obu = unit->content;
     PutBitContext pbc_tmp;
-    AV1RawTileData *td;
-    size_t header_size;
-    int err, start_pos, end_pos, data_pos;
-
-    // OBUs in the normal bitstream format must contain a size field
-    // in every OBU (in annex B it is optional, but we don't support
-    // writing that).
-    obu->header.obu_has_size_field = 1;
-
-    err = cbs_av1_write_obu_header(ctx, pbc, &obu->header);
-    if (err < 0)
-        return err;
-
-    if (obu->header.obu_has_size_field) {
-        pbc_tmp = *pbc;
-        // Add space for the size field to fill later.
-        put_bits32(pbc, 0);
-        put_bits32(pbc, 0);
-    }
-
-    td = NULL;
-    start_pos = put_bits_count(pbc);
+    AV1RawTileData *td = NULL;
+    size_t header_size, obu_header_size, size, td_offset;
+    int err, end_pos;
 
     priv->ref = (AV1ReferenceFrameState *)&priv->write_ref;
 
@@ -1172,8 +1153,9 @@ static int cbs_av1_write_obu(CodedBitstreamContext *ctx,
     }
 
     end_pos = put_bits_count(pbc);
-    header_size = (end_pos - start_pos + 7) / 8;
+    header_size = (end_pos + 7) / 8;
     if (td) {
+        // The possible overflow here is checked below.
         obu->obu_size = header_size + td->data_size;
     } else if (header_size > 0) {
         // Add trailing bits and recalculate.
@@ -1181,47 +1163,60 @@ static int cbs_av1_write_obu(CodedBitstreamContext *ctx,
         if (err < 0)
             return err;
         end_pos = put_bits_count(pbc);
-        obu->obu_size = header_size = (end_pos - start_pos + 7) / 8;
+        obu->obu_size = header_size = (end_pos + 7) / 8;
     } else {
         // Empty OBU.
         obu->obu_size = 0;
     }
 
-    end_pos = put_bits_count(pbc);
     // Must now be byte-aligned.
     av_assert0(end_pos % 8 == 0);
     flush_put_bits(pbc);
-    start_pos /= 8;
-    end_pos   /= 8;
 
-    *pbc = pbc_tmp;
-    err = cbs_av1_write_leb128(ctx, pbc, "obu_size", obu->obu_size);
+    obu_header_size = 1 + !!obu->header.obu_extension_flag
+                        + (av_log2(obu->obu_size) + 7) / 7;
+
+    // The size of everything except the tile data.
+    size = td_offset = obu_header_size + header_size;
+
+    if (td) {
+        if (td->data_size > INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE
+                                    - size)
+            return AVERROR(ENOMEM);
+
+        // If we are here, header_size + td->data_size fits into an int,
+        // so a fortiori no overflow happened in the calculation of
+        // obu->obu_size which also fits in an int.
+        size += td->data_size;
+    }
+
+    err = ff_cbs_alloc_unit_data(ctx, unit, size);
     if (err < 0)
         return err;
 
-    data_pos = put_bits_count(pbc) / 8;
-    flush_put_bits(pbc);
-    av_assert0(data_pos <= start_pos);
+    unit->data_bit_padding = 0;
 
-    if (8 * obu->obu_size > put_bits_left(pbc))
-        return AVERROR(ENOSPC);
+    init_put_bits(&pbc_tmp, unit->data, obu_header_size);
 
-    if (obu->obu_size > 0) {
-        memmove(pbc->buf + data_pos,
-                pbc->buf + start_pos, header_size);
-        skip_put_bytes(pbc, header_size);
+    // OBUs in the normal bitstream format must contain a size field
+    // in every OBU (in annex B it is optional, but we don't support
+    // writing that).
+    obu->header.obu_has_size_field = 1;
 
-        if (td) {
-            memcpy(pbc->buf + data_pos + header_size,
-                   td->data, td->data_size);
-            skip_put_bytes(pbc, td->data_size);
-        }
-    }
+    err = cbs_av1_write_obu_header(ctx, &pbc_tmp, &obu->header);
+    if (err < 0)
+        return err;
 
-    // OBU data must be byte-aligned.
-    av_assert0(put_bits_count(pbc) % 8 == 0);
+    err = cbs_av1_write_leb128(ctx, &pbc_tmp, "obu_size", obu->obu_size);
+    av_assert0(err >= 0 && put_bits_left(&pbc_tmp) == 0);
+    flush_put_bits(&pbc_tmp);
 
-    return ff_cbs_default_write_unit_data(ctx, unit, pbc);
+    memcpy(unit->data + obu_header_size, pbc->buf, header_size);
+
+    if (td)
+        memcpy(unit->data + td_offset, td->data, td->data_size);
+
+    return 0;
 }
 
 static int cbs_av1_assemble_fragment(CodedBitstreamContext *ctx,
