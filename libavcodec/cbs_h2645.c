@@ -785,11 +785,14 @@ static int cbs_h264_read_nal_unit(CodedBitstreamContext *ctx,
                                   CodedBitstreamUnit *unit)
 {
     GetBitContext gbc;
+    uint32_t flags;
     int err;
 
     err = init_get_bits(&gbc, unit->data, 8 * unit->data_size);
     if (err < 0)
         return err;
+
+    flags = unit->flags & ~(1U << 30);
 
     switch (unit->type) {
     case H264_NAL_SPS:
@@ -874,6 +877,15 @@ static int cbs_h264_read_nal_unit(CodedBitstreamContext *ctx,
                 return AVERROR(ENOMEM);
             slice->data = unit->data + pos / 8;
             slice->data_bit_start = pos % 8;
+
+            if (flags & (1U << 31)) {
+                uint32_t escape_limit = flags & MAX_UINT_BITS(30);
+                escape_limit = escape_limit > pos / 8 ?
+                               escape_limit - pos / 8 : 0;
+
+                if (escape_limit < slice->data_size)
+                    flags = (1U << 30) | escape_limit;
+            }
         }
         break;
 
@@ -944,11 +956,14 @@ static int cbs_h265_read_nal_unit(CodedBitstreamContext *ctx,
                                   CodedBitstreamUnit *unit)
 {
     GetBitContext gbc;
+    uint32_t flags;
     int err;
 
     err = init_get_bits(&gbc, unit->data, 8 * unit->data_size);
     if (err < 0)
         return err;
+
+    flags = unit->flags & ~(1U << 30);
 
     switch (unit->type) {
     case HEVC_NAL_VPS:
@@ -1052,6 +1067,15 @@ static int cbs_h265_read_nal_unit(CodedBitstreamContext *ctx,
                 return AVERROR(ENOMEM);
             slice->data = unit->data + pos / 8;
             slice->data_bit_start = pos % 8;
+
+            if (flags & (1U << 31)) {
+                uint32_t escape_limit = flags & MAX_UINT_BITS(30);
+                escape_limit = escape_limit > pos / 8 ?
+                               escape_limit - pos / 8 : 0;
+
+                if (escape_limit < slice->data_size)
+                    flags = (1U << 30) | escape_limit;
+            }
         }
         break;
 
@@ -1129,6 +1153,9 @@ static int cbs_h2645_write_slice_data(CodedBitstreamContext *ctx,
         // memcpy can be used to improve performance.
         // This happens normally for CABAC.
         flush_put_bits(pbc);
+
+//        if (unit->flags & (1U << 30) && rest > 2) {
+            // Propagate the 
         memcpy(put_bits_ptr(pbc), pos, rest);
     } else {
         // If not, we have to copy manually.
@@ -1158,7 +1185,7 @@ static int cbs_h264_write_nal_unit(CodedBitstreamContext *ctx,
 {
     int err;
 
-    unit->flags = 0;
+    unit->flags &= ~(1U << 31);
 
     switch (unit->type) {
     case H264_NAL_SPS:
@@ -1277,7 +1304,7 @@ static int cbs_h265_write_nal_unit(CodedBitstreamContext *ctx,
 {
     int err;
 
-    unit->flags = 0;
+    unit->flags &= ~(1U << 31);
 
     switch (unit->type) {
     case HEVC_NAL_VPS:
