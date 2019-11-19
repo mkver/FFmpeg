@@ -283,6 +283,28 @@ int ff_cbs_read(CodedBitstreamContext *ctx,
     return cbs_read_fragment_content(ctx, frag);
 }
 
+int ff_cbs_default_write_unit_data(CodedBitstreamContext *ctx,
+                                   CodedBitstreamUnit *unit,
+                                   PutBitContext *pbc)
+{
+    int err;
+
+    if (put_bits_count(pbc) % 8)
+        unit->data_bit_padding = 8 - put_bits_count(pbc) % 8;
+    else
+        unit->data_bit_padding = 0;
+
+    flush_put_bits(pbc);
+
+    err = ff_cbs_alloc_unit_data(ctx, unit, put_bits_count(pbc) / 8);
+    if (err < 0)
+        return err;
+
+    memcpy(unit->data, pbc->buf, unit->data_size);
+
+    return 0;
+}
+
 static int cbs_write_unit_data(CodedBitstreamContext *ctx,
                                CodedBitstreamUnit *unit)
 {
@@ -317,22 +339,6 @@ static int cbs_write_unit_data(CodedBitstreamContext *ctx,
         // Write failed for some other reason.
         return ret;
     }
-
-    // Overflow but we didn't notice.
-    av_assert0(put_bits_count(&pbc) <= 8 * ctx->write_buffer_size);
-
-    if (put_bits_count(&pbc) % 8)
-        unit->data_bit_padding = 8 - put_bits_count(&pbc) % 8;
-    else
-        unit->data_bit_padding = 0;
-
-    flush_put_bits(&pbc);
-
-    ret = ff_cbs_alloc_unit_data(ctx, unit, put_bits_count(&pbc) / 8);
-    if (ret < 0)
-        return ret;
-
-    memcpy(unit->data, ctx->write_buffer, unit->data_size);
 
     return 0;
 }

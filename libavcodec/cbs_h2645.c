@@ -1263,7 +1263,7 @@ static int cbs_h264_write_nal_unit(CodedBitstreamContext *ctx,
         return AVERROR_PATCHWELCOME;
     }
 
-    return 0;
+    return ff_cbs_default_write_unit_data(ctx, unit, pbc);
 }
 
 static int cbs_h265_write_nal_unit(CodedBitstreamContext *ctx,
@@ -1375,7 +1375,7 @@ static int cbs_h265_write_nal_unit(CodedBitstreamContext *ctx,
         return AVERROR_PATCHWELCOME;
     }
 
-    return 0;
+    return ff_cbs_default_write_unit_data(ctx, unit, pbc);
 }
 
 static int cbs_h2645_assemble_fragment(CodedBitstreamContext *ctx,

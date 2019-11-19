@@ -377,10 +377,16 @@ static int cbs_mpeg2_write_unit(CodedBitstreamContext *ctx,
                                 CodedBitstreamUnit *unit,
                                 PutBitContext *pbc)
 {
+    int err;
+
     if (MPEG2_START_IS_SLICE(unit->type))
-        return cbs_mpeg2_write_slice (ctx, unit, pbc);
+        err = cbs_mpeg2_write_slice (ctx, unit, pbc);
     else
-        return cbs_mpeg2_write_header(ctx, unit, pbc);
+        err = cbs_mpeg2_write_header(ctx, unit, pbc);
+    if (err < 0)
+        return err;
+
+    return ff_cbs_default_write_unit_data(ctx, unit, pbc);
 }
 
 static int cbs_mpeg2_assemble_fragment(CodedBitstreamContext *ctx,

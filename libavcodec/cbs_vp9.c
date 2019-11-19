@@ -550,7 +550,7 @@ static int cbs_vp9_write_unit(CodedBitstreamContext *ctx,
         skip_put_bytes(pbc, frame->data_size);
     }
 
-    return 0;
+    return ff_cbs_default_write_unit_data(ctx, unit, pbc);
 }
 
 static int cbs_vp9_assemble_fragment(CodedBitstreamContext *ctx,

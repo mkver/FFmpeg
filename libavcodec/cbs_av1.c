@@ -1221,7 +1221,7 @@ static int cbs_av1_write_obu(CodedBitstreamContext *ctx,
     // OBU data must be byte-aligned.
     av_assert0(put_bits_count(pbc) % 8 == 0);
 
-    return 0;
+    return ff_cbs_default_write_unit_data(ctx, unit, pbc);
 }
 
 static int cbs_av1_assemble_fragment(CodedBitstreamContext *ctx,

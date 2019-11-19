@@ -44,7 +44,9 @@ typedef struct CodedBitstreamType {
     int (*read_unit)(CodedBitstreamContext *ctx,
                      CodedBitstreamUnit *unit);
 
-    // Write the data bitstream from unit->content into pbc.
+    // Write the data bitstream from unit->content. This includes
+    // allocating the buffer as well as setting all of unit's data-fields.
+    // The supplied PutBitContext may be used as temporary buffer.
     // Return value AVERROR(ENOSPC) indicates that pbc was too small.
     int (*write_unit)(CodedBitstreamContext *ctx,
                       CodedBitstreamUnit *unit,
@@ -58,6 +60,14 @@ typedef struct CodedBitstreamType {
     // Free the codec internal state.
     void (*close)(CodedBitstreamContext *ctx);
 } CodedBitstreamType;
+
+
+// Helper function to convert pbc's content into a unit's data.
+// Allocates and copies data and sets all of unit's data-fields.
+
+int ff_cbs_default_write_unit_data(CodedBitstreamContext *ctx,
+                                   CodedBitstreamUnit *unit,
+                                   PutBitContext *pbc);
 
 
 // Helper functions for trace output.

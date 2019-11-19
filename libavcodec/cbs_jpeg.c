@@ -384,10 +384,16 @@ static int cbs_jpeg_write_unit(CodedBitstreamContext *ctx,
                                CodedBitstreamUnit *unit,
                                PutBitContext *pbc)
 {
+    int err;
+
     if (unit->type == JPEG_MARKER_SOS)
-        return cbs_jpeg_write_scan   (ctx, unit, pbc);
+        err = cbs_jpeg_write_scan   (ctx, unit, pbc);
     else
-        return cbs_jpeg_write_segment(ctx, unit, pbc);
+        err = cbs_jpeg_write_segment(ctx, unit, pbc);
+    if (err < 0)
+        return err;
+
+    return ff_cbs_default_write_unit_data(ctx, unit, pbc);
 }
 
 static int cbs_jpeg_assemble_fragment(CodedBitstreamContext *ctx,
