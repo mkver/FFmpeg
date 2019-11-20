@@ -573,7 +573,8 @@ static int64_t mkv_write_cues(AVFormatContext *s, mkv_cues *cues, mkv_track *tra
     return currentpos;
 }
 
-static int put_xiph_codecpriv(AVFormatContext *s, AVIOContext *pb, AVCodecParameters *par)
+static int put_xiph_codecpriv(AVFormatContext *s, AVIOContext *pb,
+                              const AVCodecParameters *par)
 {
     const uint8_t *header_start[3];
     int header_len[3];
@@ -601,7 +602,7 @@ static int put_xiph_codecpriv(AVFormatContext *s, AVIOContext *pb, AVCodecParame
     return 0;
 }
 
-static int put_wv_codecpriv(AVIOContext *pb, AVCodecParameters *par)
+static int put_wv_codecpriv(AVIOContext *pb, const AVCodecParameters *par)
 {
     if (par->extradata && par->extradata_size == 2)
         avio_write(pb, par->extradata, 2);
@@ -611,7 +612,7 @@ static int put_wv_codecpriv(AVIOContext *pb, AVCodecParameters *par)
 }
 
 static int put_flac_codecpriv(AVFormatContext *s,
-                              AVIOContext *pb, AVCodecParameters *par)
+                              AVIOContext *pb, const AVCodecParameters *par)
 {
     int write_comment = (par->channel_layout &&
                          !(par->channel_layout & ~0x3ffffULL) &&
@@ -659,8 +660,9 @@ static int put_flac_codecpriv(AVFormatContext *s,
     return 0;
 }
 
-static int get_aac_sample_rates(AVFormatContext *s, uint8_t *extradata, int extradata_size,
-                                int *sample_rate, int *output_sample_rate)
+static int get_aac_sample_rates(AVFormatContext *s, const uint8_t *extradata,
+                                int extradata_size, int *sample_rate,
+                                int *output_sample_rate)
 {
     MPEG4AudioConfig mp4ac;
     int ret;
@@ -692,7 +694,7 @@ static int get_aac_sample_rates(AVFormatContext *s, uint8_t *extradata, int extr
 }
 
 static int mkv_write_native_codecprivate(AVFormatContext *s, AVIOContext *pb,
-                                         AVCodecParameters *par,
+                                         const AVCodecParameters *par,
                                          AVIOContext *dyn_cp)
 {
     switch (par->codec_id) {
@@ -810,7 +812,9 @@ static int mkv_write_codecprivate(AVFormatContext *s, AVIOContext *pb,
     return ret;
 }
 
-static int mkv_write_video_color(AVIOContext *pb, AVCodecParameters *par, AVStream *st) {
+static int mkv_write_video_color(AVIOContext *pb, const AVCodecParameters *par,
+                                 const AVStream *st)
+{
     AVIOContext *dyn_cp;
     uint8_t *colorinfo_ptr;
     int side_data_size = 0;
@@ -901,7 +905,7 @@ static int mkv_write_video_color(AVIOContext *pb, AVCodecParameters *par, AVStre
 }
 
 static int mkv_write_video_projection(AVFormatContext *s, AVIOContext *pb,
-                                      AVStream *st)
+                                      const AVStream *st)
 {
     ebml_master projection;
     int side_data_size = 0;
@@ -1984,7 +1988,7 @@ fail:
 }
 
 static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
-                            uint32_t blockid, AVPacket *pkt, int keyframe)
+                            uint32_t blockid, const AVPacket *pkt, int keyframe)
 {
     MatroskaMuxContext *mkv = s->priv_data;
     AVCodecParameters *par = s->streams[pkt->stream_index]->codecpar;
@@ -2090,7 +2094,7 @@ static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
     }
 }
 
-static int mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, AVPacket *pkt)
+static int mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, const AVPacket *pkt)
 {
     MatroskaMuxContext *mkv = s->priv_data;
     mkv_track *track = &mkv->tracks[pkt->stream_index];
@@ -2147,7 +2151,7 @@ static void mkv_end_cluster(AVFormatContext *s)
     avio_flush(s->pb);
 }
 
-static int mkv_check_new_extra_data(AVFormatContext *s, AVPacket *pkt)
+static int mkv_check_new_extra_data(AVFormatContext *s, const AVPacket *pkt)
 {
     MatroskaMuxContext *mkv = s->priv_data;
     mkv_track *track        = &mkv->tracks[pkt->stream_index];
@@ -2255,7 +2259,7 @@ static int mkv_check_new_extra_data(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
-static int mkv_write_packet_internal(AVFormatContext *s, AVPacket *pkt)
+static int mkv_write_packet_internal(AVFormatContext *s, const AVPacket *pkt)
 {
     MatroskaMuxContext *mkv = s->priv_data;
     AVIOContext *pb;
@@ -2341,7 +2345,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     return 0;
 }
 
-static int mkv_write_packet(AVFormatContext *s, AVPacket *pkt)
+static int mkv_write_packet(AVFormatContext *s, const AVPacket *pkt)
 {
     MatroskaMuxContext *mkv = s->priv_data;
     int codec_type          = s->streams[pkt->stream_index]->codecpar->codec_type;
