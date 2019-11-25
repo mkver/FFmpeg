@@ -2127,8 +2127,8 @@ fail:
     return ret;
 }
 
-static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
-                            const AVPacket *pkt, uint64_t duration, int keyframe)
+static int mkv_write_block(AVFormatContext *s, AVIOContext *pb,
+                           const AVPacket *pkt, uint64_t duration, int keyframe)
 {
     MatroskaMuxContext *mkv = s->priv_data;
     AVCodecParameters *par = s->streams[pkt->stream_index]->codecpar;
@@ -2139,7 +2139,7 @@ static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
     uint64_t additional_id, block_group_size = 0;
     uint32_t blockid = duration ? MATROSKA_ID_BLOCK: MATROSKA_ID_SIMPLEBLOCK;
     int64_t discard_padding = 0;
-    int track_number = track->track_num;
+    int err = 0, track_number = track->track_num;
     unsigned block_adds_size, block_more_size;
     ebml_master block_group;
 
@@ -2156,21 +2156,22 @@ static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
 
     if (par->codec_id == AV_CODEC_ID_H264 && par->extradata_size > 0 &&
         (AV_RB24(par->extradata) == 1 || AV_RB32(par->extradata) == 1)) {
-        ff_avc_parse_nal_units_buf(pkt->data, &data, &size);
+        err = ff_avc_parse_nal_units_buf(pkt->data, &data, &size);
     } else if (par->codec_id == AV_CODEC_ID_HEVC && par->extradata_size > 6 &&
                (AV_RB24(par->extradata) == 1 || AV_RB32(par->extradata) == 1)) {
         /* extradata is Annex B, assume the bitstream is too and convert it */
-        ff_hevc_annexb2mp4_buf(pkt->data, &data, &size, 0, NULL);
+        err = ff_hevc_annexb2mp4_buf(pkt->data, &data, &size, 0, NULL);
     } else if (par->codec_id == AV_CODEC_ID_AV1) {
-        ff_av1_filter_obus_buf(pkt->data, &data, &size);
+        err = ff_av1_filter_obus_buf(pkt->data, &data, &size);
     } else if (par->codec_id == AV_CODEC_ID_WAVPACK) {
-        int ret = mkv_strip_wavpack(pkt->data, &data, &size);
-        if (ret < 0) {
-            av_log(s, AV_LOG_ERROR, "Error stripping a WavPack packet.\n");
-            return;
-        }
+        err = mkv_strip_wavpack(pkt->data, &data, &size);
     } else
         data = pkt->data;
+
+    if (err < 0) {
+        av_log(s, AV_LOG_ERROR, "Error reformatting packet data.\n");
+        return err;
+    }
 
     if (par->codec_id == AV_CODEC_ID_PRORES && size >= 8) {
         /* Matroska specification requires to remove the first QuickTime atom
@@ -2266,6 +2267,8 @@ static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
         }
         end_ebml_master(pb, block_group);
     }
+
+    return 0;
 }
 
 static void mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, const AVPacket *pkt)
@@ -2479,7 +2482,9 @@ static int mkv_write_packet_internal(AVFormatContext *s, const AVPacket *pkt)
     relative_packet_pos = avio_tell(pb);
 
     if (par->codec_id != AV_CODEC_ID_WEBVTT) {
-        mkv_write_block(s, pb, pkt, write_duration, keyframe);
+        ret = mkv_write_block(s, pb, pkt, write_duration, keyframe);
+        if (ret < 0)
+            return ret;
     } else {
         mkv_write_vtt_blocks(s, pb, pkt);
     }
