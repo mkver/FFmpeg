@@ -2141,7 +2141,7 @@ static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
     int64_t discard_padding = 0;
     int track_number = track->track_num;
     unsigned block_adds_size, block_more_size;
-    ebml_master block_group, block_additions, block_more;
+    ebml_master block_group;
 
     ts += track->ts_offset;
 
@@ -2153,16 +2153,17 @@ static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
            "at offset %" PRId64 ". TrackNumber %d, keyframe %d\n",
            pkt->size, pkt->pts, pkt->dts, pkt->duration, avio_tell(pb),
            mkv->cluster_pos, track_number, keyframe != 0);
+
     if (par->codec_id == AV_CODEC_ID_H264 && par->extradata_size > 0 &&
-        (AV_RB24(par->extradata) == 1 || AV_RB32(par->extradata) == 1))
+        (AV_RB24(par->extradata) == 1 || AV_RB32(par->extradata) == 1)) {
         ff_avc_parse_nal_units_buf(pkt->data, &data, &size);
-    else if (par->codec_id == AV_CODEC_ID_HEVC && par->extradata_size > 6 &&
-             (AV_RB24(par->extradata) == 1 || AV_RB32(par->extradata) == 1))
+    } else if (par->codec_id == AV_CODEC_ID_HEVC && par->extradata_size > 6 &&
+               (AV_RB24(par->extradata) == 1 || AV_RB32(par->extradata) == 1)) {
         /* extradata is Annex B, assume the bitstream is too and convert it */
         ff_hevc_annexb2mp4_buf(pkt->data, &data, &size, 0, NULL);
-    else if (par->codec_id == AV_CODEC_ID_AV1)
+    } else if (par->codec_id == AV_CODEC_ID_AV1) {
         ff_av1_filter_obus_buf(pkt->data, &data, &size);
-    else if (par->codec_id == AV_CODEC_ID_WAVPACK) {
+    } else if (par->codec_id == AV_CODEC_ID_WAVPACK) {
         int ret = mkv_strip_wavpack(pkt->data, &data, &size);
         if (ret < 0) {
             av_log(s, AV_LOG_ERROR, "Error stripping a WavPack packet.\n");
@@ -2238,30 +2239,31 @@ static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
         av_free(data);
 
     if (blockid == MATROSKA_ID_BLOCK) {
-    if (!keyframe) {
-        put_ebml_sint(pb, MATROSKA_ID_BLOCKREFERENCE, track->last_timestamp - ts);
-    }
+        if (!keyframe)
+            put_ebml_sint(pb, MATROSKA_ID_BLOCKREFERENCE,
+                          track->last_timestamp - ts);
 
         if (duration > 0)
             put_ebml_uint(pb, MATROSKA_ID_BLOCKDURATION, duration);
 
-    if (discard_padding) {
-        put_ebml_sint(pb, MATROSKA_ID_DISCARDPADDING, discard_padding);
-    }
+        if (discard_padding)
+            put_ebml_sint(pb, MATROSKA_ID_DISCARDPADDING, discard_padding);
 
-    if (side_data_size) {
-        block_additions = start_ebml_master(pb, MATROSKA_ID_BLOCKADDITIONS,
-                                            block_adds_size);
-        block_more = start_ebml_master(pb, MATROSKA_ID_BLOCKMORE,
-                                       block_more_size);
-        /* Until dbc50f8a our demuxer used a wrong default value
-         * of BlockAddID, so we write it unconditionally. */
-        put_ebml_uint  (pb, MATROSKA_ID_BLOCKADDID, additional_id);
-        put_ebml_binary(pb, MATROSKA_ID_BLOCKADDITIONAL,
-                        side_data, side_data_size);
-        end_ebml_master(pb, block_more);
-        end_ebml_master(pb, block_additions);
-    }
+        if (side_data_size) {
+            ebml_master block_adds, block_more;
+
+            block_adds = start_ebml_master(pb, MATROSKA_ID_BLOCKADDITIONS,
+                                           block_adds_size);
+            block_more = start_ebml_master(pb, MATROSKA_ID_BLOCKMORE,
+                                           block_more_size);
+            /* Until dbc50f8a our demuxer used a wrong default value
+             * of BlockAddID, so we write it unconditionally. */
+            put_ebml_uint  (pb, MATROSKA_ID_BLOCKADDID, additional_id);
+            put_ebml_binary(pb, MATROSKA_ID_BLOCKADDITIONAL,
+                            side_data, side_data_size);
+            end_ebml_master(pb, block_more);
+            end_ebml_master(pb, block_adds);
+        }
         end_ebml_master(pb, block_group);
     }
 }
