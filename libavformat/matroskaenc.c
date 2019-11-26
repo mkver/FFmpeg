@@ -2434,6 +2434,13 @@ static int mkv_write_packet_internal(AVFormatContext *s, const AVPacket *pkt)
     }
     ts += track->ts_offset;
 
+    if (ts < 0) {
+        if (s->strict_std_compliance >= FF_COMPLIANCE_STRICT) {
+            av_log(s, AV_LOG_ERROR, "Dropping packet with negative timestamp\n");
+            return AVERROR_INVALIDDATA;
+        }
+    }
+
     if (mkv->cluster_pos != -1) {
         int64_t cluster_time = ts - mkv->cluster_pts;
         if ((int16_t)cluster_time != cluster_time) {
