@@ -2148,22 +2148,20 @@ static int webm_reformat_vtt(const AVPacket *pkt, uint8_t **data,
 }
 
 static int mkv_write_block(AVFormatContext *s, AVIOContext *pb,
-                           const AVPacket *pkt, uint64_t duration, int keyframe)
+                           const AVPacket *pkt, int64_t ts, uint64_t duration,
+                           int keyframe)
 {
     MatroskaMuxContext *mkv = s->priv_data;
     AVCodecParameters *par = s->streams[pkt->stream_index]->codecpar;
     mkv_track *track = &mkv->tracks[pkt->stream_index];
     uint8_t *data = NULL, *side_data = NULL, buf[1024];
     int err = 0, offset = 0, size = pkt->size, side_data_size;
-    int64_t ts = track->write_dts ? pkt->dts : pkt->pts;
     uint64_t additional_id, block_group_size = 0;
     uint32_t blockid = duration ? MATROSKA_ID_BLOCK : MATROSKA_ID_SIMPLEBLOCK;
     int64_t discard_padding = 0;
     unsigned track_number = track->track_num;
     unsigned block_adds_size, block_more_size;
     ebml_master block_group;
-
-    ts += track->ts_offset;
 
     av_log(s, AV_LOG_DEBUG,
            "Writing block of size %d with pts %" PRId64 ", dts %" PRId64 ", "
@@ -2462,6 +2460,11 @@ static int mkv_write_packet_internal(AVFormatContext *s, const AVPacket *pkt)
             av_log(s, AV_LOG_ERROR, "Dropping packet with negative timestamp\n");
             return AVERROR_INVALIDDATA;
         }
+        if (ts < INT16_MIN) {
+            av_log(s, AV_LOG_ERROR,
+                   "Clamping block timestamp to -32768 from %"PRId64"\n", ts);
+            ts = INT16_MIN;
+        }
     }
 
     if (mkv->cluster_pos != -1) {
@@ -2490,7 +2493,7 @@ static int mkv_write_packet_internal(AVFormatContext *s, const AVPacket *pkt)
 
     relative_packet_pos = avio_tell(pb);
 
-    ret = mkv_write_block(s, pb, pkt, write_duration, keyframe);
+    ret = mkv_write_block(s, pb, pkt, ts, write_duration, keyframe);
     if (ret < 0)
         return ret;
 
