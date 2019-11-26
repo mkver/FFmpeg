@@ -408,6 +408,7 @@ static int start_ebml_master_crc32(AVIOContext **dyn_cp, MatroskaMuxContext *mkv
 
     if (!*dyn_cp && (ret = avio_open_dyn_buf(dyn_cp)) < 0)
         return ret;
+    (*dyn_cp)->direct = 1;
 
     if (mkv->write_crc)
         put_ebml_void(*dyn_cp, 6); /* Reserve space for CRC32 so position/size calculations using avio_tell() take it into account */
