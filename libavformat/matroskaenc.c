@@ -184,9 +184,19 @@ typedef struct MatroskaMuxContext {
 /** Seek preroll value for opus */
 #define OPUS_SEEK_PREROLL 80000000
 
-static int ebml_id_size(uint32_t id)
+static av_const int ebml_id_size(uint32_t id)
 {
     return (av_log2(id + 1) - 1) / 7 + 1;
+}
+
+/* This function exists so that the size of ebml ids can be
+ * evaluated at compile time for compile-time constants. */
+static av_const int ebml_id_size2(uint32_t id)
+{
+    int bytes = 1;
+    while (id >>= 7)
+        bytes++;
+    return bytes;
 }
 
 static void put_ebml_id(AVIOContext *pb, uint32_t id)
@@ -211,7 +221,7 @@ static void put_ebml_size_unknown(AVIOContext *pb, int bytes)
 /**
  * Calculate how many bytes are needed to represent a given number in EBML.
  */
-static int ebml_num_size(uint64_t num)
+static av_const int ebml_num_size(uint64_t num)
 {
     int bytes = 1;
     while ((num + 1) >> bytes * 7)
@@ -253,12 +263,27 @@ static void put_ebml_num(AVIOContext *pb, uint64_t num, int bytes)
         avio_w8(pb, (uint8_t)(num >> i * 8));
 }
 
+static av_const int uint_size(uint64_t val)
+{
+    int bytes = 1;
+
+    while (val >>= 8)
+        bytes++;
+
+    return bytes;
+}
+
+/**
+ * Calculate how much space an EBML uint with given id and value will occupy.
+ */
+static av_const inline int ebml_uint_size(uint32_t id, uint64_t val)
+{
+    return ebml_id_size2(id) + /* length field */ 1 + uint_size(val);
+}
+
 static void put_ebml_uint(AVIOContext *pb, uint32_t elementid, uint64_t val)
 {
-    int i, bytes = 1;
-    uint64_t tmp = val;
-    while (tmp >>= 8)
-        bytes++;
+    int i, bytes = uint_size(val);
 
     put_ebml_id(pb, elementid);
     put_ebml_num(pb, bytes, 0);
@@ -266,12 +291,28 @@ static void put_ebml_uint(AVIOContext *pb, uint32_t elementid, uint64_t val)
         avio_w8(pb, (uint8_t)(val >> i * 8));
 }
 
+static av_const int sint_size(int64_t val)
+{
+    uint64_t tmp = 2 * (val < 0 ? val^-1 : val);
+    int bytes = 1;
+
+    while (tmp >>= 8)
+        bytes++;
+
+    return bytes;
+}
+
+/**
+ * Calculate how much space an EBML sint with given id and value will occupy.
+ */
+static av_const inline int ebml_sint_size(uint32_t id, int64_t val)
+{
+    return ebml_id_size2(id) + /* length field */ 1 + sint_size(val);
+}
+
 static void put_ebml_sint(AVIOContext *pb, uint32_t elementid, int64_t val)
 {
-    int i, bytes = 1;
-    uint64_t tmp = 2*(val < 0 ? val^-1 : val);
-
-    while (tmp>>=8) bytes++;
+    int i, bytes = sint_size(val);
 
     put_ebml_id(pb, elementid);
     put_ebml_num(pb, bytes, 0);
@@ -284,6 +325,15 @@ static void put_ebml_float(AVIOContext *pb, uint32_t elementid, double val)
     put_ebml_id(pb, elementid);
     put_ebml_num(pb, 8, 0);
     avio_wb64(pb, av_double2int(val));
+}
+
+/**
+ * Calculate how much space an EBML binary element with given id and
+ * payload size will occupy.
+ */
+static av_const inline unsigned ebml_binary_size(uint32_t id, int size)
+{
+    return ebml_id_size2(id) + ebml_num_size(size) + (unsigned)size;
 }
 
 static void put_ebml_binary(AVIOContext *pb, uint32_t elementid,
@@ -321,6 +371,15 @@ static void put_ebml_void(AVIOContext *pb, uint64_t size)
     else
         put_ebml_num(pb, size - 9, 8);
     ffio_fill(pb, 0, currentpos + size - avio_tell(pb));
+}
+
+/**
+ * Calculate how much space an EBML master element with given id and
+ * payload size will occupy.
+ */
+static av_const inline uint64_t ebml_master_size(uint32_t id, uint64_t size)
+{
+    return ebml_id_size2(id) + ebml_num_size(size) + size;
 }
 
 static ebml_master start_ebml_master(AVIOContext *pb, uint32_t elementid,
