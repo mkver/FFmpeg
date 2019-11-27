@@ -96,6 +96,7 @@ typedef struct mkv_track {
     int             has_cue;
     uint64_t        uid;
     int             track_num;
+    int             is_attachment;
     int             sample_rate;
     int64_t         sample_rate_offset;
     int64_t         last_timestamp;
@@ -1125,9 +1126,8 @@ static int mkv_write_track(AVFormatContext *s, MatroskaMuxContext *mkv,
     int j, ret;
     AVDictionaryEntry *tag;
 
-    if (par->codec_type == AVMEDIA_TYPE_ATTACHMENT) {
+    if (mkv->tracks[i].is_attachment)
         return 0;
-    }
 
     if (par->codec_type == AVMEDIA_TYPE_AUDIO) {
         if (!bit_depth && par->codec_id != AV_CODEC_ID_ADPCM_G726) {
@@ -1595,7 +1595,7 @@ static int mkv_write_tags(AVFormatContext *s)
     for (i = 0; i < s->nb_streams; i++) {
         AVStream *st = s->streams[i];
 
-        if (st->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT)
+        if (mkv->tracks[i].is_attachment)
             continue;
 
         if (!mkv_check_tag(st->metadata, MATROSKA_ID_TAGTARGETS_TRACKUID))
@@ -1609,12 +1609,11 @@ static int mkv_write_tags(AVFormatContext *s)
     if ((s->pb->seekable & AVIO_SEEKABLE_NORMAL) && !mkv->is_live) {
         for (i = 0; i < s->nb_streams; i++) {
             AVIOContext *pb;
-            AVStream *st = s->streams[i];
             mkv_track *track = &mkv->tracks[i];
             ebml_master tag_target;
             ebml_master tag;
 
-            if (st->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT)
+            if (track->is_attachment)
                 continue;
 
             ret = mkv_write_tag_targets(s, MATROSKA_ID_TAGTARGETS_TRACKUID,
@@ -1654,7 +1653,7 @@ static int mkv_write_tags(AVFormatContext *s)
             mkv_track *track = &mkv->tracks[i];
             AVStream *st = s->streams[i];
 
-            if (st->codecpar->codec_type != AVMEDIA_TYPE_ATTACHMENT)
+            if (!track->is_attachment)
                 continue;
 
             if (!mkv_check_tag(st->metadata, MATROSKA_ID_TAGTARGETS_ATTACHUID))
@@ -1711,8 +1710,10 @@ static int mkv_write_attachments(AVFormatContext *s)
         AVDictionaryEntry *t;
         const char *mimetype;
         const char *filename;
+        const uint8_t *data;
+        int size;
 
-        if (st->codecpar->codec_type != AVMEDIA_TYPE_ATTACHMENT)
+        if (!track->is_attachment)
             continue;
 
         attached_file = start_ebml_master(dyn_cp, MATROSKA_ID_ATTACHEDFILE, 0);
@@ -1728,7 +1729,14 @@ static int mkv_write_attachments(AVFormatContext *s)
         av_assert0(mimetype);
 
         put_ebml_string(dyn_cp, MATROSKA_ID_FILEMIMETYPE, mimetype);
-        put_ebml_binary(dyn_cp, MATROSKA_ID_FILEDATA, st->codecpar->extradata, st->codecpar->extradata_size);
+        if (st->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT) {
+            data = st->codecpar->extradata;
+            size = st->codecpar->extradata_size;
+        } else {
+            data = st->attached_pic.data;
+            size = st->attached_pic.size;
+        }
+        put_ebml_binary(dyn_cp, MATROSKA_ID_FILEDATA, data, size);
         put_ebml_uid(dyn_cp, MATROSKA_ID_FILEUID, track->uid);
         end_ebml_master(dyn_cp, attached_file);
     }
@@ -2423,6 +2431,9 @@ static int mkv_write_flush_packet(AVFormatContext *s, AVPacket *pkt)
         }
         return 1;
     }
+    if (mkv->tracks[pkt->stream_index].is_attachment)
+        return 0;
+
     return mkv_write_packet(s, pkt);
 }
 
@@ -2653,7 +2664,15 @@ static int mkv_init(struct AVFormatContext *s)
         // ms precision is the de-facto standard timescale for mkv files
         avpriv_set_pts_info(st, 64, 1, 1000);
 
-        if (st->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT) {
+        if (st->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT ||
+            st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
+            st->disposition & AV_DISPOSITION_ATTACHED_PIC  &&
+            !(st->disposition & AV_DISPOSITION_TIMED_THUMBNAILS)) {
+            if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
+                !st->attached_pic.size) {
+                av_log(s, AV_LOG_WARNING, "Stream with disposition attached_pic"
+                         " contains no attached pic. Treating as video track.\n");
+            } else {
             if (mkv->mode == MODE_WEBM) {
                 av_log(s, AV_LOG_WARNING, "Stream %d will be ignored "
                        "as WebM doesn't support attachments.\n", i);
@@ -2663,7 +2682,9 @@ static int mkv_init(struct AVFormatContext *s)
                 return AVERROR(EINVAL);
             }
             mkv->nb_attachments++;
+                track->is_attachment = 1;
             continue;
+            }
         }
 
         nb_tracks++;
