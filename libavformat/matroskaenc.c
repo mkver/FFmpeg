@@ -1695,26 +1695,26 @@ static const char *get_mimetype(const AVStream *st)
 static int mkv_write_attachment(AVFormatContext *s, AVStream *st, AVIOContext *pb,
                                 mkv_track *track, const uint8_t *data, int size)
 {
-        ebml_master attached_file;
-        AVDictionaryEntry *t;
-        const char *mimetype;
-        const char *filename;
+    ebml_master attached_file;
+    AVDictionaryEntry *t;
+    const char *mimetype;
+    const char *filename;
 
-        attached_file = start_ebml_master(pb, MATROSKA_ID_ATTACHEDFILE, 0);
+    attached_file = start_ebml_master(pb, MATROSKA_ID_ATTACHEDFILE, 0);
 
-        if (t = av_dict_get(st->metadata, "title", NULL, 0))
-            put_ebml_string(pb, MATROSKA_ID_FILEDESC, t->value);
-        if (t = av_dict_get(st->metadata, "filename", NULL, 0)) {
-            filename = t->value;
-        } else
-            filename = "";
-        put_ebml_string(pb, MATROSKA_ID_FILENAME, filename);
-        mimetype = get_mimetype(st);
-        av_assert0(mimetype);
-        put_ebml_string(pb, MATROSKA_ID_FILEMIMETYPE, mimetype);
-        put_ebml_binary(pb, MATROSKA_ID_FILEDATA, data, size);
-        put_ebml_uid(pb, MATROSKA_ID_FILEUID, track->uid);
-        end_ebml_master(pb, attached_file);
+    if (t = av_dict_get(st->metadata, "title", NULL, 0))
+        put_ebml_string(pb, MATROSKA_ID_FILEDESC, t->value);
+    if (t = av_dict_get(st->metadata, "filename", NULL, 0)) {
+        filename = t->value;
+    } else
+        filename = "";
+    put_ebml_string(pb, MATROSKA_ID_FILENAME, filename);
+    mimetype = get_mimetype(st);
+    av_assert0(mimetype);
+    put_ebml_string(pb, MATROSKA_ID_FILEMIMETYPE, mimetype);
+    put_ebml_binary(pb, MATROSKA_ID_FILEDATA, data, size);
+    put_ebml_uid(pb, MATROSKA_ID_FILEUID, track->uid);
+    end_ebml_master(pb, attached_file);
 
     return 0;
 }
@@ -2687,17 +2687,17 @@ static int mkv_init(struct AVFormatContext *s)
                 av_log(s, AV_LOG_WARNING, "Stream with disposition attached_pic"
                          " contains no attached pic. Treating as video track.\n");
             } else {
-            if (mkv->mode == MODE_WEBM) {
-                av_log(s, AV_LOG_WARNING, "Stream %d will be ignored "
-                       "as WebM doesn't support attachments.\n", i);
-            } else if (!get_mimetype(st)) {
-                av_log(s, AV_LOG_ERROR, "Attachment stream %d has no mimetype tag"
-                       " and it cannot be deduced from the codec id.\n", i);
-                return AVERROR(EINVAL);
-            }
-            mkv->nb_attachments++;
+                if (mkv->mode == MODE_WEBM) {
+                    av_log(s, AV_LOG_WARNING, "Stream %d will be ignored "
+                           "as WebM doesn't support attachments.\n", i);
+                } else if (!get_mimetype(st)) {
+                    av_log(s, AV_LOG_ERROR, "Attachment stream %d has no mimetype tag"
+                           " and it cannot be deduced from the codec id.\n", i);
+                    return AVERROR(EINVAL);
+                }
+                mkv->nb_attachments++;
                 track->is_attachment = 1;
-            continue;
+                continue;
             }
         }
 
