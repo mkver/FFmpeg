@@ -1692,6 +1692,33 @@ static const char *get_mimetype(const AVStream *st)
     return NULL;
 }
 
+static int mkv_write_attachment(AVFormatContext *s, AVStream *st, AVIOContext *pb,
+                                mkv_track *track, const uint8_t *data, int size)
+{
+        ebml_master attached_file;
+        AVDictionaryEntry *t;
+        const char *mimetype;
+        const char *filename;
+
+        attached_file = start_ebml_master(pb, MATROSKA_ID_ATTACHEDFILE, 0);
+
+        if (t = av_dict_get(st->metadata, "title", NULL, 0))
+            put_ebml_string(pb, MATROSKA_ID_FILEDESC, t->value);
+        if (t = av_dict_get(st->metadata, "filename", NULL, 0)) {
+            filename = t->value;
+        } else
+            filename = "";
+        put_ebml_string(pb, MATROSKA_ID_FILENAME, filename);
+        mimetype = get_mimetype(st);
+        av_assert0(mimetype);
+        put_ebml_string(pb, MATROSKA_ID_FILEMIMETYPE, mimetype);
+        put_ebml_binary(pb, MATROSKA_ID_FILEDATA, data, size);
+        put_ebml_uid(pb, MATROSKA_ID_FILEUID, track->uid);
+        end_ebml_master(pb, attached_file);
+
+    return 0;
+}
+
 static int mkv_write_attachments(AVFormatContext *s)
 {
     MatroskaMuxContext *mkv = s->priv_data;
@@ -1709,29 +1736,12 @@ static int mkv_write_attachments(AVFormatContext *s)
     for (i = 0; i < s->nb_streams; i++) {
         AVStream *st = s->streams[i];
         mkv_track *track = &mkv->tracks[i];
-        ebml_master attached_file;
-        AVDictionaryEntry *t;
-        const char *mimetype;
-        const char *filename;
         const uint8_t *data;
         int size;
 
         if (!track->is_attachment)
             continue;
 
-        attached_file = start_ebml_master(dyn_cp, MATROSKA_ID_ATTACHEDFILE, 0);
-
-        if (t = av_dict_get(st->metadata, "title", NULL, 0))
-            put_ebml_string(dyn_cp, MATROSKA_ID_FILEDESC, t->value);
-        if (t = av_dict_get(st->metadata, "filename", NULL, 0)) {
-            filename = t->value;
-        } else
-            filename = "";
-        put_ebml_string(dyn_cp, MATROSKA_ID_FILENAME, filename);
-        mimetype = get_mimetype(st);
-        av_assert0(mimetype);
-
-        put_ebml_string(dyn_cp, MATROSKA_ID_FILEMIMETYPE, mimetype);
         if (st->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT) {
             data = st->codecpar->extradata;
             size = st->codecpar->extradata_size;
@@ -1739,9 +1749,9 @@ static int mkv_write_attachments(AVFormatContext *s)
             data = st->attached_pic.data;
             size = st->attached_pic.size;
         }
-        put_ebml_binary(dyn_cp, MATROSKA_ID_FILEDATA, data, size);
-        put_ebml_uid(dyn_cp, MATROSKA_ID_FILEUID, track->uid);
-        end_ebml_master(dyn_cp, attached_file);
+        ret = mkv_write_attachment(s, st, dyn_cp, track, data, size);
+        if (ret < 0)
+            return ret;
     }
     end_ebml_master_crc32(pb, &dyn_cp, mkv, MATROSKA_ID_ATTACHMENTS);
 
