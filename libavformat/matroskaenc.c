@@ -70,8 +70,11 @@ enum {
 enum {
     TRACK,
     BOGUS_ATTACHMENT,
+    PICTURE_ATTACHMENT,
     ORDINARY_ATTACHMENT,
 };
+
+#define HAS_ATTACHMENT(track) ((track)->status >= PICTURE_ATTACHMENT)
 
 typedef struct ebml_master {
     int64_t         pos;                ///< absolute offset in the containing AVIOContext where the master's elements start
@@ -1406,6 +1409,9 @@ static int mkv_write_tracks(AVFormatContext *s)
         for (i = s->nb_streams - 1; i >= 0; i--) {
             AVStream *st = s->streams[i];
 
+            if (mkv->tracks[i].status != TRACK)
+                continue;
+
             switch (st->codecpar->codec_type) {
 #define CASE(type, variable)                                  \
             case AVMEDIA_TYPE_ ## type:                       \
@@ -1599,7 +1605,7 @@ static int mkv_write_tags(AVFormatContext *s)
             const mkv_track *track = &mkv->tracks[i];
             const AVStream     *st = s->streams[i];
 
-            if (track->status != ORDINARY_ATTACHMENT)
+            if (!HAS_ATTACHMENT(track))
                 continue;
 
             if (!mkv_check_tag(st->metadata, MATROSKA_ID_TAGTARGETS_ATTACHUID))
@@ -1743,8 +1749,10 @@ static int mkv_write_attachments(AVFormatContext *s)
         const AVDictionaryEntry *t;
         const char *mimetype;
         const char *filename;
+        const uint8_t *data;
+        int size;
 
-        if (track->status != ORDINARY_ATTACHMENT)
+        if (!HAS_ATTACHMENT(track))
             continue;
 
         attached_file = start_ebml_master(dyn_cp, MATROSKA_ID_ATTACHEDFILE, 0);
@@ -1763,7 +1771,14 @@ static int mkv_write_attachments(AVFormatContext *s)
         mimetype = get_mimetype(st);
         av_assert0(mimetype);
         put_ebml_string(dyn_cp, MATROSKA_ID_FILEMIMETYPE, mimetype);
-        put_ebml_binary(dyn_cp, MATROSKA_ID_FILEDATA, st->codecpar->extradata, st->codecpar->extradata_size);
+        if (track->status == ORDINARY_ATTACHMENT) {
+            data = st->codecpar->extradata;
+            size = st->codecpar->extradata_size;
+        } else {
+            data = st->attached_pic.data;
+            size = st->attached_pic.size;
+        }
+        put_ebml_binary(dyn_cp, MATROSKA_ID_FILEDATA, data, size);
         put_ebml_uid(dyn_cp, MATROSKA_ID_FILEUID, track->uid);
         end_ebml_master(dyn_cp, attached_file);
     }
@@ -2459,6 +2474,9 @@ static int mkv_write_flush_packet(AVFormatContext *s, AVPacket *pkt)
         }
         return 1;
     }
+    if (mkv->tracks[pkt->stream_index].status != TRACK)
+        return 0;
+
     return mkv_write_packet(s, pkt);
 }
 
@@ -2727,12 +2745,26 @@ static int mkv_init(struct AVFormatContext *s)
                            "as WebM doesn't support attachments.\n", i);
                 track->status = BOGUS_ATTACHMENT;
                 continue;
-            } else if (!get_mimetype(st)) {
+            }
+            track->status = ORDINARY_ATTACHMENT;
+        }
+        if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
+            st->disposition & AV_DISPOSITION_ATTACHED_PIC  &&
+            !(st->disposition & AV_DISPOSITION_TIMED_THUMBNAILS)) {
+            if (mkv->mode == MODE_WEBM || !st->attached_pic.size) {
+                av_log(s, AV_LOG_WARNING, "Attached pic stream %d will be "
+                       "treated as video track as %s.\n", i,
+                       mkv->mode == MODE_WEBM ? "WebM doesn't support attachments"
+                                              : "no attached pic is available");
+            } else
+                track->status = PICTURE_ATTACHMENT;
+        }
+        if (track->status != TRACK) {
+            if (!get_mimetype(st)) {
                 av_log(s, AV_LOG_ERROR, "Attachment stream %d has no mimetype "
                        "tag and it cannot be deduced from the codec id.\n", i);
                 return AVERROR(EINVAL);
             }
-            track->status = ORDINARY_ATTACHMENT;
             mkv->nb_attachments++;
             continue;
         }
