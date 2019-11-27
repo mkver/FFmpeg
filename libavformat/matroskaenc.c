@@ -862,7 +862,7 @@ static int mkv_write_video_color(AVIOContext *pb, AVCodecParameters *par, AVStre
                                         &side_data_size);
     if (side_data_size == sizeof(AVMasteringDisplayMetadata)) {
         ebml_master meta_element = start_ebml_master(
-            dyn_cp, MATROSKA_ID_VIDEOCOLORMASTERINGMETA, 0);
+            dyn_cp, MATROSKA_ID_VIDEOCOLORMASTERINGMETA, 10 * (2 + 1 + 8));
         const AVMasteringDisplayMetadata *metadata =
             (const AVMasteringDisplayMetadata*)side_data;
         if (metadata->has_primaries) {
@@ -1339,7 +1339,7 @@ static int mkv_write_track(AVFormatContext *s, MatroskaMuxContext *mkv,
             // no mkv-specific ID, use ACM mode
             put_ebml_string(pb, MATROSKA_ID_CODECID, "A_MS/ACM");
 
-        subinfo = start_ebml_master(pb, MATROSKA_ID_TRACKAUDIO, 0);
+        subinfo = start_ebml_master(pb, MATROSKA_ID_TRACKAUDIO, 6 + 4 * 9);
         put_ebml_uint  (pb, MATROSKA_ID_AUDIOCHANNELS    , par->channels);
 
         mkv->tracks[i].sample_rate_offset = avio_tell(pb);
@@ -1522,7 +1522,7 @@ static int mkv_write_tag_targets(AVFormatContext *s, uint32_t elementid,
     pb = mkv->tags_bc;
 
     *tag    = start_ebml_master(pb, MATROSKA_ID_TAG,        0);
-    targets = start_ebml_master(pb, MATROSKA_ID_TAGTARGETS, 0);
+    targets = start_ebml_master(pb, MATROSKA_ID_TAGTARGETS, 4 + 1 + 8);
     if (elementid)
         put_ebml_uid(pb, elementid, uid);
     end_ebml_master(pb, targets);
@@ -1621,7 +1621,7 @@ static int mkv_write_tags(AVFormatContext *s)
                 return ret;
             pb = mkv->tags_bc;
 
-            tag = start_ebml_master(pb, MATROSKA_ID_SIMPLETAG, 0);
+            tag = start_ebml_master(pb, MATROSKA_ID_SIMPLETAG, 2 + 1 + 8 + 23);
             put_ebml_string(pb, MATROSKA_ID_TAGNAME, "DURATION");
             mkv->tracks[i].duration_offset = avio_tell(pb);
 

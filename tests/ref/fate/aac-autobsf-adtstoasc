@@ -1,5 +1,5 @@
-846cf1175327be8dfab5bc815c127d8b *tests/data/fate/aac-autobsf-adtstoasc.matroska
-6653 tests/data/fate/aac-autobsf-adtstoasc.matroska
+dba2af7796d301833a55ab1c24363ff5 *tests/data/fate/aac-autobsf-adtstoasc.matroska
+6632 tests/data/fate/aac-autobsf-adtstoasc.matroska
 #extradata 0:        2, 0x0030001c
 #tb 0: 1/1000
 #media_type 0: audio
