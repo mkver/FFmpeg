@@ -2136,10 +2136,11 @@ static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
     uint8_t *data = NULL, *side_data = NULL;
     int offset = 0, size = pkt->size, side_data_size = 0;
     int64_t ts = track->write_dts ? pkt->dts : pkt->pts;
-    uint64_t additional_id;
+    uint64_t additional_id, block_group_size = 0;
     uint32_t blockid = duration ? MATROSKA_ID_BLOCK: MATROSKA_ID_SIMPLEBLOCK;
     int64_t discard_padding = 0;
     int track_number = track->track_num;
+    unsigned block_adds_size, block_more_size;
     ebml_master block_group, block_additions, block_more;
 
     ts += track->ts_offset;
@@ -2185,8 +2186,11 @@ static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
         discard_padding = av_rescale_q(AV_RL32(side_data + 4),
                                        (AVRational){1, par->sample_rate},
                                        (AVRational){1, 1000000000});
-        if (discard_padding)
+        if (discard_padding) {
             blockid = MATROSKA_ID_BLOCK;
+            block_group_size += ebml_sint_size(MATROSKA_ID_DISCARDPADDING,
+                                              discard_padding);
+        }
     }
 
     side_data = av_packet_get_side_data(pkt,
@@ -2200,11 +2204,27 @@ static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
             blockid         = MATROSKA_ID_BLOCK;
             side_data      += 8;
             side_data_size -= 8;
+            block_more_size = ebml_uint_size(MATROSKA_ID_BLOCKADDID, additional_id)
+                            + ebml_binary_size(MATROSKA_ID_BLOCKADDITIONAL,
+                                               side_data_size);
+            block_adds_size = ebml_master_size(MATROSKA_ID_BLOCKMORE,
+                                               block_more_size);
+            block_group_size += ebml_master_size(MATROSKA_ID_BLOCKADDITIONS,
+                                                 block_adds_size);
         }
     }
 
     if (blockid == MATROSKA_ID_BLOCK) {
-        block_group = start_ebml_master(pb, MATROSKA_ID_BLOCKGROUP, 0);
+        /* Size of the actual block */
+        block_group_size += ebml_binary_size(blockid, size + 4);
+        if (duration > 0)
+            block_group_size += ebml_uint_size(MATROSKA_ID_BLOCKDURATION,
+                                               duration);
+        if (!keyframe)
+            block_group_size += ebml_sint_size(MATROSKA_ID_BLOCKREFERENCE,
+                                               track->last_timestamp - ts);
+        block_group = start_ebml_master(pb, MATROSKA_ID_BLOCKGROUP,
+                                        block_group_size);
     }
 
     put_ebml_id(pb, blockid);
@@ -2230,8 +2250,10 @@ static void mkv_write_block(AVFormatContext *s, AVIOContext *pb,
     }
 
     if (side_data_size) {
-        block_additions = start_ebml_master(pb, MATROSKA_ID_BLOCKADDITIONS, 0);
-        block_more = start_ebml_master(pb, MATROSKA_ID_BLOCKMORE, 0);
+        block_additions = start_ebml_master(pb, MATROSKA_ID_BLOCKADDITIONS,
+                                            block_adds_size);
+        block_more = start_ebml_master(pb, MATROSKA_ID_BLOCKMORE,
+                                       block_more_size);
         /* Until dbc50f8a our demuxer used a wrong default value
          * of BlockAddID, so we write it unconditionally. */
         put_ebml_uint  (pb, MATROSKA_ID_BLOCKADDID, additional_id);
