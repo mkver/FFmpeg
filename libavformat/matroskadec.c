@@ -212,7 +212,6 @@ typedef struct MatroskaTrackAudio {
     int      frame_size;
     int      sub_packet_size;
     int      sub_packet_cnt;
-    int      pkt_cnt;
     uint64_t buf_timecode;
     uint8_t *buf;
 } MatroskaTrackAudio;
@@ -3089,7 +3088,6 @@ static int matroska_parse_rm_audio(MatroskaDemuxContext *matroska,
     int w   = track->audio.frame_size;
     int x;
 
-    if (!track->audio.pkt_cnt) {
         if (track->audio.sub_packet_cnt == 0)
             track->audio.buf_timecode = timecode;
         if (st->codecpar->codec_id == AV_CODEC_ID_RA_288) {
@@ -3124,11 +3122,8 @@ static int matroska_parse_rm_audio(MatroskaDemuxContext *matroska,
             if (st->codecpar->codec_id == AV_CODEC_ID_SIPR)
                 ff_rm_reorder_sipr_data(track->audio.buf, h, w);
             track->audio.sub_packet_cnt = 0;
-            track->audio.pkt_cnt        = h * w / a;
-        }
-    }
 
-    while (track->audio.pkt_cnt) {
+        for (int i = 0; i < h * w / a; i++) {
         int ret;
         AVPacket pktl, *pkt = &pktl;
 
@@ -3137,7 +3132,7 @@ static int matroska_parse_rm_audio(MatroskaDemuxContext *matroska,
             return ret;
         }
         memcpy(pkt->data,
-               track->audio.buf + a * (h * w / a - track->audio.pkt_cnt--),
+               track->audio.buf + i * a,
                a);
         pkt->pts                  = track->audio.buf_timecode;
         track->audio.buf_timecode = AV_NOPTS_VALUE;
@@ -3147,6 +3142,7 @@ static int matroska_parse_rm_audio(MatroskaDemuxContext *matroska,
         if (ret < 0) {
             av_packet_unref(pkt);
             return AVERROR(ENOMEM);
+        }
         }
     }
 
@@ -3738,7 +3734,6 @@ static int matroska_read_seek(AVFormatContext *s, int stream_index,
 
     tracks = matroska->tracks.elem;
     for (i = 0; i < matroska->tracks.nb_elem; i++) {
-        tracks[i].audio.pkt_cnt        = 0;
         tracks[i].audio.sub_packet_cnt = 0;
         tracks[i].audio.buf_timecode   = AV_NOPTS_VALUE;
         tracks[i].end_timecode         = 0;
