@@ -362,8 +362,10 @@ typedef struct MatroskaDemuxContext {
     int64_t segment_start;
 
     /* the packet queue */
-    AVPacketList *queue;
-    AVPacketList *queue_end;
+    AVPacket **packets;   // packets are either currently used or clean
+    unsigned next_pkt;    // index of the next packet to be returned
+    unsigned nb_pkts;     // number of currently valid packets
+    unsigned nb_allocated_packets;
 
     int done;
 
@@ -2948,11 +2950,12 @@ fail:
 static int matroska_deliver_packet(MatroskaDemuxContext *matroska,
                                    AVPacket *pkt)
 {
-    if (matroska->queue) {
+    if (matroska->nb_pkts > 0) {
         MatroskaTrack *tracks = matroska->tracks.elem;
         MatroskaTrack *track;
 
-        ff_packet_list_get(&matroska->queue, &matroska->queue_end, pkt);
+        av_packet_move_ref(pkt, matroska->packets[matroska->next_pkt++]);
+        matroska->nb_pkts--;
         track = &tracks[pkt->stream_index];
         if (track->has_palette) {
             uint8_t *pal = av_packet_new_side_data(pkt, AV_PKT_DATA_PALETTE, AVPALETTE_SIZE);
@@ -2972,9 +2975,11 @@ static int matroska_deliver_packet(MatroskaDemuxContext *matroska,
 /*
  * Free all packets in our internal queue.
  */
-static void matroska_clear_queue(MatroskaDemuxContext *matroska)
+static void matroska_clear_queue(MatroskaDemuxContext *mkv)
 {
-    ff_packet_list_free(&matroska->queue, &matroska->queue_end);
+    for (int i = mkv->next_pkt; i < mkv->next_pkt + mkv->nb_pkts; i++)
+        av_packet_unref(mkv->packets[i]);
+    mkv->nb_pkts = 0;
 }
 
 static int matroska_parse_laces(MatroskaDemuxContext *matroska, uint8_t **buf,
@@ -3124,8 +3129,8 @@ static int matroska_parse_rm_audio(MatroskaDemuxContext *matroska,
         track->audio.sub_packet_cnt = 0;
 
         for (int i = 0; i < h * w / a; i++) {
+            AVPacket *pkt = matroska->packets[matroska->nb_pkts];
             int ret;
-            AVPacket pktl, *pkt = &pktl;
 
             ret = av_new_packet(pkt, a);
             if (ret < 0) {
@@ -3136,11 +3141,7 @@ static int matroska_parse_rm_audio(MatroskaDemuxContext *matroska,
             track->audio.buf_timecode = AV_NOPTS_VALUE;
             pkt->pos                  = pos;
             pkt->stream_index         = st->index;
-            ret = ff_packet_list_put(&matroska->queue, &matroska->queue_end, pkt, 0);
-            if (ret < 0) {
-                av_packet_unref(pkt);
-                return AVERROR(ENOMEM);
-            }
+            matroska->nb_pkts++;
         }
     }
 
@@ -3263,7 +3264,7 @@ static int matroska_parse_webvtt(MatroskaDemuxContext *matroska,
                                  uint64_t duration,
                                  int64_t pos)
 {
-    AVPacket pktl, *pkt = &pktl;
+    AVPacket *pkt = matroska->packets[matroska->nb_pkts];
     uint8_t *id, *settings, *text, *buf;
     int id_len, settings_len, text_len;
     uint8_t *p, *q;
@@ -3361,12 +3362,6 @@ static int matroska_parse_webvtt(MatroskaDemuxContext *matroska,
     pkt->duration = duration;
     pkt->pos = pos;
 
-    err = ff_packet_list_put(&matroska->queue, &matroska->queue_end, pkt, 0);
-    if (err < 0) {
-        av_packet_unref(pkt);
-        return AVERROR(ENOMEM);
-    }
-
     return 0;
 }
 
@@ -3379,9 +3374,9 @@ static int matroska_parse_frame(MatroskaDemuxContext *matroska,
                                 int64_t discard_padding)
 {
     MatroskaTrackEncoding *encodings = track->encodings.elem;
+    AVPacket *pkt = matroska->packets[matroska->nb_pkts];
     uint8_t *pkt_data = data;
     int res;
-    AVPacket pktl, *pkt = &pktl;
 
     if (encodings && !encodings->type && encodings->scope & 1) {
         res = matroska_decode_buffer(&pkt_data, &pkt_size, track);
@@ -3415,7 +3410,6 @@ static int matroska_parse_frame(MatroskaDemuxContext *matroska,
         pkt_data = pr_data;
     }
 
-    av_init_packet(pkt);
     if (pkt_data != data)
         pkt->buf = av_buffer_create(pkt_data, pkt_size + AV_INPUT_BUFFER_PADDING_SIZE,
                                     NULL, NULL, 0);
@@ -3477,12 +3471,6 @@ FF_DISABLE_DEPRECATION_WARNINGS
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 
-    res = ff_packet_list_put(&matroska->queue, &matroska->queue_end, pkt, 0);
-    if (res < 0) {
-        av_packet_unref(pkt);
-        return AVERROR(ENOMEM);
-    }
-
     return 0;
 
 fail:
@@ -3505,6 +3493,7 @@ static int matroska_parse_block(MatroskaDemuxContext *matroska, AVBufferRef *buf
     int16_t block_time;
     uint32_t lace_size[256];
     int n, flags, laces = 0;
+    unsigned nb_pkt;
     uint64_t num;
     int trust_default_duration = 1;
 
@@ -3569,6 +3558,37 @@ static int matroska_parse_block(MatroskaDemuxContext *matroska, AVBufferRef *buf
         return res;
     }
 
+    if (track->audio.buf) {
+        MatroskaTrackAudio *au = &track->audio;
+
+        nb_pkt = (au->sub_packet_cnt + laces) / au->sub_packet_h * au->sub_packet_h
+                 * au->frame_size / st->codecpar->block_align;
+        if (nb_pkt > 1000)
+            return AVERROR(ENOMEM);
+    } else {
+        nb_pkt = laces;
+    }
+
+    if (matroska->nb_allocated_packets < nb_pkt) {
+        AVPacket **new = av_realloc_array(matroska->packets, nb_pkt, sizeof(*new));
+
+        if (!new)
+            return AVERROR(ENOMEM);
+
+        matroska->packets = new;
+        for (n = matroska->nb_allocated_packets; n < nb_pkt; n++) {
+            matroska->packets[n] = av_packet_alloc();
+            if (!matroska->packets[n])
+                break;
+        }
+        matroska->nb_allocated_packets = n;
+        if (n < nb_pkt)
+            return AVERROR(ENOMEM);
+    }
+
+    matroska->next_pkt = 0;
+    av_assert0(!matroska->nb_pkts);
+
     if (track->audio.samplerate == 8000) {
         // If this is needed for more codecs, then add them here
         if (st->codecpar->codec_id == AV_CODEC_ID_AC3) {
@@ -3601,6 +3621,7 @@ static int matroska_parse_block(MatroskaDemuxContext *matroska, AVBufferRef *buf
                                         pos);
             if (res)
                 return res;
+            matroska->nb_pkts++;
         } else {
             res = matroska_parse_frame(matroska, track, st, buf, data, lace_size[n],
                                        timecode, lace_duration, pos,
@@ -3609,6 +3630,7 @@ static int matroska_parse_block(MatroskaDemuxContext *matroska, AVBufferRef *buf
                                        discard_padding);
             if (res)
                 return res;
+            matroska->nb_pkts++;
         }
 
         if (timecode != AV_NOPTS_VALUE)
@@ -3764,7 +3786,9 @@ static int matroska_read_close(AVFormatContext *s)
     MatroskaTrack *tracks = matroska->tracks.elem;
     int n;
 
-    matroska_clear_queue(matroska);
+    for (n = 0; n < matroska->nb_allocated_packets; n++)
+        av_packet_free(&matroska->packets[n]);
+    av_freep(&matroska->packets);
 
     for (n = 0; n < matroska->tracks.nb_elem; n++)
         if (tracks[n].type == MATROSKA_TRACK_TYPE_AUDIO)
@@ -3842,10 +3866,10 @@ static int webm_clusters_start_with_keyframe(AVFormatContext *s)
         matroska_reset_status(matroska, 0, cluster_pos);
         matroska_clear_queue(matroska);
         if (matroska_parse_cluster(matroska) < 0 ||
-            !matroska->queue) {
+            !matroska->nb_pkts) {
             break;
         }
-        pkt = &matroska->queue->pkt;
+        pkt = matroska->packets[0];
         // 4 + read is the length of the cluster id and the cluster length field.
         cluster_pos += 4 + read + cluster_length;
         if (!(pkt->flags & AV_PKT_FLAG_KEY)) {
