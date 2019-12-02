@@ -2984,15 +2984,15 @@ static int matroska_parse_laces(MatroskaDemuxContext *matroska, uint8_t **buf,
     uint8_t *data = *buf;
 
     if (!type) {
-        *laces    = 1;
+        *laces       = 1;
         lace_size[0] = size;
         return 0;
     }
 
     av_assert0(size > 0);
-    *laces    = *data + 1;
-    data     += 1;
-    size     -= 1;
+    *laces = *data + 1;
+    data  += 1;
+    size  -= 1;
 
     switch (type) {
     case 0x1: /* Xiph lacing */
@@ -3070,7 +3070,7 @@ static int matroska_parse_laces(MatroskaDemuxContext *matroska, uint8_t **buf,
     }
     }
 
-    *buf      = data;
+    *buf = data;
 
     return 0;
 }
@@ -3080,69 +3080,66 @@ static int matroska_parse_rm_audio(MatroskaDemuxContext *matroska,
                                    uint8_t *data, int size, uint64_t timecode,
                                    int64_t pos)
 {
-    int a = st->codecpar->block_align;
-    int sps = track->audio.sub_packet_size;
-    int cfs = track->audio.coded_framesize;
-    int h   = track->audio.sub_packet_h;
-    int y   = track->audio.sub_packet_cnt;
-    int w   = track->audio.frame_size;
-    int x;
+    const int a   = st->codecpar->block_align;
+    const int sps = track->audio.sub_packet_size;
+    const int cfs = track->audio.coded_framesize;
+    const int h   = track->audio.sub_packet_h;
+    const int w   = track->audio.frame_size;
+    int y         = track->audio.sub_packet_cnt;
 
-        if (track->audio.sub_packet_cnt == 0)
-            track->audio.buf_timecode = timecode;
-        if (st->codecpar->codec_id == AV_CODEC_ID_RA_288) {
-            if (size < cfs * h / 2) {
-                av_log(matroska->ctx, AV_LOG_ERROR,
-                       "Corrupt int4 RM-style audio packet size\n");
-                return AVERROR_INVALIDDATA;
-            }
-            for (x = 0; x < h / 2; x++)
-                memcpy(track->audio.buf + x * 2 * w + y * cfs,
-                       data + x * cfs, cfs);
-        } else if (st->codecpar->codec_id == AV_CODEC_ID_SIPR) {
-            if (size < w) {
-                av_log(matroska->ctx, AV_LOG_ERROR,
-                       "Corrupt sipr RM-style audio packet size\n");
-                return AVERROR_INVALIDDATA;
-            }
-            memcpy(track->audio.buf + y * w, data, w);
-        } else {
-            if (size < sps * w / sps || h<=0 || w%sps) {
-                av_log(matroska->ctx, AV_LOG_ERROR,
-                       "Corrupt generic RM-style audio packet size\n");
-                return AVERROR_INVALIDDATA;
-            }
-            for (x = 0; x < w / sps; x++)
-                memcpy(track->audio.buf +
-                       sps * (h * x + ((h + 1) / 2) * (y & 1) + (y >> 1)),
-                       data + x * sps, sps);
+    if (track->audio.sub_packet_cnt == 0)
+        track->audio.buf_timecode = timecode;
+    if (st->codecpar->codec_id == AV_CODEC_ID_RA_288) {
+        if (size < cfs * h / 2) {
+            av_log(matroska->ctx, AV_LOG_ERROR,
+                   "Corrupt int4 RM-style audio packet size\n");
+            return AVERROR_INVALIDDATA;
         }
+        for (int x = 0; x < h / 2; x++)
+            memcpy(track->audio.buf + x * 2 * w + y * cfs,
+                   data + x * cfs, cfs);
+    } else if (st->codecpar->codec_id == AV_CODEC_ID_SIPR) {
+        if (size < w) {
+            av_log(matroska->ctx, AV_LOG_ERROR,
+                   "Corrupt sipr RM-style audio packet size\n");
+            return AVERROR_INVALIDDATA;
+        }
+        memcpy(track->audio.buf + y * w, data, w);
+    } else {
+        if (size < sps * w / sps || h <= 0 || w % sps) {
+            av_log(matroska->ctx, AV_LOG_ERROR,
+                   "Corrupt generic RM-style audio packet size\n");
+            return AVERROR_INVALIDDATA;
+        }
+        for (int x = 0; x < w / sps; x++)
+            memcpy(track->audio.buf +
+                   sps * (h * x + ((h + 1) / 2) * (y & 1) + (y >> 1)),
+                   data + x * sps, sps);
+    }
 
-        if (++track->audio.sub_packet_cnt >= h) {
-            if (st->codecpar->codec_id == AV_CODEC_ID_SIPR)
-                ff_rm_reorder_sipr_data(track->audio.buf, h, w);
-            track->audio.sub_packet_cnt = 0;
+    if (++track->audio.sub_packet_cnt >= h) {
+        if (st->codecpar->codec_id == AV_CODEC_ID_SIPR)
+            ff_rm_reorder_sipr_data(track->audio.buf, h, w);
+        track->audio.sub_packet_cnt = 0;
 
         for (int i = 0; i < h * w / a; i++) {
-        int ret;
-        AVPacket pktl, *pkt = &pktl;
+            int ret;
+            AVPacket pktl, *pkt = &pktl;
 
-        ret = av_new_packet(pkt, a);
-        if (ret < 0) {
-            return ret;
-        }
-        memcpy(pkt->data,
-               track->audio.buf + i * a,
-               a);
-        pkt->pts                  = track->audio.buf_timecode;
-        track->audio.buf_timecode = AV_NOPTS_VALUE;
-        pkt->pos                  = pos;
-        pkt->stream_index         = st->index;
-        ret = ff_packet_list_put(&matroska->queue, &matroska->queue_end, pkt, 0);
-        if (ret < 0) {
-            av_packet_unref(pkt);
-            return AVERROR(ENOMEM);
-        }
+            ret = av_new_packet(pkt, a);
+            if (ret < 0) {
+                return ret;
+            }
+            memcpy(pkt->data, track->audio.buf + i * a, a);
+            pkt->pts                  = track->audio.buf_timecode;
+            track->audio.buf_timecode = AV_NOPTS_VALUE;
+            pkt->pos                  = pos;
+            pkt->stream_index         = st->index;
+            ret = ff_packet_list_put(&matroska->queue, &matroska->queue_end, pkt, 0);
+            if (ret < 0) {
+                av_packet_unref(pkt);
+                return AVERROR(ENOMEM);
+            }
         }
     }
 
