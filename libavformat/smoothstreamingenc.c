@@ -49,7 +49,6 @@ typedef struct Fragment {
 
 typedef struct OutputStream {
     AVFormatContext *ctx;
-    int ctx_inited;
     char dirname[1024];
     uint8_t iobuf[32768];
     URLContext *out;  // Current output stream where all output is written
@@ -179,8 +178,6 @@ static void ism_free(AVFormatContext *s)
         ffurl_close(os->out2);
         ffurl_close(os->tail_out);
         os->out = os->out2 = os->tail_out = NULL;
-        if (os->ctx && os->ctx_inited)
-            av_write_trailer(os->ctx);
         if (os->ctx && os->ctx->pb)
             avio_context_free(&os->ctx->pb);
         avformat_free_context(os->ctx);
@@ -363,7 +360,6 @@ static int ism_write_header(AVFormatContext *s)
         if (ret < 0) {
              goto fail;
         }
-        os->ctx_inited = 1;
         avio_flush(ctx->pb);
         s->streams[i]->time_base = st->time_base;
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
