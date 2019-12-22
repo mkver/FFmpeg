@@ -195,7 +195,7 @@ int ff_isom_write_avcc(AVIOContext *pb, const uint8_t *data, int len)
     avio_w8(pb, nb_pps); /* number of pps */
     avio_write(pb, pps, pps_size);
 
-    if (sps[3] != 66 && sps[3] != 77 && sps[3] != 88) {
+    if (nb_sps_ext && sps[3] != 66 && sps[3] != 77 && sps[3] != 88) {
         H264SPS seq;
         ret = ff_avc_decode_sps(&seq, sps + 3, sps_size - 3);
         if (ret < 0)
