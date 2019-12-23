@@ -213,7 +213,7 @@ typedef struct MatroskaTrackAudio {
     int      sub_packet_size;
     int      sub_packet_cnt;
     int      pkt_cnt;
-    uint64_t buf_timecode;
+    uint64_t buf_timecode;   /* also used as WavPack samplecount */
     uint8_t *buf;
 } MatroskaTrackAudio;
 
@@ -3169,6 +3169,7 @@ static int matroska_parse_wavpack(MatroskaTrack *track, uint8_t *src,
     uint8_t *dst = NULL;
     int dstlen   = 0;
     int srclen   = *size;
+    uint64_t block_index = track->audio.buf_timecode;
     uint32_t samples;
     uint16_t ver;
     int ret, offset = 0;
@@ -3220,9 +3221,10 @@ static int matroska_parse_wavpack(MatroskaTrack *track, uint8_t *src,
         AV_WL32(dst + offset, MKTAG('w', 'v', 'p', 'k'));   // tag
         AV_WL32(dst + offset +  4, blocksize + 24);         // blocksize - 8
         AV_WL16(dst + offset +  8, ver);                    // version
-        AV_WL16(dst + offset + 10, 0);                      // track/index_no
-        AV_WL32(dst + offset + 12, 0);                      // total samples
-        AV_WL32(dst + offset + 16, 0);                      // block index
+        AV_WL8 (dst + offset + 10, block_index >> 32);      // block index
+        AV_WL8 (dst + offset + 11, 0);                      // ignored
+        AV_WL32(dst + offset + 12, -1);                     // total samples unknown
+        AV_WL32(dst + offset + 16, block_index);            // block index
         AV_WL32(dst + offset + 20, samples);                // number of samples
         AV_WL32(dst + offset + 24, flags);                  // flags
         AV_WL32(dst + offset + 28, crc);                    // crc
@@ -3237,6 +3239,8 @@ static int matroska_parse_wavpack(MatroskaTrack *track, uint8_t *src,
 
     *pdst = dst;
     *size = dstlen;
+
+    track->audio.buf_timecode += samples;
 
     return 0;
 
@@ -3746,7 +3750,6 @@ static int matroska_read_seek(AVFormatContext *s, int stream_index,
     for (i = 0; i < matroska->tracks.nb_elem; i++) {
         tracks[i].audio.pkt_cnt        = 0;
         tracks[i].audio.sub_packet_cnt = 0;
-        tracks[i].audio.buf_timecode   = AV_NOPTS_VALUE;
         tracks[i].end_timecode         = 0;
     }
 
