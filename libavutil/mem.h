@@ -370,10 +370,40 @@ int av_reallocp_array(void *ptr, size_t nmemb, size_t size);
  * @return `ptr` if the buffer is large enough, a pointer to newly reallocated
  *         buffer if the buffer was not large enough, or `NULL` in case of
  *         error
+ * @see av_fast_realloc_array()
  * @see av_realloc()
  * @see av_fast_malloc()
  */
 void *av_fast_realloc(void *ptr, unsigned int *size, size_t min_size);
+
+/**
+ * Reallocate the given array if it is not large enough, otherwise do nothing.
+ *
+ * If the given array is `NULL`, then a new uninitialized array is allocated.
+ *
+ * If the given array is not large enough, and reallocation fails, `NULL` is
+ * returned and `*nb_allocated` is set to 0, but the original array is not
+ * changed or freed.
+ *
+ * @param[in,out] ptr           Already allocated array, or `NULL`
+ * @param[in,out] nb_allocated  Pointer to the number of elements of the array
+ *                              `ptr`. `*nb_allocated` is updated to the new
+ *                              number of allocated elements, in particular 0
+ *                              in case of failure.
+ * @param[in]     min_nb        Desired minimal amount of elements in array `ptr`
+ * @param[in]     elsize        Size of a single element of the array.
+ *                              Must not be zero.
+ * @return `ptr` if the array is large enough, a pointer to newly reallocated
+ *         array if the array was not large enough, or `NULL` in case of
+ *         error
+ * @note This function will never allocate more than `INT_MAX - 1` elements,
+ *       so incrementing in steps of one need not be checked for overflow.
+ * @see av_fast_realloc()
+ * @see av_realloc()
+ * @see av_fast_malloc()
+ */
+void *av_fast_realloc_array(void *ptr, unsigned int *nb_allocated,
+                            int min_nb, size_t elsize);
 
 /**
  * Allocate a buffer, reusing the given one if large enough.

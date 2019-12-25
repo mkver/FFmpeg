@@ -497,6 +497,35 @@ void *av_fast_realloc(void *ptr, unsigned int *size, size_t min_size)
     return ptr;
 }
 
+void *av_fast_realloc_array(void *ptr, unsigned int *nb_allocated,
+                            int min_nb, size_t elsize)
+{
+    unsigned max_nb, nb;
+
+    if (min_nb <= *nb_allocated)
+        return ptr;
+
+    max_nb = FFMIN(INT_MAX - 1, (max_alloc_size - 32) / elsize);
+
+    if ((unsigned)min_nb > max_nb) {
+        *nb_allocated = 0;
+        return NULL;
+    }
+
+    nb = FFMIN(max_nb, min_nb + (min_nb + 14U) / 16);
+
+    ptr = av_realloc(ptr, nb * elsize);
+    /* we could set this to the unmodified nb but this is safer
+     * if the user lost the ptr and uses NULL now
+     */
+    if (!ptr)
+        nb = 0;
+
+    *nb_allocated = nb;
+
+    return ptr;
+}
+
 void av_fast_malloc(void *ptr, unsigned int *size, size_t min_size)
 {
     ff_fast_malloc(ptr, size, min_size, 0);
