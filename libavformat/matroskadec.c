@@ -126,8 +126,8 @@ typedef const struct EbmlSyntax {
 } EbmlSyntax;
 
 typedef struct EbmlList {
-    int nb_elem;
-    unsigned int alloc_elem_size;
+    unsigned nb_elem;
+    unsigned nb_allocated;
     void *elem;
 } EbmlList;
 
@@ -1309,16 +1309,14 @@ static int ebml_parse(MatroskaDemuxContext *matroska,
         data = (char *) data + syntax->data_offset;
         if (syntax->list_elem_size) {
             EbmlList *list = data;
-            void *newelem;
+            size_t nb_allocated = list->nb_allocated;
+            res = av_fast_realloc_array(&list->elem, &nb_allocated,
+                                        list->nb_elem + 1, UINT_MAX - 1,
+                                        syntax->list_elem_size);
+            if (res < 0)
+                return res;
+            list->nb_allocated = nb_allocated;
 
-            if ((unsigned)list->nb_elem + 1 >= UINT_MAX / syntax->list_elem_size)
-                return AVERROR(ENOMEM);
-            newelem = av_fast_realloc(list->elem,
-                                      &list->alloc_elem_size,
-                                      (list->nb_elem + 1) * syntax->list_elem_size);
-            if (!newelem)
-                return AVERROR(ENOMEM);
-            list->elem = newelem;
             data = (char *) list->elem + list->nb_elem * syntax->list_elem_size;
             memset(data, 0, syntax->list_elem_size);
             list->nb_elem++;
@@ -1553,7 +1551,7 @@ level_check:
 
 static void ebml_free(EbmlSyntax *syntax, void *data)
 {
-    int i, j;
+    int i;
     for (i = 0; syntax[i].id; i++) {
         void *data_off = (char *) data + syntax[i].data_offset;
         switch (syntax[i].type) {
@@ -1569,12 +1567,12 @@ static void ebml_free(EbmlSyntax *syntax, void *data)
             if (syntax[i].list_elem_size) {
                 EbmlList *list = data_off;
                 char *ptr = list->elem;
-                for (j = 0; j < list->nb_elem;
+                for (unsigned j = 0; j < list->nb_elem;
                      j++, ptr += syntax[i].list_elem_size)
                     ebml_free(syntax[i].def.n, ptr);
                 av_freep(&list->elem);
                 list->nb_elem = 0;
-                list->alloc_elem_size = 0;
+                list->nb_allocated = 0;
             } else
                 ebml_free(syntax[i].def.n, data_off);
         default:
@@ -1637,7 +1635,7 @@ static MatroskaTrack *matroska_find_track_by_num(MatroskaDemuxContext *matroska,
                                                  uint64_t num)
 {
     MatroskaTrack *tracks = matroska->tracks.elem;
-    int i;
+    unsigned i;
 
     for (i = 0; i < matroska->tracks.nb_elem; i++)
         if (tracks[i].num == num)
@@ -1790,7 +1788,7 @@ static void matroska_convert_tag(AVFormatContext *s, EbmlList *list,
 {
     MatroskaTag *tags = list->elem;
     char key[1024];
-    int i;
+    unsigned i;
 
     for (i = 0; i < list->nb_elem; i++) {
         const char *lang = tags[i].lang &&
@@ -1824,7 +1822,7 @@ static void matroska_convert_tags(AVFormatContext *s)
 {
     MatroskaDemuxContext *matroska = s->priv_data;
     MatroskaTags *tags = matroska->tags.elem;
-    int i, j;
+    unsigned i, j;
 
     for (i = 0; i < matroska->tags.nb_elem; i++) {
         if (tags[i].target.attachuid) {
@@ -1840,7 +1838,7 @@ static void matroska_convert_tags(AVFormatContext *s)
             }
             if (!found) {
                 av_log(s, AV_LOG_WARNING,
-                       "The tags at index %d refer to a "
+                       "The tags at index %u refer to a "
                        "non-existent attachment %"PRId64".\n",
                        i, tags[i].target.attachuid);
             }
@@ -1857,7 +1855,7 @@ static void matroska_convert_tags(AVFormatContext *s)
             }
             if (!found) {
                 av_log(s, AV_LOG_WARNING,
-                       "The tags at index %d refer to a non-existent chapter "
+                       "The tags at index %u refer to a non-existent chapter "
                        "%"PRId64".\n",
                        i, tags[i].target.chapteruid);
             }
@@ -1874,7 +1872,7 @@ static void matroska_convert_tags(AVFormatContext *s)
             }
             if (!found) {
                 av_log(s, AV_LOG_WARNING,
-                       "The tags at index %d refer to a non-existent track "
+                       "The tags at index %u refer to a non-existent track "
                        "%"PRId64".\n",
                        i, tags[i].target.trackuid);
             }
@@ -1926,7 +1924,7 @@ static int matroska_parse_seekhead_entry(MatroskaDemuxContext *matroska,
 static void matroska_execute_seekhead(MatroskaDemuxContext *matroska)
 {
     EbmlList *seekhead_list = &matroska->seekhead;
-    int i;
+    unsigned i;
 
     // we should not do any seeking in the streaming case
     if (!(matroska->ctx->pb->seekable & AVIO_SEEKABLE_NORMAL))
@@ -1966,7 +1964,7 @@ static void matroska_add_index_entries(MatroskaDemuxContext *matroska)
     EbmlList *index_list;
     MatroskaIndex *index;
     uint64_t index_scale = 1;
-    int i, j;
+    unsigned i, j;
 
     if (matroska->ctx->flags & AVFMT_FLAG_IGNIDX)
         return;
@@ -2429,8 +2427,8 @@ static int matroska_parse_tracks(AVFormatContext *s)
 {
     MatroskaDemuxContext *matroska = s->priv_data;
     MatroskaTrack *tracks = matroska->tracks.elem;
-    int i, j, ret;
-    int k;
+    unsigned i, j, k;
+    int ret;
 
     for (i = 0; i < matroska->tracks.nb_elem; i++) {
         MatroskaTrack *track = &tracks[i];
@@ -2922,7 +2920,7 @@ static int matroska_parse_tracks(AVFormatContext *s)
                 char buf[32];
                 if (planes[j].type >= MATROSKA_VIDEO_STEREO_PLANE_COUNT)
                     continue;
-                snprintf(buf, sizeof(buf), "%s_%d",
+                snprintf(buf, sizeof(buf), "%s_%u",
                          ff_matroska_video_stereo_plane[planes[j].type], i);
                 for (k=0; k < matroska->tracks.nb_elem; k++)
                     if (planes[j].uid == tracks[k].uid && tracks[k].stream) {
@@ -3009,7 +3007,8 @@ static int matroska_read_header(AVFormatContext *s)
     uint64_t max_start = 0;
     int64_t pos;
     Ebml ebml = { 0 };
-    int i, j, res;
+    unsigned i, j;
+    int res;
 
     matroska->ctx = s;
     matroska->cues_parsing_deferred = 1;
@@ -3921,7 +3920,7 @@ static int matroska_read_seek(AVFormatContext *s, int stream_index,
     MatroskaTrack *tracks = NULL;
     AVStream *st = s->streams[stream_index];
     FFStream *const sti = ffstream(st);
-    int i, index;
+    int index;
 
     /* Parse the CUES now since we need the index data to seek. */
     if (matroska->cues_parsing_deferred > 0) {
@@ -3950,7 +3949,7 @@ static int matroska_read_seek(AVFormatContext *s, int stream_index,
         goto err;
 
     tracks = matroska->tracks.elem;
-    for (i = 0; i < matroska->tracks.nb_elem; i++) {
+    for (unsigned i = 0; i < matroska->tracks.nb_elem; i++) {
         tracks[i].audio.pkt_cnt        = 0;
         tracks[i].audio.sub_packet_cnt = 0;
         tracks[i].audio.buf_timecode   = AV_NOPTS_VALUE;
@@ -3986,7 +3985,7 @@ static int matroska_read_close(AVFormatContext *s)
 {
     MatroskaDemuxContext *matroska = s->priv_data;
     MatroskaTrack *tracks = matroska->tracks.elem;
-    int n;
+    unsigned n;
 
     matroska_clear_queue(matroska);
 
@@ -4278,7 +4277,7 @@ static int webm_dash_manifest_cues(AVFormatContext *s, int64_t init_range)
     AVBPrint bprint;
     char *buf;
     int64_t cues_start = -1, cues_end = -1, before_pos, bandwidth;
-    int i;
+    unsigned i;
     int ret;
 
     // determine cues start and end positions
