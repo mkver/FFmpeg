@@ -89,6 +89,7 @@ typedef struct mkv_cues {
     int64_t         segment_offset;
     mkv_cuepoint    *entries;
     int             num_entries;
+    unsigned        allocated_entries;
 } mkv_cues;
 
 typedef struct mkv_track {
@@ -540,7 +541,8 @@ static int mkv_add_cuepoint(mkv_cues *cues, int stream, int tracknum, int64_t ts
     if (ts < 0)
         return 0;
 
-    entries = av_realloc_array(entries, cues->num_entries + 1, sizeof(mkv_cuepoint));
+    entries = av_fast_realloc_array(entries, &cues->allocated_entries,
+                                    cues->num_entries + 1, sizeof(mkv_cuepoint));
     if (!entries)
         return AVERROR(ENOMEM);
     cues->entries = entries;
