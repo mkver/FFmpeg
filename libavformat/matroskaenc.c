@@ -88,7 +88,8 @@ typedef struct mkv_cuepoint {
 typedef struct mkv_cues {
     int64_t         segment_offset;
     mkv_cuepoint    *entries;
-    int             num_entries;
+    unsigned        num_entries;
+    unsigned        allocated_entries;
 } mkv_cues;
 
 typedef struct mkv_track {
@@ -171,7 +172,7 @@ typedef struct MatroskaMuxContext {
 
 /** per-cuepoint-track - 5 1-byte EBML IDs, 5 1-byte EBML sizes, 3 8-byte uint max
  * and one 1-byte uint for the track number (this assumes MAX_TRACKS to be <= 255) */
-#define MAX_CUETRACKPOS_SIZE 35
+#define MAX_CUETRACKPOS_SIZE 35LL
 
 /** per-cuepoint - 1 1-byte EBML ID, 1 1-byte EBML size, 8-byte uint max */
 #define MAX_CUEPOINT_CONTENT_SIZE(num_tracks) 10 + MAX_CUETRACKPOS_SIZE * num_tracks
@@ -534,15 +535,16 @@ static mkv_cues *mkv_start_cues(int64_t segment_offset)
 static int mkv_add_cuepoint(mkv_cues *cues, int stream, int tracknum, int64_t ts,
                             int64_t cluster_pos, int64_t relative_pos, int64_t duration)
 {
-    mkv_cuepoint *entries = cues->entries;
+    int ret;
 
     if (ts < 0)
         return 0;
 
-    entries = av_realloc_array(entries, cues->num_entries + 1, sizeof(mkv_cuepoint));
-    if (!entries)
-        return AVERROR(ENOMEM);
-    cues->entries = entries;
+    ret = av_fast_realloc_array(&cues->entries, &cues->allocated_entries,
+                                cues->num_entries + 1, UINT_MAX - 1,
+                                sizeof(*cues->entries));
+    if (ret < 0)
+        return ret;
 
     cues->entries[cues->num_entries].pts           = ts;
     cues->entries[cues->num_entries].stream_idx    = stream;
@@ -559,21 +561,21 @@ static int64_t mkv_write_cues(AVFormatContext *s, mkv_cues *cues, mkv_track *tra
     MatroskaMuxContext *mkv = s->priv_data;
     AVIOContext *dyn_cp, *pb = s->pb;
     int64_t currentpos;
-    int i, j, ret;
+    int ret;
 
     currentpos = avio_tell(pb);
     ret = start_ebml_master_crc32(pb, &dyn_cp, mkv, MATROSKA_ID_CUES);
     if (ret < 0)
         return ret;
 
-    for (i = 0; i < cues->num_entries; i++) {
+    for (unsigned i = 0; i < cues->num_entries; i++) {
         ebml_master cuepoint, track_positions;
         mkv_cuepoint *entry = &cues->entries[i];
         uint64_t pts = entry->pts;
-        int ctp_nb = 0;
+        unsigned ctp_nb = 0, j;
 
         // Calculate the number of entries, so we know the element size
-        for (j = 0; j < num_tracks; j++)
+        for (int j = 0; j < num_tracks; j++)
             tracks[j].has_cue = 0;
         for (j = 0; j < cues->num_entries - i && entry[j].pts == pts; j++) {
             int idx = entry[j].stream_idx;
@@ -590,7 +592,7 @@ static int64_t mkv_write_cues(AVFormatContext *s, mkv_cues *cues, mkv_track *tra
 
         // put all the entries from different tracks that have the exact same
         // timestamp into the same CuePoint
-        for (j = 0; j < num_tracks; j++)
+        for (int j = 0; j < num_tracks; j++)
             tracks[j].has_cue = 0;
         for (j = 0; j < cues->num_entries - i && entry[j].pts == pts; j++) {
             int idx = entry[j].stream_idx;
