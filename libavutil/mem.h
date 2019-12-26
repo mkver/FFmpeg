@@ -370,10 +370,38 @@ int av_reallocp_array(void *ptr, size_t nmemb, size_t size);
  * @return `ptr` if the buffer is large enough, a pointer to newly reallocated
  *         buffer if the buffer was not large enough, or `NULL` in case of
  *         error
+ * @see av_fast_realloc_array()
  * @see av_realloc()
  * @see av_fast_malloc()
  */
 void *av_fast_realloc(void *ptr, unsigned int *size, size_t min_size);
+
+/**
+ * Reallocate the given array if it is not large enough, otherwise do nothing.
+ *
+ * If `ptr` points to `NULL`, then a new uninitialized array is allocated.
+ *
+ * @param[in,out] ptr           Pointer to `NULL` or an already allocated array.
+ *                              `*ptr` will be set to point to the new array.
+ * @param[in,out] nb_allocated  Pointer to the number of elements of the array
+ *                              `*ptr`. `*nb_allocated` is updated to the new
+ *                              number of allocated elements.
+ * @param[in]     min_nb        Desired minimal number of elements in array `*ptr`
+ * @param[in]     max_nb        Maximal number of elements to allocate.
+ * @param[in]     elsize        Size of a single element of the array.
+ *                              Must not be zero.
+ * @return 0 on success, < 0 on failure. On failure, `*ptr` is not freed and
+ *         `*ptr` as well as `*nb_allocated` are unchanged.
+ * @note `max_nb` can be used to limit allocations and make this function usable
+ *       with counters of type int. It can also be used to avoid overflow checks
+ *       in callers: E.g. setting it to `UINT_MAX - 1` means that incrementing
+ *       an unsigned in steps of one need not be checked for overflow.
+ * @see av_fast_realloc()
+ * @see av_realloc()
+ * @see av_fast_malloc()
+ */
+int av_fast_realloc_array(void *ptr, unsigned *nb_allocated,
+                          unsigned min_nb, unsigned max_nb, size_t elsize);
 
 /**
  * Allocate a buffer, reusing the given one if large enough.
