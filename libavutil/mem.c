@@ -532,6 +532,39 @@ void *av_fast_realloc(void *ptr, unsigned int *size, size_t min_size)
     return ptr;
 }
 
+int av_realloc_array_reuse(void *ptr, size_t *nb_allocated,
+                           size_t min_nb, size_t max_nb, size_t elsize)
+{
+    void *array;
+    size_t nb, max_alloc_size_bytes;
+
+    if (min_nb <= *nb_allocated)
+        return 0;
+
+    max_alloc_size_bytes = atomic_load_explicit(&max_alloc_size, memory_order_relaxed);
+    max_nb = FFMIN(max_nb, max_alloc_size_bytes / elsize);
+
+    if (min_nb > max_nb)
+        return AVERROR(ERANGE);
+
+    nb = min_nb + (min_nb + 14) / 16;
+
+    /* If min_nb is so big that the above calculation overflowed,
+     * just allocate as much as we are allowed to. */
+    nb = nb < min_nb ? max_nb : FFMIN(nb, max_nb);
+
+    memcpy(&array, ptr, sizeof(array));
+
+    array = av_realloc(array, nb * elsize);
+    if (!array)
+        return AVERROR(ENOMEM);
+
+    memcpy(ptr, &array, sizeof(array));
+    *nb_allocated = nb;
+
+    return 0;
+}
+
 static inline void fast_malloc(void *ptr, unsigned int *size, size_t min_size, int zero_realloc)
 {
     size_t max_size;

@@ -14,6 +14,9 @@ libavutil:     2021-04-27
 
 API changes, most recent first:
 
+2022-09-26 - xxxxxxxxxx - lavu 57.yy.100 - mem.h
+  Add av_realloc_array_reuse() to simplify reallocating of arrays.
+
 2022-09-26 - xxxxxxxxxx - lavc 59.48.100 - avcodec.h
   Deprecate avcodec_enum_to_chroma_pos() and avcodec_chroma_pos_to_enum().
   Use av_chroma_location_enum_to_pos() or av_chroma_location_pos_to_enum()
