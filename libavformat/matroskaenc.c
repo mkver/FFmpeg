@@ -604,7 +604,7 @@ static int mkv_assemble_cues(AVStream **streams, AVIOContext *dyn_cp,
             put_ebml_uint(cuepoint, MATROSKA_ID_CUETRACK           , tracks[idx].track_num);
             put_ebml_uint(cuepoint, MATROSKA_ID_CUECLUSTERPOSITION , entry->cluster_pos);
             put_ebml_uint(cuepoint, MATROSKA_ID_CUERELATIVEPOSITION, entry->relative_pos);
-            if (entry->duration != -1)
+            if (entry->duration > 0)
                 put_ebml_uint(cuepoint, MATROSKA_ID_CUEDURATION    , entry->duration);
             end_ebml_master(cuepoint, track_positions);
         } while (++entry < end && entry->pts == pts);
@@ -2068,7 +2068,7 @@ fail:
 }
 
 static int mkv_write_block(AVFormatContext *s, AVIOContext *pb,
-                           const AVPacket *pkt, int is_sub, int keyframe)
+                           const AVPacket *pkt, uint64_t duration, int keyframe)
 {
     MatroskaMuxContext *mkv = s->priv_data;
     AVCodecParameters *par = s->streams[pkt->stream_index]->codecpar;
@@ -2077,7 +2077,7 @@ static int mkv_write_block(AVFormatContext *s, AVIOContext *pb,
     int err = 0, offset = 0, size = pkt->size, side_data_size;
     int64_t ts = track->write_dts ? pkt->dts : pkt->pts;
     uint64_t additional_id;
-    uint32_t blockid = is_sub ? MATROSKA_ID_BLOCK : MATROSKA_ID_SIMPLEBLOCK;
+    uint32_t blockid = duration ? MATROSKA_ID_BLOCK : MATROSKA_ID_SIMPLEBLOCK;
     int64_t discard_padding = 0;
     unsigned track_number = track->track_num;
     ebml_master block_group, block_additions, block_more;
@@ -2162,8 +2162,8 @@ static int mkv_write_block(AVFormatContext *s, AVIOContext *pb,
     if (!keyframe)
         put_ebml_sint(pb, MATROSKA_ID_BLOCKREFERENCE, track->last_timestamp - ts);
 
-        if (is_sub)
-            put_ebml_uint(pb, MATROSKA_ID_BLOCKDURATION, pkt->duration);
+        if (duration > 0)
+            put_ebml_uint(pb, MATROSKA_ID_BLOCKDURATION, duration);
 
     if (discard_padding)
         put_ebml_sint(pb, MATROSKA_ID_DISCARDPADDING, discard_padding);
@@ -2185,7 +2185,7 @@ static int mkv_write_block(AVFormatContext *s, AVIOContext *pb,
     return 0;
 }
 
-static int mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, const AVPacket *pkt)
+static void mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, const AVPacket *pkt)
 {
     MatroskaMuxContext *mkv = s->priv_data;
     mkv_track *track = &mkv->tracks[pkt->stream_index];
@@ -2226,8 +2226,6 @@ static int mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, const AVPac
 
     put_ebml_uint(pb, MATROSKA_ID_BLOCKDURATION, pkt->duration);
     end_ebml_master(pb, blockgroup);
-
-    return pkt->duration;
 }
 
 static int mkv_prepare_outputting_first_cluster(AVFormatContext *s)
@@ -2384,7 +2382,8 @@ static int mkv_write_packet_internal(AVFormatContext *s, const AVPacket *pkt)
     int is_sub              = par->codec_type == AVMEDIA_TYPE_SUBTITLE;
     /* All subtitle blocks are considered to be keyframes. */
     int keyframe            = is_sub ? 1 : !!(pkt->flags & AV_PKT_FLAG_KEY);
-    int duration            = pkt->duration;
+    int64_t duration        = FFMAX(pkt->duration, 0);
+    int64_t write_duration  = is_sub ? duration : 0;
     int ret;
     int64_t ts = track->write_dts ? pkt->dts : pkt->pts;
     int64_t relative_packet_pos;
@@ -2422,18 +2421,18 @@ static int mkv_write_packet_internal(AVFormatContext *s, const AVPacket *pkt)
     relative_packet_pos = avio_tell(pb);
 
     if (par->codec_id != AV_CODEC_ID_WEBVTT) {
-        ret = mkv_write_block(s, pb, pkt, is_sub, keyframe);
+        ret = mkv_write_block(s, pb, pkt, write_duration, keyframe);
         if (ret < 0)
             return ret;
     } else {
-        duration = mkv_write_vtt_blocks(s, pb, pkt);
+        mkv_write_vtt_blocks(s, pb, pkt);
     }
     if (keyframe && IS_SEEKABLE(s->pb, mkv) &&
         (par->codec_type == AVMEDIA_TYPE_VIDEO || is_sub ||
          !mkv->have_video && !track->has_cue)) {
         ret = mkv_add_cuepoint(mkv, pkt->stream_index, ts,
                                mkv->cluster_pos, relative_packet_pos,
-                               is_sub ? duration : -1);
+                               write_duration);
         if (ret < 0)
             return ret;
         track->has_cue = 1;
