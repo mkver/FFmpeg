@@ -70,11 +70,14 @@ enum {
 enum {
     TRACK,
     BOGUS_ATTACHMENT,
-    PICTURE_ATTACHMENT,
+    PICTURE_ATTACHMENT_NEEDED,
+    PICTURE_ATTACHMENT_AVAILABLE,
+    PICTURE_ATTACHMENT_RECEIVED,
+    PICTURE_ATTACHMENT_MULTIPLE,
     ORDINARY_ATTACHMENT,
 };
 
-#define HAS_ATTACHMENT(track) ((track)->status >= PICTURE_ATTACHMENT)
+#define HAS_ATTACHMENT(track) ((track)->status >= PICTURE_ATTACHMENT_AVAILABLE)
 
 typedef struct ebml_master {
     int64_t         pos;                ///< absolute offset in the containing AVIOContext where the master's elements start
@@ -151,10 +154,13 @@ typedef struct MatroskaMuxContext {
 
     unsigned            nb_tracks;
     unsigned            nb_attachments;
-    int                 have_video;
+    unsigned            nb_attachments_needed;
 
     int                 wrote_chapters;
-    int                 wrote_tags;
+    int                 wrote_tags;     ///< -1 means delay writing Tags
+    int                 wrote_attachments;
+
+    int                 have_video;
 
     int                 reserve_cues_space;
     int                 cluster_size_limit;
@@ -1652,7 +1658,7 @@ static int mkv_write_chapters(AVFormatContext *s)
         put_ebml_uint(dyn_cp, MATROSKA_ID_EDITIONFLAGDEFAULT, 1);
         /* If mkv_write_tags() has already been called, then any tags
          * corresponding to chapters will be put into a new Tags element. */
-        tags = mkv->wrote_tags ? &dyn_tags : &mkv->tags.bc;
+        tags = mkv->wrote_tags > 0 ? &dyn_tags : &mkv->tags.bc;
     } else
         tags = NULL;
 
@@ -1738,6 +1744,14 @@ static int mkv_write_attachments(AVFormatContext *s)
     if (!mkv->nb_attachments)
         return 0;
 
+    mkv->wrote_attachments = 1;
+
+    if (mkv->nb_attachments == mkv->nb_attachments_needed) {
+        av_log(s, AV_LOG_WARNING, "Did not receive any attached pics. "
+                                  "Not writing attachments.\n");
+        return 0;
+    }
+
     ret = start_ebml_master_crc32(&dyn_cp, mkv);
     if (ret < 0)
         return ret;
@@ -1752,8 +1766,14 @@ static int mkv_write_attachments(AVFormatContext *s)
         const uint8_t *data;
         int size;
 
-        if (!HAS_ATTACHMENT(track))
+        if (track->status == TRACK)
             continue;
+
+        if (!HAS_ATTACHMENT(track)) {
+            av_log(s, AV_LOG_WARNING,
+                   "Did not receive attached pic stream %d. Skipping.\n", i);
+            continue;
+        }
 
         attached_file = start_ebml_master(dyn_cp, MATROSKA_ID_ATTACHEDFILE, 0);
 
@@ -1912,15 +1932,19 @@ static int mkv_write_header(AVFormatContext *s)
     if (ret < 0)
         return ret;
 
-    ret = mkv_write_attachments(s);
-    if (ret < 0)
-        return ret;
+    if (!mkv->nb_attachments_needed) {
+        ret = mkv_write_attachments(s);
+        if (ret < 0)
+            return ret;
+    }
 
-    /* Must come after mkv_write_chapters() to write chapter tags
-     * into the same Tags element as the other tags. */
-    ret = mkv_write_tags(s);
-    if (ret < 0)
-        return ret;
+    if (!mkv->wrote_tags) {
+        /* Must come after mkv_write_chapters() to write chapter tags
+         * into the same Tags element as the other tags. */
+        ret = mkv_write_tags(s);
+        if (ret < 0)
+            return ret;
+    }
 
     if (!IS_SEEKABLE(pb, mkv)) {
         ret = mkv_write_seekhead(pb, mkv, 0, avio_tell(pb));
@@ -2462,6 +2486,7 @@ static int mkv_write_packet(AVFormatContext *s, const AVPacket *pkt)
 static int mkv_write_flush_packet(AVFormatContext *s, AVPacket *pkt)
 {
     MatroskaMuxContext *mkv = s->priv_data;
+    int idx;
 
     if (!pkt) {
         if (mkv->cluster_pos != -1) {
@@ -2474,8 +2499,26 @@ static int mkv_write_flush_packet(AVFormatContext *s, AVPacket *pkt)
         }
         return 1;
     }
-    if (mkv->tracks[pkt->stream_index].status != TRACK)
+    if (mkv->tracks[idx = pkt->stream_index].status != TRACK) {
+        mkv_track *track = &mkv->tracks[idx];
+        av_assert1(track->status != ORDINARY_ATTACHMENT &&
+                   track->status != BOGUS_ATTACHMENT);
+        if (!pkt->size)
+            return 0;
+        if (track->status == PICTURE_ATTACHMENT_RECEIVED) {
+            av_log(s, AV_LOG_WARNING, "Got more than one picture "
+                   "in stream %d, ignoring.\n", idx);
+            track->status = PICTURE_ATTACHMENT_MULTIPLE;
+        } else if (track->status == PICTURE_ATTACHMENT_NEEDED) {
+            int ret = av_packet_ref(&s->streams[idx]->attached_pic, pkt);
+            if (ret < 0)
+                return ret;
+            track->status = PICTURE_ATTACHMENT_RECEIVED;
+            mkv->nb_attachments_needed--;
+        } else if (track->status == PICTURE_ATTACHMENT_AVAILABLE)
+            track->status = PICTURE_ATTACHMENT_RECEIVED;
         return 0;
+    }
 
     return mkv_write_packet(s, pkt);
 }
@@ -2507,6 +2550,20 @@ static int mkv_write_trailer(AVFormatContext *s)
     ret = mkv_write_chapters(s);
     if (ret < 0)
         return ret;
+
+    if (!mkv->wrote_attachments) {
+        ret = mkv_write_attachments(s);
+        if (ret < 0)
+            return ret;
+    }
+
+    if (mkv->wrote_tags <= 0) {
+        /* Must come after mkv_write_chapters() to write chapter tags
+         * into the same Tags element as the other tags. */
+        ret = mkv_write_tags(s);
+        if (ret < 0)
+            return ret;
+    }
 
     if (!IS_SEEKABLE(pb, mkv))
         return 0;
@@ -2686,7 +2743,7 @@ static int mkv_init(struct AVFormatContext *s)
     MatroskaMuxContext *mkv = s->priv_data;
     AVLFG c;
     unsigned nb_tracks = 0;
-    int i;
+    int i, seekable = IS_SEEKABLE(s->pb, mkv);
 
     for (i = 0; i < s->nb_streams; i++) {
         if (s->streams[i]->codecpar->codec_id == AV_CODEC_ID_ATRAC3 ||
@@ -2751,13 +2808,18 @@ static int mkv_init(struct AVFormatContext *s)
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
             st->disposition & AV_DISPOSITION_ATTACHED_PIC  &&
             !(st->disposition & AV_DISPOSITION_TIMED_THUMBNAILS)) {
-            if (mkv->mode == MODE_WEBM || !st->attached_pic.size) {
+            if (mkv->mode == MODE_WEBM || !st->attached_pic.size && !seekable) {
                 av_log(s, AV_LOG_WARNING, "Attached pic stream %d will be "
                        "treated as video track as %s.\n", i,
                        mkv->mode == MODE_WEBM ? "WebM doesn't support attachments"
                                               : "no attached pic is available");
+            } else if (!st->attached_pic.size) {
+                mkv->nb_attachments_needed++;
+                if (mkv_check_tag(st->metadata, MATROSKA_ID_TAGTARGETS_ATTACHUID))
+                    mkv->wrote_tags = -1;
+                track->status = PICTURE_ATTACHMENT_NEEDED;
             } else
-                track->status = PICTURE_ATTACHMENT;
+                track->status = PICTURE_ATTACHMENT_AVAILABLE;
         }
         if (track->status != TRACK) {
             if (!get_mimetype(st)) {
