@@ -1055,6 +1055,8 @@ int ff_hevc_annexb2mp4_buf(const uint8_t *buf_in, uint8_t **buf_out,
     if (ret < 0)
         return ret;
 
+    pb->direct = AVIO_FLAG_DIRECT;
+
     ret   = ff_hevc_annexb2mp4(pb, buf_in, *size, filter_ps, ps_count);
     if (ret < 0) {
         ffio_free_dyn_buf(&pb);

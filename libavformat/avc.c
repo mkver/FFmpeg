@@ -99,6 +99,8 @@ int ff_avc_parse_nal_units_buf(const uint8_t *buf_in, uint8_t **buf, int *size)
     if(ret < 0)
         return ret;
 
+    pb->direct = AVIO_FLAG_DIRECT;
+
     ffio_dyn_buf_reserve(pb, *size + 32U + AV_INPUT_BUFFER_PADDING_SIZE);
 
     ff_avc_parse_nal_units(pb, buf_in, *size);
