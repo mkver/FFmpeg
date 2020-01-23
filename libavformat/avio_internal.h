@@ -171,6 +171,22 @@ int ffio_open_whitelist(AVIOContext **s, const char *url, int flags,
  */
 int ffio_close_null_buf(AVIOContext *s);
 
+
+/**
+ * Reserve size in a dynamic buffer to avoid having to reallocate
+ * the internal buffer later.
+ *
+ * This function may only be called on a dynamic buffer directly
+ * after it has been opened or flushed.
+ *
+ * @param s    an AVIOContext opened by avio_open_dyn_buf()
+ * @param size the number of bytes that should be available
+ *             in the internal buffer on success
+ * @return 0 on success; negative AVERROR on failure. On failure,
+ *         the internal buffer is left untouched as is the error flag of s.
+ */
+int ffio_dyn_buf_reserve(AVIOContext *s, size_t size);
+
 /**
  * Free a dynamic buffer.
  *

@@ -1407,6 +1407,28 @@ static int64_t dyn_buf_seek(void *opaque, int64_t offset, int whence)
     return 0;
 }
 
+int ffio_dyn_buf_reserve(AVIOContext *s, size_t size)
+{
+    DynBuffer *d = s->opaque;
+    size_t new_size = d->size + size;
+    uint8_t *buf;
+
+    if (new_size < size || new_size > INT_MAX)
+        return AVERROR(ERANGE);
+
+    if (new_size < d->allocated_size)
+        return 0;
+
+    buf = av_realloc(d->buffer, new_size);
+    if (!buf)
+        return AVERROR(ENOMEM);
+
+    d->buffer = buf;
+    d->allocated_size = new_size;
+
+    return 0;
+}
+
 static int url_open_dyn_buf_internal(AVIOContext **s, int max_packet_size)
 {
     DynBuffer *d;
