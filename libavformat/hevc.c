@@ -1000,16 +1000,15 @@ int ff_hevc_annexb2mp4(AVIOContext *pb, const uint8_t *buf_in,
                        int size, int filter_ps, int *ps_count)
 {
     int num_ps = 0, ret = 0;
-    uint8_t *buf, *end, *start = NULL;
+    uint8_t *buf, *end, *start;
 
     if (!filter_ps) {
-        ret = ff_avc_parse_nal_units(pb, buf_in, size);
-        goto end;
+        return ff_avc_parse_nal_units(pb, buf_in, size);
     }
 
     ret = ff_avc_parse_nal_units_buf(buf_in, &start, &size);
     if (ret < 0)
-        goto end;
+        return ret;
 
     ret = 0;
     buf = start;
@@ -1037,7 +1036,6 @@ int ff_hevc_annexb2mp4(AVIOContext *pb, const uint8_t *buf_in,
         buf += len;
     }
 
-end:
     av_free(start);
     if (ps_count)
         *ps_count = num_ps;

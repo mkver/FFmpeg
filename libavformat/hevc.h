@@ -42,9 +42,10 @@
  * @param buf_in address of the buffer holding the input data
  * @param size size (in bytes) of the input buffer
  * @param filter_ps whether to write parameter set NAL units to the output (0)
- *        or to discard them (non-zero)
- * @param ps_count address of the variable where the number of discarded
- *        parameter set NAL units shall be written, may be NULL
+ *        or to count but discard them (non-zero)
+ * @param ps_count if filter_ps is nonzero, address of the variable where the
+ *        number of discarded parameter set NAL units shall be written
+ *        on success; otherwise ignored; may be NULL
  * @return the amount (in bytes) of data written in case of success, a negative
  *         value corresponding to an AVERROR code in case of failure
  */
@@ -68,9 +69,10 @@ int ff_hevc_annexb2mp4(AVIOContext *pb, const uint8_t *buf_in,
  * @param buf_out on success, address of the variable holding the address of
  *        the output buffer
  * @param filter_ps whether to write parameter set NAL units to the output (0)
- *        or to discard them (non-zero)
- * @param ps_count address of the variable where the number of discarded
- *        parameter set NAL units shall be written, may be NULL
+ *        or to count but discard them (non-zero)
+ * @param ps_count if filter_ps is nonzero, address of the variable where the
+ *        number of discarded parameter set NAL units shall be written
+ *        on success; otherwise ignored; may be NULL
  * @return 0 in case of success, a negative value corresponding to an AVERROR
  *         code in case of failure
  * @note *buf_out will be treated as uninitialized on input and won't be freed.
