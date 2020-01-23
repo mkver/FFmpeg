@@ -1048,6 +1048,9 @@ int ff_hevc_annexb2mp4_buf(const uint8_t *buf_in, uint8_t **buf_out,
     AVIOContext *pb;
     int ret;
 
+    if (!filter_ps)
+        return ff_avc_parse_nal_units_buf(buf_in, buf_out, size);
+
     ret = avio_open_dyn_buf(&pb);
     if (ret < 0)
         return ret;
