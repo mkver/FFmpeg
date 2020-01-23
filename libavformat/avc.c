@@ -102,6 +102,9 @@ int ff_avc_parse_nal_units_buf(const uint8_t *buf_in, uint8_t **buf, int *size)
     ff_avc_parse_nal_units(pb, buf_in, *size);
 
     *size = avio_close_dyn_buf(pb, buf);
+    if (!*buf)
+        return AVERROR(ENOMEM);
+
     return 0;
 }
 

@@ -1061,6 +1061,8 @@ int ff_hevc_annexb2mp4_buf(const uint8_t *buf_in, uint8_t **buf_out,
     }
 
     *size = avio_close_dyn_buf(pb, buf_out);
+    if (!*buf_out)
+        return AVERROR(ENOMEM);
 
     return 0;
 }
