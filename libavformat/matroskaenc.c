@@ -2139,7 +2139,7 @@ static int mkv_write_block(AVFormatContext *s, AVIOContext *pb,
     int64_t discard_padding = 0;
     unsigned track_number = track->track_num;
     unsigned block_adds_size, block_more_size;
-    ebml_master block_group, block_additions, block_more;
+    ebml_master block_group;
 
     ts += track->ts_offset;
 
@@ -2238,28 +2238,31 @@ static int mkv_write_block(AVFormatContext *s, AVIOContext *pb,
         av_free(data);
 
     if (blockid == MATROSKA_ID_BLOCK) {
-    if (!keyframe)
-        put_ebml_sint(pb, MATROSKA_ID_BLOCKREFERENCE, track->last_timestamp - ts);
+        if (!keyframe)
+            put_ebml_sint(pb, MATROSKA_ID_BLOCKREFERENCE,
+                          track->last_timestamp - ts);
 
         if (duration > 0)
             put_ebml_uint(pb, MATROSKA_ID_BLOCKDURATION, duration);
 
-    if (discard_padding)
-        put_ebml_sint(pb, MATROSKA_ID_DISCARDPADDING, discard_padding);
+        if (discard_padding)
+            put_ebml_sint(pb, MATROSKA_ID_DISCARDPADDING, discard_padding);
 
-    if (side_data_size) {
-        block_additions = start_ebml_master(pb, MATROSKA_ID_BLOCKADDITIONS,
-                                            block_adds_size);
-        block_more = start_ebml_master(pb, MATROSKA_ID_BLOCKMORE,
-                                       block_more_size);
-        /* Until dbc50f8a our demuxer used a wrong default value
-         * of BlockAddID, so we write it unconditionally. */
-        put_ebml_uint  (pb, MATROSKA_ID_BLOCKADDID, additional_id);
-        put_ebml_binary(pb, MATROSKA_ID_BLOCKADDITIONAL,
-                        side_data, side_data_size);
-        end_ebml_master(pb, block_more);
-        end_ebml_master(pb, block_additions);
-    }
+        if (side_data_size) {
+            ebml_master block_adds, block_more;
+
+            block_adds = start_ebml_master(pb, MATROSKA_ID_BLOCKADDITIONS,
+                                           block_adds_size);
+            block_more = start_ebml_master(pb, MATROSKA_ID_BLOCKMORE,
+                                           block_more_size);
+            /* Until dbc50f8a our demuxer used a wrong default value
+             * of BlockAddID, so we write it unconditionally. */
+            put_ebml_uint  (pb, MATROSKA_ID_BLOCKADDID, additional_id);
+            put_ebml_binary(pb, MATROSKA_ID_BLOCKADDITIONAL,
+                            side_data, side_data_size);
+            end_ebml_master(pb, block_more);
+            end_ebml_master(pb, block_adds);
+        }
         end_ebml_master(pb, block_group);
     }
 
