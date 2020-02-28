@@ -2315,7 +2315,7 @@ int av_probe_input_buffer(AVIOContext *pb, ff_const59 AVInputFormat **fmt,
  *
  * @note If you want to use custom IO, preallocate the format context and set its pb field.
  */
-int avformat_open_input(AVFormatContext **ps, const char *url, ff_const59 AVInputFormat *fmt, AVDictionary **options);
+int avformat_open_input(AVFormatContext **ps, const char *url, const AVInputFormat *fmt, AVDictionary **options);
 
 attribute_deprecated
 int av_demuxer_open(AVFormatContext *ic);

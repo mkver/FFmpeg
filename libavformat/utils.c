@@ -535,7 +535,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
 
 int avformat_open_input(AVFormatContext **ps, const char *filename,
-                        ff_const59 AVInputFormat *fmt, AVDictionary **options)
+                        const AVInputFormat *fmt, AVDictionary **options)
 {
     AVFormatContext *s = *ps;
     int i, ret = 0;
@@ -549,7 +549,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
         return AVERROR(EINVAL);
     }
     if (fmt)
-        s->iformat = fmt;
+        s->iformat = (ff_const59 AVInputFormat *)fmt;
 
     if (options)
         av_dict_copy(&tmp, *options, 0);

@@ -202,7 +202,7 @@ typedef struct Decoder {
 
 typedef struct VideoState {
     SDL_Thread *read_tid;
-    AVInputFormat *iformat;
+    const AVInputFormat *iformat;
     int abort_request;
     int force_refresh;
     int paused;
@@ -307,7 +307,7 @@ typedef struct VideoState {
 } VideoState;
 
 /* options specified by the user */
-static AVInputFormat *file_iformat;
+static const AVInputFormat *file_iformat;
 static const char *input_filename;
 static const char *window_title;
 static int default_width  = 640;
@@ -3064,7 +3064,7 @@ static int read_thread(void *arg)
     return 0;
 }
 
-static VideoState *stream_open(const char *filename, AVInputFormat *iformat)
+static VideoState *stream_open(const char *filename, const AVInputFormat *iformat)
 {
     VideoState *is;
 

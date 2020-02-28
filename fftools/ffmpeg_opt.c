@@ -1067,7 +1067,7 @@ static int open_input_file(OptionsContext *o, const char *filename)
 {
     InputFile *f;
     AVFormatContext *ic;
-    AVInputFormat *file_iformat = NULL;
+    const AVInputFormat *file_iformat = NULL;
     int err, i, ret;
     int64_t timestamp;
     AVDictionary *unused_opts = NULL;
