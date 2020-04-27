@@ -67,6 +67,12 @@ enum {
     DEFAULT_MODE_PASSTHROUGH,
 };
 
+enum {
+    TRACK,
+    BOGUS_ATTACHMENT,
+    ORDINARY_ATTACHMENT,
+};
+
 typedef struct ebml_master {
     int64_t         pos;                ///< absolute offset in the containing AVIOContext where the master's elements start
     int             sizebytes;          ///< how many bytes were reserved for the size
@@ -108,6 +114,7 @@ typedef struct mkv_track {
     uint64_t        uid;
     unsigned        track_num;
     int             track_num_size;
+    int             status;
     int             sample_rate;
     int64_t         sample_rate_offset;
     int64_t         last_timestamp;
@@ -139,6 +146,7 @@ typedef struct MatroskaMuxContext {
 
     AVPacket           *cur_audio_pkt;
 
+    unsigned            nb_tracks;
     unsigned            nb_attachments;
     int                 have_video;
 
@@ -1128,7 +1136,7 @@ static int mkv_write_track(AVFormatContext *s, MatroskaMuxContext *mkv,
     int j, ret;
     const AVDictionaryEntry *tag;
 
-    if (par->codec_type == AVMEDIA_TYPE_ATTACHMENT)
+    if (track->status != TRACK)
         return 0;
 
     if (par->codec_id == AV_CODEC_ID_AAC) {
@@ -1395,7 +1403,7 @@ static int mkv_write_tracks(AVFormatContext *s)
     AVIOContext *pb = s->pb;
     int i, ret, video_default_idx, audio_default_idx, subtitle_default_idx;
 
-    if (mkv->nb_attachments == s->nb_streams)
+    if (!mkv->nb_tracks)
         return 0;
 
     ret = start_ebml_master_crc32(&mkv->track.bc, mkv);
@@ -1572,7 +1580,7 @@ static int mkv_write_tags(AVFormatContext *s)
         const AVStream *st = s->streams[i];
         mkv_track *track = &mkv->tracks[i];
 
-        if (st->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT)
+        if (track->status != TRACK)
             continue;
 
         if (!tagp && !mkv_check_tag(st->metadata, MATROSKA_ID_TAGTARGETS_TRACKUID))
@@ -1600,12 +1608,12 @@ static int mkv_write_tags(AVFormatContext *s)
         }
     }
 
-    if (mkv->nb_attachments && mkv->mode != MODE_WEBM) {
+    if (mkv->nb_attachments) {
         for (i = 0; i < s->nb_streams; i++) {
             const mkv_track *track = &mkv->tracks[i];
             const AVStream     *st = s->streams[i];
 
-            if (st->codecpar->codec_type != AVMEDIA_TYPE_ATTACHMENT)
+            if (track->status != ORDINARY_ATTACHMENT)
                 continue;
 
             if (!mkv_check_tag(st->metadata, MATROSKA_ID_TAGTARGETS_ATTACHUID))
@@ -1761,7 +1769,7 @@ static int mkv_write_attachments(AVFormatContext *s)
         const uint8_t *data;
         int size;
 
-        if (st->codecpar->codec_type != AVMEDIA_TYPE_ATTACHMENT)
+        if (track->status != ORDINARY_ATTACHMENT)
             continue;
 
         attached_file = start_ebml_master(dyn_cp, MATROSKA_ID_ATTACHEDFILE, 0);
@@ -1921,11 +1929,9 @@ static int mkv_write_header(AVFormatContext *s)
     if (ret < 0)
         return ret;
 
-    if (mkv->mode != MODE_WEBM) {
-        ret = mkv_write_attachments(s);
-        if (ret < 0)
-            return ret;
-    }
+    ret = mkv_write_attachments(s);
+    if (ret < 0)
+        return ret;
 
     /* Must come after mkv_write_chapters() to write chapter tags
      * into the same Tags element as the other tags. */
@@ -2763,14 +2769,19 @@ static int mkv_init(struct AVFormatContext *s)
         avpriv_set_pts_info(st, 64, 1, 1000);
 
         if (st->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT) {
-            if (mkv->mode == MODE_WEBM) {
-                av_log(s, AV_LOG_WARNING, "Stream %d will be ignored "
-                       "as WebM doesn't support attachments.\n", i);
+            if (mkv->mode == MODE_WEBM ||
+                !st->codecpar->extradata_size && !st->attachment->size) {
+                if (mkv->mode == MODE_WEBM)
+                    av_log(s, AV_LOG_WARNING, "Stream %d will be ignored "
+                           "as WebM doesn't support attachments.\n", i);
+                track->status = BOGUS_ATTACHMENT;
+                continue;
             } else if (!get_mimetype(st)) {
                 av_log(s, AV_LOG_ERROR, "Attachment stream %d has no mimetype "
                        "tag and it cannot be deduced from the codec id.\n", i);
                 return AVERROR(EINVAL);
             }
+            track->status = ORDINARY_ATTACHMENT;
             mkv->nb_attachments++;
             continue;
         }
@@ -2783,6 +2794,7 @@ static int mkv_init(struct AVFormatContext *s)
     if (mkv->is_dash && nb_tracks != 1)
         return AVERROR(EINVAL);
 
+    mkv->nb_tracks = nb_tracks;
     return 0;
 }
 
