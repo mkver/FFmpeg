@@ -180,6 +180,11 @@ static int segment_mux_init(AVFormatContext *s)
         st->time_base           = ist->time_base;
         st->avg_frame_rate      = ist->avg_frame_rate;
         st->disposition         = ist->disposition;
+        if (ist->attached_pic.size) {
+            ret = av_packet_ref(&st->attached_pic, &ist->attached_pic);
+            if (ret < 0)
+                return ret;
+        }
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
         if (ipar->codec_tag == MKTAG('t','m','c','d'))
