@@ -158,7 +158,9 @@ typedef struct MatroskaMuxContext {
 
     int                 wrote_chapters;
     int                 wrote_tags;     ///< -1 means delay writing Tags
-    int                 wrote_attachments;
+    int                 wrote_attachments; ///< -1 means writing Attachments failed
+
+    int                 first_cluster_output;
 
     int                 have_video;
 
@@ -1606,7 +1608,7 @@ static int mkv_write_tags(AVFormatContext *s)
         }
     }
 
-    if (mkv->nb_attachments) {
+    if (mkv->nb_attachments && mkv->wrote_attachments >= 0) {
         for (i = 0; i < s->nb_streams; i++) {
             const mkv_track *track = &mkv->tracks[i];
             const AVStream     *st = s->streams[i];
@@ -1830,6 +1832,28 @@ static int64_t get_metadata_duration(AVFormatContext *s)
     return max;
 }
 
+static int mkv_write_delayed_elements(AVFormatContext *s, int force)
+{
+    MatroskaMuxContext *mkv = s->priv_data;
+    int ret, ret2 = 0;
+
+    if (!mkv->wrote_attachments && (force || !mkv->nb_attachments_needed)) {
+        ret2 = mkv_write_attachments(s);
+        if (ret2 < 0) {
+            /* Don't write tags belonging to attachments not output. */
+            mkv->wrote_attachments = -1;
+        }
+    }
+
+    if (!mkv->wrote_tags || (mkv->wrote_tags <= 0 && force)) {
+        ret = mkv_write_tags(s);
+        if (ret < 0)
+            return ret;
+    }
+
+    return ret2;
+}
+
 static int mkv_write_header(AVFormatContext *s)
 {
     MatroskaMuxContext *mkv = s->priv_data;
@@ -1932,19 +1956,11 @@ static int mkv_write_header(AVFormatContext *s)
     if (ret < 0)
         return ret;
 
-    if (!mkv->nb_attachments_needed) {
-        ret = mkv_write_attachments(s);
-        if (ret < 0)
-            return ret;
-    }
-
-    if (!mkv->wrote_tags) {
-        /* Must come after mkv_write_chapters() to write chapter tags
-         * into the same Tags element as the other tags. */
-        ret = mkv_write_tags(s);
-        if (ret < 0)
-            return ret;
-    }
+    /* Must come after mkv_write_chapters() to write chapter tags
+     * into the same Tags element as the other tags. */
+    ret = mkv_write_delayed_elements(s, 0);
+    if (ret < 0)
+        return ret;
 
     if (!IS_SEEKABLE(pb, mkv)) {
         ret = mkv_write_seekhead(pb, mkv, 0, avio_tell(pb));
@@ -2208,10 +2224,45 @@ static int mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, const AVPac
     return pkt->duration;
 }
 
+static int mkv_prepare_outputting_first_cluster(AVFormatContext *s)
+{
+    MatroskaMuxContext *mkv = s->priv_data;
+    int64_t pos;
+    int ret;
+
+    if (mkv->wrote_tags < 0) {
+        mkv->wrote_tags = 0;
+        if (mkv->nb_attachments_needed) {
+            for (unsigned i = 0; i < s->nb_streams; i++) {
+                if (mkv->tracks[i].status == PICTURE_ATTACHMENT_NEEDED &&
+                    mkv_check_tag(s->streams[i]->metadata,
+                                  MATROSKA_ID_TAGTARGETS_ATTACHUID)) {
+                    mkv->wrote_tags = -1;
+                    break;
+                }
+            }
+        }
+    }
+
+    ret = mkv_write_delayed_elements(s, 0);
+
+    if (mkv->cluster_pos != -1 &&
+        (pos = avio_tell(s->pb)) != mkv->cluster_pos) {
+        mkv->cluster_pos = pos;
+        pos -= mkv->segment_offset;
+        for (int i = 0; i < mkv->cues.num_entries; i++)
+            mkv->cues.entries[i].cluster_pos = pos;
+    }
+    return ret;
+}
+
 static int mkv_end_cluster(AVFormatContext *s)
 {
     MatroskaMuxContext *mkv = s->priv_data;
-    int ret;
+    int ret, ret2 = 0;
+
+    if (!mkv->first_cluster_output)
+        ret2 = mkv_prepare_outputting_first_cluster(s);
 
     if (!mkv->have_video) {
         for (unsigned i = 0; i < s->nb_streams; i++)
@@ -2223,8 +2274,9 @@ static int mkv_end_cluster(AVFormatContext *s)
     if (ret < 0)
         return ret;
 
+    mkv->first_cluster_output = 1;
     avio_write_marker(s->pb, AV_NOPTS_VALUE, AVIO_DATA_MARKER_FLUSH_POINT);
-    return 0;
+    return ret2;
 }
 
 static int mkv_check_new_extra_data(AVFormatContext *s, const AVPacket *pkt)
@@ -2515,6 +2567,8 @@ static int mkv_write_flush_packet(AVFormatContext *s, AVPacket *pkt)
                 return ret;
             track->status = PICTURE_ATTACHMENT_RECEIVED;
             mkv->nb_attachments_needed--;
+            if (!mkv->nb_attachments_needed && !mkv->first_cluster_output)
+                return mkv_prepare_outputting_first_cluster(s);
         } else if (track->status == PICTURE_ATTACHMENT_AVAILABLE)
             track->status = PICTURE_ATTACHMENT_RECEIVED;
         return 0;
@@ -2551,19 +2605,9 @@ static int mkv_write_trailer(AVFormatContext *s)
     if (ret < 0)
         return ret;
 
-    if (!mkv->wrote_attachments) {
-        ret = mkv_write_attachments(s);
-        if (ret < 0)
-            return ret;
-    }
-
-    if (mkv->wrote_tags <= 0) {
-        /* Must come after mkv_write_chapters() to write chapter tags
-         * into the same Tags element as the other tags. */
-        ret = mkv_write_tags(s);
-        if (ret < 0)
-            return ret;
-    }
+    ret = mkv_write_delayed_elements(s, 1);
+    if (ret < 0)
+        return ret;
 
     if (!IS_SEEKABLE(pb, mkv))
         return 0;
