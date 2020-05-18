@@ -213,7 +213,7 @@ static int aiff_write_packet(AVFormatContext *s, AVPacket *pkt)
     else {
         AVStream *st = s->streams[pkt->stream_index];
 
-        if (s->streams[pkt->stream_index]->codecpar->codec_type != AVMEDIA_TYPE_VIDEO)
+        if (st->codecpar->codec_type != AVMEDIA_TYPE_VIDEO)
             return 0;
 
         if (!st->attached_pic.data) {
@@ -225,7 +225,7 @@ static int aiff_write_packet(AVFormatContext *s, AVPacket *pkt)
         }
 
         /* warn only once for each stream */
-        if (s->streams[pkt->stream_index]->nb_frames == 1) {
+        if (st->nb_frames == 1) {
             av_log(s, AV_LOG_WARNING, "Got more than one picture in stream %d,"
                    " ignoring.\n", pkt->stream_index);
         }
