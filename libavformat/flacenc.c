@@ -170,7 +170,7 @@ static int flac_finish_header(struct AVFormatContext *s)
     for (i = 0; i < s->nb_streams; i++) {
         AVStream *st = s->streams[i];
         AVPacket *pkt = &st->attached_pic;
-        if (!pkt->data)
+        if (!pkt->size)
             continue;
         ret = flac_write_picture(s, pkt);
         av_packet_unref(pkt);
@@ -220,7 +220,7 @@ static int flac_init(struct AVFormatContext *s)
             } else if (!c->write_header) {
                 av_log(s, AV_LOG_ERROR, "Can't write attached pictures without a header.\n");
                 return AVERROR(EINVAL);
-            } else if (!st->attached_pic.data)
+            } else if (!st->attached_pic.size)
                 c->waiting_pics++;
         } else {
             av_log(s, AV_LOG_ERROR, "Only audio streams and pictures are allowed in FLAC.\n");
@@ -376,12 +376,18 @@ static int flac_write_packet(struct AVFormatContext *s, AVPacket *pkt)
             av_log(s, AV_LOG_WARNING, "Got more than one picture in stream %d,"
                    " ignoring.\n", pkt->stream_index);
         }
-        if (st->nb_frames >= 1 || st->attached_pic.data)
+        if (st->nb_frames >= 1 || st->attached_pic.size)
             return 0;
 
-        ret = av_packet_ref(&st->attached_pic, pkt);
-        if (ret < 0)
-            av_log(s, AV_LOG_ERROR, "Out of memory queueing an attached picture; skipping\n");
+        if (!pkt->size) {
+            av_log(s, AV_LOG_WARNING, "Skipping attached pic with size zero "
+                   "in stream %d.\n", pkt->stream_index);
+        } else {
+            ret = av_packet_ref(&st->attached_pic, pkt);
+            if (ret < 0)
+                av_log(s, AV_LOG_ERROR, "Out of memory queueing "
+                       "an attached picture; skipping\n");
+        }
         c->waiting_pics--;
 
         /* flush the buffered audio packets */
