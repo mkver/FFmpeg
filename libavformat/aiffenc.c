@@ -36,9 +36,9 @@ typedef struct AIFFOutputContext {
     int64_t frames;
     int64_t ssnd;
     int audio_stream_idx;
-    AVPacketList *pict_list, *pict_list_end;
     int write_id3v2;
     int id3v2_version;
+    int has_attached_pics;
 } AIFFOutputContext;
 
 static int put_id3v2_tags(AVFormatContext *s, AIFFOutputContext *aiff)
@@ -47,9 +47,8 @@ static int put_id3v2_tags(AVFormatContext *s, AIFFOutputContext *aiff)
     uint64_t pos, end, size;
     ID3v2EncContext id3v2 = { 0 };
     AVIOContext *pb = s->pb;
-    AVPacketList *pict_list = aiff->pict_list;
 
-    if (!s->metadata && !s->nb_chapters && !aiff->pict_list)
+    if (!s->metadata && !s->nb_chapters && !aiff->has_attached_pics)
         return 0;
 
     avio_wl32(pb, MKTAG('I', 'D', '3', ' '));
@@ -58,10 +57,12 @@ static int put_id3v2_tags(AVFormatContext *s, AIFFOutputContext *aiff)
 
     ff_id3v2_start(&id3v2, pb, aiff->id3v2_version, ID3v2_DEFAULT_MAGIC);
     ff_id3v2_write_metadata(s, &id3v2);
-    while (pict_list) {
-        if ((ret = ff_id3v2_write_apic(s, &id3v2, &pict_list->pkt)) < 0)
-            return ret;
-        pict_list = pict_list->next;
+    for (unsigned i = 0; i < s->nb_streams; i++) {
+        if (s->streams[i]->attached_pic.data) {
+            ret = ff_id3v2_write_apic(s, &id3v2, &s->streams[i]->attached_pic);
+            if (ret < 0)
+                return ret;
+        }
     }
     ff_id3v2_finish(&id3v2, pb, s->metadata_header_padding);
 
@@ -111,7 +112,8 @@ static int aiff_write_header(AVFormatContext *s)
         } else if (st->codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
             av_log(s, AV_LOG_ERROR, "AIFF allows only one audio stream and a picture.\n");
             return AVERROR(EINVAL);
-        }
+        } else if (st->attached_pic.data)
+            aiff->has_attached_pics = 1;
     }
     if (aiff->audio_stream_idx < 0) {
         av_log(s, AV_LOG_ERROR, "No audio stream present.\n");
@@ -209,19 +211,24 @@ static int aiff_write_packet(AVFormatContext *s, AVPacket *pkt)
     if (pkt->stream_index == aiff->audio_stream_idx)
         avio_write(pb, pkt->data, pkt->size);
     else {
+        AVStream *st = s->streams[pkt->stream_index];
+
         if (s->streams[pkt->stream_index]->codecpar->codec_type != AVMEDIA_TYPE_VIDEO)
             return 0;
+
+        if (!st->attached_pic.data) {
+            int ret = av_packet_ref(&st->attached_pic, pkt);
+            if (ret < 0)
+                return ret;
+            aiff->has_attached_pics = 1;
+            return 0;
+        }
 
         /* warn only once for each stream */
         if (s->streams[pkt->stream_index]->nb_frames == 1) {
             av_log(s, AV_LOG_WARNING, "Got more than one picture in stream %d,"
                    " ignoring.\n", pkt->stream_index);
         }
-        if (s->streams[pkt->stream_index]->nb_frames >= 1)
-            return 0;
-
-        return ff_packet_list_put(&aiff->pict_list, &aiff->pict_list_end,
-                                  pkt, FF_PACKETLIST_FLAG_REF_PACKET);
     }
 
     return 0;
@@ -268,13 +275,6 @@ static int aiff_write_trailer(AVFormatContext *s)
     return ret;
 }
 
-static void aiff_deinit(AVFormatContext *s)
-{
-    AIFFOutputContext *aiff = s->priv_data;
-
-    ff_packet_list_free(&aiff->pict_list, &aiff->pict_list_end);
-}
-
 #define OFFSET(x) offsetof(AIFFOutputContext, x)
 #define ENC AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption options[] = {
@@ -303,7 +303,6 @@ AVOutputFormat ff_aiff_muxer = {
     .write_header      = aiff_write_header,
     .write_packet      = aiff_write_packet,
     .write_trailer     = aiff_write_trailer,
-    .deinit            = aiff_deinit,
     .codec_tag         = (const AVCodecTag* const []){ ff_codec_aiff_tags, 0 },
     .priv_class        = &aiff_muxer_class,
 };
