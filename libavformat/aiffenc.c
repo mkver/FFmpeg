@@ -58,7 +58,7 @@ static int put_id3v2_tags(AVFormatContext *s, AIFFOutputContext *aiff)
     ff_id3v2_start(&id3v2, pb, aiff->id3v2_version, ID3v2_DEFAULT_MAGIC);
     ff_id3v2_write_metadata(s, &id3v2);
     for (unsigned i = 0; i < s->nb_streams; i++) {
-        if (s->streams[i]->attached_pic.data) {
+        if (s->streams[i]->attached_pic.size) {
             ret = ff_id3v2_write_apic(s, &id3v2, &s->streams[i]->attached_pic);
             if (ret < 0)
                 return ret;
@@ -112,7 +112,7 @@ static int aiff_write_header(AVFormatContext *s)
         } else if (st->codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
             av_log(s, AV_LOG_ERROR, "AIFF allows only one audio stream and a picture.\n");
             return AVERROR(EINVAL);
-        } else if (st->attached_pic.data)
+        } else if (st->attached_pic.size)
             aiff->has_attached_pics = 1;
     }
     if (aiff->audio_stream_idx < 0) {
@@ -216,7 +216,10 @@ static int aiff_write_packet(AVFormatContext *s, AVPacket *pkt)
         if (st->codecpar->codec_type != AVMEDIA_TYPE_VIDEO)
             return 0;
 
-        if (!st->attached_pic.data) {
+        if (!pkt->size)
+            return 0;
+
+        if (!st->attached_pic.size) {
             int ret = av_packet_ref(&st->attached_pic, pkt);
             if (ret < 0)
                 return ret;
