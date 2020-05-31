@@ -1738,7 +1738,7 @@ static void matroska_convert_tag(AVFormatContext *s, EbmlList *list,
         else
             av_strlcpy(key, tags[i].name, sizeof(key));
         if (tags[i].def || !lang) {
-            av_dict_set(metadata, key, tags[i].string, 0);
+            av_dict_set(metadata, key, tags[i].string, AV_DICT_MATCH_CASE);
             if (tags[i].sub.nb_elem)
                 matroska_convert_tag(s, &tags[i].sub, metadata, key);
         }
@@ -1747,7 +1747,7 @@ static void matroska_convert_tag(AVFormatContext *s, EbmlList *list,
             av_strlcat(key, lang, sizeof(key));
             av_dict_set(metadata, key, tags[i].string, 0);
             if (tags[i].sub.nb_elem)
-                matroska_convert_tag(s, &tags[i].sub, metadata, key);
+                matroska_convert_tag(s, &tags[i].sub, metadata, NULL);
         }
     }
     ff_metadata_conv(metadata, NULL, ff_mkv_metadata_conv);

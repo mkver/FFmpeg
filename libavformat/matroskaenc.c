@@ -1141,9 +1141,9 @@ static int mkv_write_track(AVFormatContext *s, MatroskaMuxContext *mkv,
     put_ebml_uid (pb, MATROSKA_ID_TRACKUID,    track->uid);
     put_ebml_uint(pb, MATROSKA_ID_TRACKFLAGLACING, 0);    // no lacing (yet)
 
-    if ((tag = av_dict_get(st->metadata, "title", NULL, 0)))
+    if ((tag = av_dict_get(st->metadata, "title", NULL, AV_DICT_MATCH_CASE)))
         put_ebml_string(pb, MATROSKA_ID_TRACKNAME, tag->value);
-    tag = av_dict_get(st->metadata, "language", NULL, 0);
+    tag = av_dict_get(st->metadata, "language", NULL, AV_DICT_MATCH_CASE);
     put_ebml_string(pb, MATROSKA_ID_TRACKLANGUAGE,
                     tag && tag->value ? tag->value : "und");
 
@@ -1487,16 +1487,16 @@ static int mkv_write_tag_targets(MatroskaMuxContext *mkv, AVIOContext **pb,
 
 static int mkv_check_tag_name(const char *name, uint32_t elementid)
 {
-    return av_strcasecmp(name, "title") &&
+    return strcmp(name, "title") &&
            av_strcasecmp(name, "stereo_mode") &&
            av_strcasecmp(name, "creation_time") &&
            av_strcasecmp(name, "encoding_tool") &&
            av_strcasecmp(name, "duration") &&
            (elementid != MATROSKA_ID_TAGTARGETS_TRACKUID ||
-            av_strcasecmp(name, "language")) &&
+            strcmp(name, "language")) &&
            (elementid != MATROSKA_ID_TAGTARGETS_ATTACHUID ||
-            (av_strcasecmp(name, "filename") &&
-             av_strcasecmp(name, "mimetype")));
+            (strcmp(name, "filename") &&
+             strcmp(name, "mimetype")));
 }
 
 static int mkv_write_tag(MatroskaMuxContext *mkv, const AVDictionary *m,
@@ -1659,7 +1659,7 @@ static int mkv_write_chapters(AVFormatContext *s)
                       (uint32_t)c->id + chapter_id_offset);
         put_ebml_uint(dyn_cp, MATROSKA_ID_CHAPTERTIMESTART, chapterstart);
         put_ebml_uint(dyn_cp, MATROSKA_ID_CHAPTERTIMEEND, chapterend);
-        if ((t = av_dict_get(c->metadata, "title", NULL, 0))) {
+        if ((t = av_dict_get(c->metadata, "title", NULL, AV_DICT_MATCH_CASE))) {
             chapterdisplay = start_ebml_master(dyn_cp, MATROSKA_ID_CHAPTERDISPLAY, 0);
             put_ebml_string(dyn_cp, MATROSKA_ID_CHAPSTRING, t->value);
             put_ebml_string(dyn_cp, MATROSKA_ID_CHAPLANG  , "und");
@@ -1700,7 +1700,7 @@ static const char *get_mimetype(const AVStream *st)
 {
     const AVDictionaryEntry *t;
 
-    if (t = av_dict_get(st->metadata, "mimetype", NULL, 0))
+    if (t = av_dict_get(st->metadata, "mimetype", NULL, AV_DICT_MATCH_CASE))
         return t->value;
     if (st->codecpar->codec_id != AV_CODEC_ID_NONE) {
         const AVCodecDescriptor *desc = avcodec_descriptor_get(st->codecpar->codec_id);
@@ -1738,9 +1738,9 @@ static int mkv_write_attachments(AVFormatContext *s)
 
         attached_file = start_ebml_master(dyn_cp, MATROSKA_ID_ATTACHEDFILE, 0);
 
-        if (t = av_dict_get(st->metadata, "title", NULL, 0))
+        if (t = av_dict_get(st->metadata, "title", NULL, AV_DICT_MATCH_CASE))
             put_ebml_string(dyn_cp, MATROSKA_ID_FILEDESC, t->value);
-        if (!(t = av_dict_get(st->metadata, "filename", NULL, 0))) {
+        if (!(t = av_dict_get(st->metadata, "filename", NULL, AV_DICT_MATCH_CASE))) {
             av_log(s, AV_LOG_ERROR, "Attachment stream %d has no filename tag.\n", i);
             return AVERROR(EINVAL);
         }
@@ -1826,7 +1826,7 @@ static int mkv_write_header(AVFormatContext *s)
     pb = mkv->info.bc;
 
     put_ebml_uint(pb, MATROSKA_ID_TIMECODESCALE, 1000000);
-    if ((tag = av_dict_get(s->metadata, "title", NULL, 0)))
+    if ((tag = av_dict_get(s->metadata, "title", NULL, AV_DICT_MATCH_CASE)))
         put_ebml_string(pb, MATROSKA_ID_TITLE, tag->value);
     if (!(s->flags & AVFMT_FLAG_BITEXACT)) {
         put_ebml_string(pb, MATROSKA_ID_MUXINGAPP, LIBAVFORMAT_IDENT);
