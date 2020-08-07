@@ -55,11 +55,11 @@ static int hwdownload_query_formats(AVFilterContext *avctx)
         }
     }
 
-    if ((err = ff_formats_ref(infmts,  &avctx->inputs[0]->out_formats)) < 0 ||
-        (err = ff_formats_ref(outfmts, &avctx->outputs[0]->in_formats)) < 0)
+    if ((err = ff_formats_ref(infmts,  &avctx->inputs[0]->out_formats)) < 0) {
+        ff_formats_unref(&outfmts);
         return err;
-
-    return 0;
+    }
+    return ff_formats_ref(outfmts, &avctx->outputs[0]->in_formats);
 }
 
 static int hwdownload_config_input(AVFilterLink *inlink)
