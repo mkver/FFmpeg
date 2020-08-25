@@ -866,8 +866,9 @@ static void get_response(int channel, int format, double w,
 static void draw_response(AVFilterContext *ctx, AVFrame *out, int sample_rate)
 {
     AudioIIRContext *s = ctx->priv;
-    double *mag, *phase, *temp, *delay, min = DBL_MAX, max = -DBL_MAX;
+    double *mag, *phase, *delay, min = DBL_MAX, max = -DBL_MAX;
     double min_delay = DBL_MAX, max_delay = -DBL_MAX, min_phase, max_phase;
+    double tmp, oldphase;
     int prev_ymag = -1, prev_yphase = -1, prev_ydelay = -1;
     char text[32];
     int ch, i;
@@ -875,10 +876,9 @@ static void draw_response(AVFilterContext *ctx, AVFrame *out, int sample_rate)
     memset(out->data[0], 0, s->h * out->linesize[0]);
 
     phase = av_malloc_array(s->w, sizeof(*phase));
-    temp = av_malloc_array(s->w, sizeof(*temp));
     mag = av_malloc_array(s->w, sizeof(*mag));
     delay = av_malloc_array(s->w, sizeof(*delay));
-    if (!mag || !phase || !delay || !temp)
+    if (!mag || !phase || !delay)
         goto end;
 
     ch = av_clip(s->ir_channel, 0, s->channels - 1);
@@ -898,17 +898,15 @@ static void draw_response(AVFilterContext *ctx, AVFrame *out, int sample_rate)
         max = fmax(max, mag[i]);
     }
 
-    temp[0] = 0.;
-    for (i = 0; i < s->w - 1; i++) {
-        double d = phase[i] - phase[i + 1];
-        temp[i + 1] = ceil(fabs(d) / (2. * M_PI)) * 2. * M_PI * ((d > M_PI) - (d < -M_PI));
-    }
-
+    tmp = 0.;
+    oldphase  = phase[0];
     min_phase = phase[0];
     max_phase = phase[0];
     for (i = 1; i < s->w; i++) {
-        temp[i] += temp[i - 1];
-        phase[i] += temp[i];
+        double d  = oldphase - phase[i];
+        oldphase  = phase[i];
+        tmp += ceil(fabs(d) / (2. * M_PI)) * 2. * M_PI * ((d > M_PI) - (d < -M_PI));
+        phase[i] += tmp;
         min_phase = fmin(min_phase, phase[i]);
         max_phase = fmax(max_phase, phase[i]);
     }
@@ -975,7 +973,6 @@ static void draw_response(AVFilterContext *ctx, AVFrame *out, int sample_rate)
 
 end:
     av_free(delay);
-    av_free(temp);
     av_free(phase);
     av_free(mag);
 }
