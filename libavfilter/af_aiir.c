@@ -903,20 +903,17 @@ static void draw_response(AVFilterContext *ctx, AVFrame *out, int sample_rate)
     min_phase = phase[0];
     max_phase = phase[0];
     for (i = 1; i < s->w; i++) {
+        double div = s->w / (double)sample_rate;
         double d  = oldphase - phase[i];
         oldphase  = phase[i];
         tmp += ceil(fabs(d) / (2. * M_PI)) * 2. * M_PI * ((d > M_PI) - (d < -M_PI));
         phase[i] += tmp;
         min_phase = fmin(min_phase, phase[i]);
         max_phase = fmax(max_phase, phase[i]);
-    }
 
-    for (i = 0; i < s->w - 1; i++) {
-        double div = s->w / (double)sample_rate;
-
-        delay[i + 1] = -(phase[i] - phase[i + 1]) / div;
-        min_delay = fmin(min_delay, delay[i + 1]);
-        max_delay = fmax(max_delay, delay[i + 1]);
+        delay[i] = -(phase[i - 1] - phase[i]) / div;
+        min_delay = fmin(min_delay, delay[i]);
+        max_delay = fmax(max_delay, delay[i]);
     }
     delay[0] = delay[1];
 
