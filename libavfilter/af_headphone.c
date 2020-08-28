@@ -183,10 +183,10 @@ static int headphone_convolute(AVFilterContext *ctx, void *arg, int jobnr, int n
             if (read + ir_len < buffer_length) {
                 memcpy(temp_src, bptr + read, ir_len * sizeof(*temp_src));
             } else {
-                int len = FFMIN(air_len - (read % ir_len), buffer_length - read);
+                int len = buffer_length - read;
 
                 memcpy(temp_src, bptr + read, len * sizeof(*temp_src));
-                memcpy(temp_src + len, bptr, (air_len - len) * sizeof(*temp_src));
+                memcpy(temp_src + len, bptr, (ir_len - len) * sizeof(*temp_src));
             }
 
             dst[0] += s->scalarproduct_float(cur_ir, temp_src, FFALIGN(ir_len, 32));
