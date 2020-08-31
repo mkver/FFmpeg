@@ -189,7 +189,7 @@ static int headphone_convolute(AVFilterContext *ctx, void *arg, int jobnr, int n
                 memcpy(temp_src + len, bptr, (ir_len - len) * sizeof(*temp_src));
             }
 
-            dst[0] += s->scalarproduct_float(cur_ir, temp_src, FFALIGN(ir_len, 32));
+            dst[0] += s->scalarproduct_float(cur_ir, temp_src, air_len);
         }
 
         if (fabsf(dst[0]) > 1)
@@ -361,11 +361,10 @@ static int convert_coeffs(AVFilterContext *ctx, AVFilterLink *inlink)
     int n_fft;
     int i, j, k;
 
-    s->air_len = 1 << (32 - ff_clz(ir_len));
+    s->buffer_length = 1 << (32 - ff_clz((ir_len - 1)|1));
     if (s->type == TIME_DOMAIN) {
-        s->air_len = FFALIGN(s->air_len, 32);
+        s->air_len = FFALIGN(s->ir_len, 32);
     }
-    s->buffer_length = 1 << (32 - ff_clz(s->air_len));
     s->n_fft = n_fft = 1 << (32 - ff_clz(ir_len + s->size));
 
     if (s->type == FREQUENCY_DOMAIN) {
