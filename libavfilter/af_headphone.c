@@ -358,16 +358,22 @@ static int convert_coeffs(AVFilterContext *ctx, AVFilterLink *inlink)
     float gain_lin = expf((s->gain - 3 * nb_input_channels) / 20 * M_LN10);
     AVFrame *frame;
     int ret = 0;
-    int n_fft;
+    int n_fft, buffer_alloc;
     int i, j, k;
 
-    s->buffer_length = 1 << (32 - ff_clz((ir_len - 1)|1));
+    buffer_alloc = s->buffer_length = 1 << (32 - ff_clz((ir_len - 1)|1));
     if (s->type == TIME_DOMAIN) {
-        s->air_len = FFALIGN(s->ir_len, 32);
+        s->air_len   = FFALIGN(ir_len, 32);
+        buffer_alloc = (buffer_alloc + s->air_len) * nb_input_channels
+                       + s->air_len;
     }
-    s->n_fft = n_fft = 1 << (32 - ff_clz(ir_len + s->size));
+    s->ringbuffer[0] = av_calloc(buffer_alloc, 2 * sizeof(float));
+    if (!s->ringbuffer[0])
+        return AVERROR(ENOMEM);
 
     if (s->type == FREQUENCY_DOMAIN) {
+        s->ringbuffer[1] = s->ringbuffer[0] + s->buffer_length;
+        s->n_fft = n_fft = 1 << (32 - ff_clz(ir_len + s->size));
         s->fft[0] = av_fft_init(av_log2(s->n_fft), 0);
         s->fft[1] = av_fft_init(av_log2(s->n_fft), 0);
         s->ifft[0] = av_fft_init(av_log2(s->n_fft), 1);
@@ -378,47 +384,21 @@ static int convert_coeffs(AVFilterContext *ctx, AVFilterLink *inlink)
             ret = AVERROR(ENOMEM);
             goto fail;
         }
-    }
-
-    if (s->type == TIME_DOMAIN) {
-        s->ringbuffer[0] = av_calloc(s->buffer_length, sizeof(float) * nb_input_channels);
-        s->ringbuffer[1] = av_calloc(s->buffer_length, sizeof(float) * nb_input_channels);
+        s->data_hrtf[0]  = av_calloc(n_fft * (nb_input_channels + 2),
+                                     2 * sizeof(FFTComplex));
+        if (!s->data_hrtf[0])
+            return AVERROR(ENOMEM);
+        s->data_hrtf[1]  = s->data_hrtf[0]  + n_fft * nb_input_channels;
+        s->temp_fft[0]   = s->data_hrtf[1]  + n_fft * nb_input_channels;
+        s->temp_fft[1]   = s->temp_fft[0]   + n_fft;
+        s->temp_afft[0]  = s->temp_fft[1]   + n_fft;
+        s->temp_afft[1]  = s->temp_afft[0]  + n_fft;
     } else {
-        s->ringbuffer[0] = av_calloc(s->buffer_length, sizeof(float));
-        s->ringbuffer[1] = av_calloc(s->buffer_length, sizeof(float));
-        s->temp_fft[0] = av_calloc(s->n_fft, sizeof(FFTComplex));
-        s->temp_fft[1] = av_calloc(s->n_fft, sizeof(FFTComplex));
-        s->temp_afft[0] = av_calloc(s->n_fft, sizeof(FFTComplex));
-        s->temp_afft[1] = av_calloc(s->n_fft, sizeof(FFTComplex));
-        if (!s->temp_fft[0] || !s->temp_fft[1] ||
-            !s->temp_afft[0] || !s->temp_afft[1]) {
-            ret = AVERROR(ENOMEM);
-            goto fail;
-        }
-    }
-
-    if (!s->ringbuffer[0] || !s->ringbuffer[1]) {
-        ret = AVERROR(ENOMEM);
-        goto fail;
-    }
-
-    if (s->type == TIME_DOMAIN) {
-        s->temp_src[0] = av_calloc(s->air_len, sizeof(float));
-        s->temp_src[1] = av_calloc(s->air_len, sizeof(float));
-
-        s->data_ir[0] = av_calloc(nb_input_channels * s->air_len, sizeof(*s->data_ir[0]));
-        s->data_ir[1] = av_calloc(nb_input_channels * s->air_len, sizeof(*s->data_ir[1]));
-        if (!s->data_ir[0] || !s->data_ir[1] || !s->temp_src[0] || !s->temp_src[1]) {
-            ret = AVERROR(ENOMEM);
-            goto fail;
-        }
-    } else {
-        s->data_hrtf[0] = av_calloc(n_fft, sizeof(*s->data_hrtf[0]) * nb_input_channels);
-        s->data_hrtf[1] = av_calloc(n_fft, sizeof(*s->data_hrtf[1]) * nb_input_channels);
-        if (!s->data_hrtf[0] || !s->data_hrtf[1]) {
-            ret = AVERROR(ENOMEM);
-            goto fail;
-        }
+        s->ringbuffer[1] = s->ringbuffer[0] + nb_input_channels * s->buffer_length;
+        s->data_ir[0]    = s->ringbuffer[1] + nb_input_channels * s->buffer_length;
+        s->data_ir[1]    = s->data_ir[0]    + nb_input_channels * s->air_len;
+        s->temp_src[0]   = s->data_ir[1]    + nb_input_channels * s->air_len;
+        s->temp_src[1]   = s->temp_src[0]   + s->air_len;
     }
 
     for (i = 0; i < s->nb_hrir_inputs; av_frame_free(&frame), i++) {
@@ -698,18 +678,8 @@ static av_cold void uninit(AVFilterContext *ctx)
     av_fft_end(s->ifft[1]);
     av_fft_end(s->fft[0]);
     av_fft_end(s->fft[1]);
-    av_freep(&s->data_ir[0]);
-    av_freep(&s->data_ir[1]);
     av_freep(&s->ringbuffer[0]);
-    av_freep(&s->ringbuffer[1]);
-    av_freep(&s->temp_src[0]);
-    av_freep(&s->temp_src[1]);
-    av_freep(&s->temp_fft[0]);
-    av_freep(&s->temp_fft[1]);
-    av_freep(&s->temp_afft[0]);
-    av_freep(&s->temp_afft[1]);
     av_freep(&s->data_hrtf[0]);
-    av_freep(&s->data_hrtf[1]);
 
     for (unsigned i = 1; i < ctx->nb_inputs; i++)
         av_freep(&ctx->input_pads[i].name);
