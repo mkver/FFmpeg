@@ -167,14 +167,14 @@ static int headphone_convolute(AVFilterContext *ctx, void *arg, int jobnr, int n
 
         *dst = 0;
         for (l = 0; l < in_channels; l++) {
-            *(buffer[l] + wr) = src[l];
+            buffer[l][wr] = src[l];
         }
 
         for (l = 0; l < in_channels; cur_ir += air_len, l++) {
             const float *const bptr = buffer[l];
 
             if (l == s->lfe_channel) {
-                *dst += *(buffer[s->lfe_channel] + wr) * s->gain_lfe;
+                *dst += bptr[wr] * s->gain_lfe;
                 continue;
             }
 
@@ -288,7 +288,7 @@ static int headphone_fast_convolute(AVFilterContext *ctx, void *arg, int jobnr, 
     for (j = 0; j < ir_len - 1; j++) {
         int write_pos = (wr + j) & modulo;
 
-        *(ringbuffer + write_pos) += fft_acc[in->nb_samples + j].re * fft_scale;
+        ringbuffer[write_pos] += fft_acc[in->nb_samples + j].re * fft_scale;
     }
 
     *write = wr;
@@ -357,9 +357,8 @@ static int convert_coeffs(AVFilterContext *ctx, AVFilterLink *inlink)
     int nb_input_channels = ctx->inputs[0]->channels;
     float gain_lin = expf((s->gain - 3 * nb_input_channels) / 20 * M_LN10);
     AVFrame *frame;
-    int ret = 0;
+    int ret;
     int n_fft, buffer_alloc;
-    int i, j, k;
 
     buffer_alloc = s->buffer_length = 1 << (32 - ff_clz((ir_len - 1)|1));
     if (s->type == TIME_DOMAIN) {
@@ -381,8 +380,7 @@ static int convert_coeffs(AVFilterContext *ctx, AVFilterLink *inlink)
 
         if (!s->fft[0] || !s->fft[1] || !s->ifft[0] || !s->ifft[1]) {
             av_log(ctx, AV_LOG_ERROR, "Unable to create FFT contexts of size %d.\n", s->n_fft);
-            ret = AVERROR(ENOMEM);
-            goto fail;
+            return AVERROR(ENOMEM);
         }
         s->data_hrtf[0]  = av_calloc(n_fft * (nb_input_channels + 2),
                                      2 * sizeof(FFTComplex));
@@ -403,51 +401,50 @@ static int convert_coeffs(AVFilterContext *ctx, AVFilterLink *inlink)
 
     // When HRIR_MULTI format is used, the outer loop will be run only once;
     // otherwise, each inner loop is run only once.
-    for (i = 0; i < s->nb_hrir_inputs; av_frame_free(&frame), i++) {
+    for (int i = 0; i < s->nb_hrir_inputs; av_frame_free(&frame), i++) {
         int len = s->hrir_in[i].ir_len, N = ctx->inputs[i + 1]->channels;
         float *ptr;
 
         ret = ff_inlink_consume_samples(ctx->inputs[i + 1], len, len, &frame);
         if (ret < 0)
-            goto fail;
+            return ret;
         ptr = (float *)frame->extended_data[0];
 
-            for (k = 0; k < N / 2; k++) {
+        for (int k = 0; k < N / 2; k++) {
             int I, idx = av_get_channel_layout_channel_index(inlink->channel_layout,
                                                              s->mapping[i + k]);
-                if (idx < 0)
-                    continue;
+            if (idx < 0)
+                continue;
 
-                I = k * 2;
-                if (s->type == TIME_DOMAIN) {
-                    float *data_ir_l = s->data_ir[0] + idx * s->air_len;
-                    float *data_ir_r = s->data_ir[1] + idx * s->air_len;
+            I = k * 2;
+            if (s->type == TIME_DOMAIN) {
+                float *data_ir_l = s->data_ir[0] + idx * s->air_len;
+                float *data_ir_r = s->data_ir[1] + idx * s->air_len;
 
-                    for (j = 0; j < len; j++) {
-                        data_ir_l[j] = ptr[len * N - j * N - N + I    ] * gain_lin;
-                        data_ir_r[j] = ptr[len * N - j * N - N + I + 1] * gain_lin;
-                    }
-                } else {
-                    FFTComplex *fft_in_l = s->data_hrtf[0] + idx * n_fft;
-                    FFTComplex *fft_in_r = s->data_hrtf[1] + idx * n_fft;
-
-                    for (j = 0; j < len; j++) {
-                        fft_in_l[j].re = ptr[j * N + I    ] * gain_lin;
-                        fft_in_r[j].re = ptr[j * N + I + 1] * gain_lin;
-                    }
-
-                    av_fft_permute(s->fft[0], fft_in_l);
-                    av_fft_calc(s->fft[0], fft_in_l);
-                    av_fft_permute(s->fft[0], fft_in_r);
-                    av_fft_calc(s->fft[0], fft_in_r);
+                for (int j = 0; j < len; j++) {
+                    data_ir_l[j] = ptr[len * N - j * N - N + I    ] * gain_lin;
+                    data_ir_r[j] = ptr[len * N - j * N - N + I + 1] * gain_lin;
                 }
+            } else {
+                FFTComplex *fft_in_l = s->data_hrtf[0] + idx * n_fft;
+                FFTComplex *fft_in_r = s->data_hrtf[1] + idx * n_fft;
+
+                for (int j = 0; j < len; j++) {
+                    fft_in_l[j].re = ptr[j * N + I    ] * gain_lin;
+                    fft_in_r[j].re = ptr[j * N + I + 1] * gain_lin;
+                }
+
+                av_fft_permute(s->fft[0], fft_in_l);
+                av_fft_calc   (s->fft[0], fft_in_l);
+                av_fft_permute(s->fft[0], fft_in_r);
+                av_fft_calc   (s->fft[0], fft_in_r);
             }
+        }
     }
 
     s->have_hrirs = 1;
 
-fail:
-    return ret;
+    return 0;
 }
 
 static int activate(AVFilterContext *ctx)
