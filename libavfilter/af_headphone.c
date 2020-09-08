@@ -401,8 +401,10 @@ static int convert_coeffs(AVFilterContext *ctx, AVFilterLink *inlink)
         s->temp_src[1]   = s->temp_src[0]   + s->air_len;
     }
 
+    // When HRIR_MULTI format is used, the outer loop will be run only once;
+    // otherwise, each inner loop is run only once.
     for (i = 0; i < s->nb_hrir_inputs; av_frame_free(&frame), i++) {
-        int len = s->hrir_in[i].ir_len;
+        int len = s->hrir_in[i].ir_len, N = ctx->inputs[i + 1]->channels;
         float *ptr;
 
         ret = ff_inlink_consume_samples(ctx->inputs[i + 1], len, len, &frame);
@@ -410,39 +412,9 @@ static int convert_coeffs(AVFilterContext *ctx, AVFilterLink *inlink)
             goto fail;
         ptr = (float *)frame->extended_data[0];
 
-        if (s->hrir_fmt == HRIR_STEREO) {
-            int idx = av_get_channel_layout_channel_index(inlink->channel_layout,
-                                                          s->mapping[i]);
-            if (idx < 0)
-                continue;
-            if (s->type == TIME_DOMAIN) {
-                float *data_ir_l = s->data_ir[0] + idx * s->air_len;
-                float *data_ir_r = s->data_ir[1] + idx * s->air_len;
-
-                for (j = 0; j < len; j++) {
-                    data_ir_l[j] = ptr[len * 2 - j * 2 - 2] * gain_lin;
-                    data_ir_r[j] = ptr[len * 2 - j * 2 - 1] * gain_lin;
-                }
-            } else {
-                FFTComplex *fft_in_l = s->data_hrtf[0] + idx * n_fft;
-                FFTComplex *fft_in_r = s->data_hrtf[1] + idx * n_fft;
-
-                for (j = 0; j < len; j++) {
-                    fft_in_l[j].re = ptr[j * 2    ] * gain_lin;
-                    fft_in_r[j].re = ptr[j * 2 + 1] * gain_lin;
-                }
-
-                av_fft_permute(s->fft[0], fft_in_l);
-                av_fft_calc(s->fft[0], fft_in_l);
-                av_fft_permute(s->fft[0], fft_in_r);
-                av_fft_calc(s->fft[0], fft_in_r);
-            }
-        } else {
-            int I, N = ctx->inputs[1]->channels;
-
             for (k = 0; k < N / 2; k++) {
-                int idx = av_get_channel_layout_channel_index(inlink->channel_layout,
-                                                              s->mapping[k]);
+            int I, idx = av_get_channel_layout_channel_index(inlink->channel_layout,
+                                                             s->mapping[i + k]);
                 if (idx < 0)
                     continue;
 
@@ -470,7 +442,6 @@ static int convert_coeffs(AVFilterContext *ctx, AVFilterLink *inlink)
                     av_fft_calc(s->fft[0], fft_in_r);
                 }
             }
-        }
     }
 
     s->have_hrirs = 1;
