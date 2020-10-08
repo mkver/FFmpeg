@@ -56,6 +56,7 @@ typedef struct MPEG2MetadataContext {
     AVRational frame_rate;
 
     int flags;
+    unsigned progressivable_frames;
 
     int video_format;
     int colour_primaries;
@@ -78,6 +79,7 @@ typedef struct SliceContext {
     uint8_t frame_pred_frame_dct;
     uint8_t concealment_motion_vectors;
     uint8_t intra_vlc_format;
+    uint8_t progressivable;
 
     uint8_t block_count; /* derived from chroma_format */
 } SliceContext;
@@ -146,6 +148,8 @@ static int macroblock_modes(SliceContext *ctx, GetBitContext *gb)
                 motion_type = 2;
             ctx->motion_vector_count = 1 + (motion_type == 1);
             ctx->frame_mv = motion_type == 2;
+            if (motion_type != 2)
+                ctx->progressivable = 0;
         } else {
             motion_type = get_bits(gb, 2);
             ctx->motion_vector_count = 1 + (motion_type == 2);
@@ -162,7 +166,8 @@ static int macroblock_modes(SliceContext *ctx, GetBitContext *gb)
     if ((ctx->picture_structure == PICT_FRAME) &&
         !ctx->frame_pred_frame_dct &&
         ctx->mb_type & (MB_INTRA|MB_PAT)) {
-        skip_bits1(gb); /* dct_type */
+        if (get_bits1(gb)) /* dct_type */
+            ctx->progressivable = 0;
     }
 
     return 0;
@@ -355,7 +360,7 @@ static int parse_slice_data(SliceContext *ctx, MPEG2RawSlice *slice, void *log)
 
 static void update_slices(AVBSFContext *bsf, CodedBitstreamFragment *frag)
 {
-    const MPEG2MetadataContext *const ctx = bsf->priv_data;
+    MPEG2MetadataContext *const ctx = bsf->priv_data;
     const CodedBitstreamMPEG2Context *const mpeg2 = ctx->cbc->priv_data;
     const MPEG2RawPictureHeader *pic = NULL;
     const MPEG2RawPictureCodingExtension *pic_ext = NULL;
@@ -408,8 +413,13 @@ static void update_slices(AVBSFContext *bsf, CodedBitstreamFragment *frag)
             slice.frame_pred_frame_dct       = pic_ext->frame_pred_frame_dct;
             slice.concealment_motion_vectors = pic_ext->concealment_motion_vectors;
             slice.intra_vlc_format           = pic_ext->intra_vlc_format;
+            slice.progressivable = slice.picture_structure == PICT_FRAME && !slice.frame_pred_frame_dct;
         }
     }
+    if (!pic_ext)
+        return;
+    if (slice.progressivable)
+        ctx->progressivable_frames++;
 }
 
 static int mpeg2_metadata_update_fragment(AVBSFContext *bsf,
@@ -712,6 +722,10 @@ fail:
 static void mpeg2_metadata_close(AVBSFContext *bsf)
 {
     MPEG2MetadataContext *ctx = bsf->priv_data;
+
+    if (ctx->flags & TRIM_PADDING)
+        av_log(bsf, AV_LOG_INFO, "%u frames are lacking frame_pred_frame_dct.\n",
+               ctx->progressivable_frames);
 
     ff_cbs_fragment_free(&ctx->fragment);
     ff_cbs_close(&ctx->cbc);
