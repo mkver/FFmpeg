@@ -27,6 +27,7 @@
 #include "get_bits.h"
 #include "mpeg12.h"
 #include "mpeg12vlc.h"
+#include "put_bits.h"
 
 #define MB_QUANT (1 << 0)
 #define MB_FOR   (1 << 1)
@@ -40,6 +41,7 @@ enum {
     NO_REPEAT            =   1 << 2,
     PROGRESSIVE_SEQUENCE =   1 << 3,
     TRIM_PADDING         =   1 << 4,
+    PROGRESSIVE_PRED     =   1 << 5,
 };
 
 typedef struct MPEG2MetadataContext {
@@ -53,6 +55,11 @@ typedef struct MPEG2MetadataContext {
 
     int flags;
     unsigned progressivable_frames;
+
+    uint8_t  *slice_buf;
+    unsigned  slice_buf_size;
+    unsigned *slice_sizes;
+    unsigned  slice_sizes_size;
 
     int video_format;
     int colour_primaries;
@@ -75,9 +82,12 @@ typedef struct SliceContext {
     uint8_t frame_pred_frame_dct;
     uint8_t concealment_motion_vectors;
     uint8_t intra_vlc_format;
-    uint8_t progressivable;
 
     uint8_t block_count; /* derived from chroma_format */
+
+    int8_t progressivable;
+    GetBitContext gb;
+    PutBitContext pb;
 } SliceContext;
 
 static const uint8_t ptype2mb_type[7] = {
@@ -103,6 +113,61 @@ static const uint8_t btype2mb_type[11] = {
     MB_QUANT | MB_FOR |           MB_PAT,
     MB_QUANT | MB_FOR | MB_BACK | MB_PAT
 };
+
+#if ARCH_X86_64
+static inline void put_bits_64(PutBitContext *s, uint64_t val)
+{
+    uint64_t bit_buf  = s->bit_buf;
+    unsigned bit_left = s->bit_left;
+
+    AV_WB64(s->buf_ptr, (bit_buf << bit_left) | (val >> (64 - bit_left)));
+    s->bit_buf  = (val << bit_left) >> bit_left;
+    s->buf_ptr += 8;
+}
+#else
+#define put_bits_64(pb, val) put_bits64(pb, 64, val)
+#endif
+
+static void copy_slice_data(SliceContext *ctx, GetBitContext *gb)
+{
+    unsigned pos_new = get_bits_count(gb), pos_old = get_bits_count(&ctx->gb), rest;
+    const uint8_t *src, *end;
+
+    if (pos_new / 8 == pos_old / 8)
+        goto rest;
+
+    /* Align the reader */
+    if (pos_old % 8)
+        put_bits(&ctx->pb, 8 - pos_old % 8, get_bits(&ctx->gb, 8 - pos_old % 8));
+
+    pos_old  = get_bits_count(&ctx->gb);
+    src      = ctx->gb.buffer + pos_old / 8;
+    rest     = pos_new - pos_old;
+    end      = src + rest / 64 * 8;
+
+    if (ctx->pb.bit_left == 64) {
+        uint8_t *dst = put_bits_ptr(&ctx->pb);
+
+        skip_bits(&ctx->gb, rest / 8 * 8);
+        ctx->pb.buf_ptr += rest / 8;
+        memcpy(dst, src, rest / 8);
+        goto rest;
+    }
+    for (; src < end; src += 8)
+        put_bits_64(&ctx->pb, AV_RB64(src));
+
+    skip_bits(&ctx->gb, rest / 16 * 16);
+    rest %= 64;
+    end   = src + rest / 16 * 2;
+
+    for (; src < end; src += 2)
+        put_bits(&ctx->pb, 16, AV_RB16(src));
+
+rest:
+    rest = get_bits_count(gb) - get_bits_count(&ctx->gb);
+    put_bits(&ctx->pb, rest, get_bitsz(&ctx->gb, rest));
+    return;
+}
 
 static int macroblock_modes(SliceContext *ctx, GetBitContext *gb)
 {
@@ -135,6 +200,9 @@ static int macroblock_modes(SliceContext *ctx, GetBitContext *gb)
 
     /* spatial_temporal_weight_code omitted */
 
+    if (ctx->progressivable > 0)
+        copy_slice_data(ctx, gb);
+
     if (ctx->mb_type & (MB_FOR|MB_BACK)) {
         int motion_type;
         if (ctx->picture_structure == PICT_FRAME) {
@@ -165,6 +233,9 @@ static int macroblock_modes(SliceContext *ctx, GetBitContext *gb)
         if (get_bits1(gb)) /* dct_type */
             ctx->progressivable = 0;
     }
+    /* Store the position immediately after the fields
+     * depending on frame_pred_frame_dct */
+    ctx->gb = *gb;
 
     return 0;
 }
@@ -330,13 +401,20 @@ static int parse_macroblock(SliceContext *ctx, GetBitContext *gb)
     return 0;
 }
 
-static int parse_slice_data(SliceContext *ctx, MPEG2RawSlice *slice, void *log)
+static int parse_slice_data(SliceContext *ctx, MPEG2RawSlice *slice,
+                            int *slice_size, void *log)
 {
     GetBitContext gb;
+    uint8_t *start;
     int ret;
 
     init_get_bits8(&gb, slice->data, slice->data_size);
     skip_bits(&gb, slice->data_bit_start);
+    if (ctx->progressivable > 0) {
+        ctx->gb = gb;
+        start = put_bits_ptr(&ctx->pb);
+        put_bits(&ctx->pb, slice->data_bit_start, 0);
+    }
 
     do {
         ret = parse_macroblock(ctx, &gb);
@@ -347,6 +425,11 @@ static int parse_slice_data(SliceContext *ctx, MPEG2RawSlice *slice, void *log)
     if (get_bits_left(&gb) < 0) {
         av_log(log, AV_LOG_ERROR, "Truncated slice\n");
         return AVERROR_INVALIDDATA;
+    }
+    if (ctx->progressivable > 0) {
+        copy_slice_data(ctx, &gb);
+        flush_put_bits(&ctx->pb);
+        *slice_size = put_bits_ptr(&ctx->pb) - start;
     }
 
     slice->data_size = (get_bits_count(&gb) + 7) >> 3;
@@ -359,8 +442,9 @@ static void update_slices(AVBSFContext *bsf, CodedBitstreamFragment *frag)
     MPEG2MetadataContext *const ctx = bsf->priv_data;
     const CodedBitstreamMPEG2Context *const mpeg2 = ctx->common.input->priv_data;
     const MPEG2RawPictureHeader *pic = NULL;
-    const MPEG2RawPictureCodingExtension *pic_ext = NULL;
+    MPEG2RawPictureCodingExtension *pic_ext = NULL;
     SliceContext slice;
+    int *next_slice_size;
     int ret;
 
     if (!mpeg2->chroma_format)
@@ -373,12 +457,13 @@ static void update_slices(AVBSFContext *bsf, CodedBitstreamFragment *frag)
         if (MPEG2_START_IS_SLICE(unit->type)) {
             if (!pic || !pic_ext)
                 return;
-            ret = parse_slice_data(&slice, unit->content, bsf);
+            ret = parse_slice_data(&slice, unit->content, next_slice_size, bsf);
             if (ret < 0) {
                 av_log(bsf, AV_LOG_ERROR, "Error parsing slice %"PRIX32"\n",
                        unit->type);
                 return;
             }
+            next_slice_size++;
         } else if (unit->type == MPEG2_START_PICTURE) {
             if (pic)
                 return;
@@ -387,11 +472,11 @@ static void update_slices(AVBSFContext *bsf, CodedBitstreamFragment *frag)
                 return;
             slice.picture_coding_type = pic->picture_coding_type;
         } else if (unit->type == MPEG2_START_EXTENSION) {
-            const MPEG2RawExtensionData *ext = unit->content;
+            MPEG2RawExtensionData *ext = unit->content;
             if (ext->extension_start_code_identifier !=
                     MPEG2_EXTENSION_PICTURE_CODING)
                 continue;
-            if (pic_ext)
+            if (pic_ext || !pic)
                 return;
             pic_ext = &ext->data.picture_coding;
 
@@ -409,13 +494,59 @@ static void update_slices(AVBSFContext *bsf, CodedBitstreamFragment *frag)
             slice.frame_pred_frame_dct       = pic_ext->frame_pred_frame_dct;
             slice.concealment_motion_vectors = pic_ext->concealment_motion_vectors;
             slice.intra_vlc_format           = pic_ext->intra_vlc_format;
+
             slice.progressivable = slice.picture_structure == PICT_FRAME && !slice.frame_pred_frame_dct;
+            if (slice.progressivable && ctx->flags & PROGRESSIVE_PRED) {
+                if (ctx->slice_sizes_size < frag->nb_units) {
+                    unsigned *tmp = av_realloc_array(ctx->slice_sizes, frag->nb_units,
+                                                     sizeof(*ctx->slice_sizes));
+                    if (!tmp)
+                        return;
+                    ctx->slice_sizes      = tmp;
+                    ctx->slice_sizes_size = frag->nb_units;
+                }
+                if (ctx->slice_buf_size < frag->data_size) {
+                    uint8_t *tmp = av_fast_realloc(ctx->slice_buf, &ctx->slice_buf_size,
+                                                   frag->data_size + AV_INPUT_BUFFER_PADDING_SIZE);
+                    if (!tmp)
+                        return;
+                    ctx->slice_buf       = tmp;
+                    ctx->slice_buf_size -= AV_INPUT_BUFFER_PADDING_SIZE;
+                }
+
+                init_put_bits(&slice.pb, ctx->slice_buf, ctx->slice_buf_size);
+                next_slice_size = ctx->slice_sizes;
+            } else
+                slice.progressivable *= -1;
         }
     }
     if (!pic_ext)
         return;
     if (slice.progressivable)
         ctx->progressivable_frames++;
+    if (slice.progressivable > 0) {
+        uint8_t *data = ctx->slice_buf;
+
+        pic_ext->frame_pred_frame_dct = 1;
+
+        next_slice_size = ctx->slice_sizes;
+        for (int i = 0; i < frag->nb_units; i++) {
+            CodedBitstreamUnit *unit = &frag->units[i];
+            MPEG2RawSlice *rawslice;
+
+            if (!MPEG2_START_IS_SLICE(unit->type))
+                continue;
+
+            rawslice = unit->content;
+            av_buffer_unref(&rawslice->data_ref);
+            rawslice->data      = data;
+            rawslice->data_size = *next_slice_size;
+            data += *next_slice_size;
+            next_slice_size++;
+        }
+
+        memset(data, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+    }
 }
 
 static int mpeg2_metadata_update_fragment(AVBSFContext *bsf,
@@ -428,7 +559,7 @@ static int mpeg2_metadata_update_fragment(AVBSFContext *bsf,
     MPEG2RawSequenceDisplayExtension *sde = NULL;
     int i, se_pos;
 
-    if (ctx->flags & TRIM_PADDING)
+    if (ctx->flags & (TRIM_PADDING|PROGRESSIVE_PRED))
         update_slices(bsf, frag);
 
     for (i = 0; i < frag->nb_units; i++) {
@@ -638,7 +769,7 @@ static int mpeg2_metadata_init(AVBSFContext *bsf)
     VALIDITY_CHECK(matrix_coefficients);
 #undef VALIDITY_CHECK
 
-    if (ctx->flags & TRIM_PADDING)
+    if (ctx->flags & (TRIM_PADDING|PROGRESSIVE_PRED))
         ff_mpeg12_init_vlcs();
 
     field_order = (ctx->flags & PROGRESSIVE_SEQUENCE)  ? AV_FIELD_PROGRESSIVE
@@ -657,9 +788,12 @@ static void mpeg2_metadata_close(AVBSFContext *bsf)
 {
     MPEG2MetadataContext *ctx = bsf->priv_data;
 
-    if (ctx->flags & TRIM_PADDING)
-        av_log(bsf, AV_LOG_INFO, "%u frames are lacking frame_pred_frame_dct.\n",
-               ctx->progressivable_frames);
+    if (ctx->flags & (TRIM_PADDING|PROGRESSIVE_PRED))
+        av_log(bsf, AV_LOG_INFO, "%u frames%s have been switched to frame_pred_frame_dct.\n",
+               ctx->progressivable_frames, ctx->flags & PROGRESSIVE_PRED ? "" : " could");
+
+    av_freep(&ctx->slice_buf);
+    av_freep(&ctx->slice_sizes);
 
     ff_cbs_bsf_generic_close(bsf);
 }
@@ -692,6 +826,9 @@ static const AVOption mpeg2_metadata_options[] = {
         0, INT_MAX, FLAGS, "flags" },
     { "trim_padding", "Trim padding bits (slow)",
         0, AV_OPT_TYPE_CONST, { .i64 = TRIM_PADDING },
+        0, INT_MAX, FLAGS, "flags" },
+    { "progressive_pred", "Set frame_pred_frame_dct when possible",
+        0, AV_OPT_TYPE_CONST, { .i64 = PROGRESSIVE_PRED },
         0, INT_MAX, FLAGS, "flags" },
 
     { "video_format", "Set video format (table 6-6)",
