@@ -55,6 +55,7 @@ typedef struct MPEG2MetadataContext {
 
     int flags;
     unsigned progressivable_frames;
+    uint64_t nb_redundant_quantiser_scale_code;
 
     uint8_t  *slice_buf;
     unsigned  slice_buf_size;
@@ -74,6 +75,7 @@ typedef struct SliceContext {
     uint8_t motion_vector_count;
     uint8_t frame_mv;
     uint8_t dmv;
+    uint8_t quantiser_scale_code;
 
     uint8_t picture_coding_type;
 
@@ -86,6 +88,8 @@ typedef struct SliceContext {
     uint8_t block_count; /* derived from chroma_format */
 
     int8_t progressivable;
+
+    unsigned nb_redundant_quantiser_scale_code;
     GetBitContext gb;
     PutBitContext pb;
 } SliceContext;
@@ -376,8 +380,13 @@ static int parse_macroblock(SliceContext *ctx, GetBitContext *gb)
     if (ret < 0)
         return ret;
 
-    if (ctx->mb_type & MB_QUANT)
-        skip_bits(gb, 5); /* quantiser_scale_code */
+    if (ctx->mb_type & MB_QUANT) {
+        uint8_t quantiser_scale_code = get_bits(gb, 5);
+        if (quantiser_scale_code == ctx->quantiser_scale_code)
+            ctx->nb_redundant_quantiser_scale_code++;
+        else
+            ctx->quantiser_scale_code = quantiser_scale_code;
+    }
 
     if (ctx->mb_type & MB_FOR ||
         (ctx->mb_type & MB_INTRA && ctx->concealment_motion_vectors)) {
@@ -415,6 +424,7 @@ static int parse_slice_data(SliceContext *ctx, MPEG2RawSlice *slice,
         start = put_bits_ptr(&ctx->pb);
         put_bits(&ctx->pb, slice->data_bit_start, 0);
     }
+    ctx->quantiser_scale_code = slice->header.quantiser_scale_code;
 
     do {
         ret = parse_macroblock(ctx, &gb);
@@ -451,6 +461,7 @@ static void update_slices(AVBSFContext *bsf, CodedBitstreamFragment *frag)
         return;
 
     slice.block_count = 4 + (1 << mpeg2->chroma_format);
+    slice.nb_redundant_quantiser_scale_code = 0;
     for (int i = 0; i < frag->nb_units; i++) {
         CodedBitstreamUnit *unit = &frag->units[i];
 
@@ -522,6 +533,7 @@ static void update_slices(AVBSFContext *bsf, CodedBitstreamFragment *frag)
     }
     if (!pic_ext)
         return;
+    ctx->nb_redundant_quantiser_scale_code += slice.nb_redundant_quantiser_scale_code;
     if (slice.progressivable)
         ctx->progressivable_frames++;
     if (slice.progressivable > 0) {
@@ -791,6 +803,9 @@ static void mpeg2_metadata_close(AVBSFContext *bsf)
     if (ctx->flags & (TRIM_PADDING|PROGRESSIVE_PRED))
         av_log(bsf, AV_LOG_INFO, "%u frames%s have been switched to frame_pred_frame_dct.\n",
                ctx->progressivable_frames, ctx->flags & PROGRESSIVE_PRED ? "" : " could");
+    if (ctx->nb_redundant_quantiser_scale_code)
+        av_log(bsf, AV_LOG_INFO, "%"PRIu64" macroblocks have redundant quantisers.\n",
+               ctx->nb_redundant_quantiser_scale_code);
 
     av_freep(&ctx->slice_buf);
     av_freep(&ctx->slice_sizes);
