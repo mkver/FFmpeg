@@ -371,7 +371,7 @@ static TileInfo* decode_tile_info(GetBitContext *gb, LevelCodes *lc, int level)
     }
 
     if (lc[level].mv_cb.table) {
-        uint16_t mv_code = get_vlc2(gb, lc[level].mv_cb.table, CLV_VLC_BITS, 3);
+        uint16_t mv_code = get_vlc2(gb, lc[level].mv_cb.table, CLV_VLC_BITS, 2);
 
         if (mv_code != lc[level].mv_esc) {
             mv.x = (int8_t)(mv_code & 0xff);
