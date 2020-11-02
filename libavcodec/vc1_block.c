@@ -1633,7 +1633,7 @@ static int vc1_decode_p_mb_intfr(VC1Context *v)
                 for (i = 0; i < 4; i++) {
                     dmv_x = dmv_y = 0;
                     if (mvbp & (8 >> i))
-                        get_mvdata_interlaced(v, &dmv_x, &dmv_y, 0);
+                        get_mvdata_interlaced(v, &dmv_x, &dmv_y, NULL);
                     ff_vc1_pred_mv_intfr(v, i, dmv_x, dmv_y, 0, v->range_x, v->range_y, v->mb_type[0], 0);
                     ff_vc1_mc_4mv_luma(v, i, 0, 0);
                 }
@@ -1642,14 +1642,14 @@ static int vc1_decode_p_mb_intfr(VC1Context *v)
                 mvbp  = v->twomvbp;
                 dmv_x = dmv_y = 0;
                 if (mvbp & 2) {
-                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, 0);
+                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, NULL);
                 }
                 ff_vc1_pred_mv_intfr(v, 0, dmv_x, dmv_y, 2, v->range_x, v->range_y, v->mb_type[0], 0);
                 ff_vc1_mc_4mv_luma(v, 0, 0, 0);
                 ff_vc1_mc_4mv_luma(v, 1, 0, 0);
                 dmv_x = dmv_y = 0;
                 if (mvbp & 1) {
-                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, 0);
+                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, NULL);
                 }
                 ff_vc1_pred_mv_intfr(v, 2, dmv_x, dmv_y, 2, v->range_x, v->range_y, v->mb_type[0], 0);
                 ff_vc1_mc_4mv_luma(v, 2, 0, 0);
@@ -1659,7 +1659,7 @@ static int vc1_decode_p_mb_intfr(VC1Context *v)
                 mvbp = ff_vc1_mbmode_intfrp[v->fourmvswitch][idx_mbmode][2];
                 dmv_x = dmv_y = 0;
                 if (mvbp) {
-                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, 0);
+                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, NULL);
                 }
                 ff_vc1_pred_mv_intfr(v, 0, dmv_x, dmv_y, 1, v->range_x, v->range_y, v->mb_type[0], 0);
                 ff_vc1_mc_1mv(v, 0);
@@ -2352,7 +2352,7 @@ static int vc1_decode_b_mb_intfr(VC1Context *v)
                     dmv_x = dmv_y = 0;
                     val = ((mvbp >> (3 - i)) & 1);
                     if (val)
-                        get_mvdata_interlaced(v, &dmv_x, &dmv_y, 0);
+                        get_mvdata_interlaced(v, &dmv_x, &dmv_y, NULL);
                     j = i > 1 ? 2 : 0;
                     ff_vc1_pred_mv_intfr(v, j, dmv_x, dmv_y, 2, v->range_x, v->range_y, v->mb_type[0], dir);
                     ff_vc1_mc_4mv_luma(v, j, dir, dir);
@@ -2365,14 +2365,14 @@ static int vc1_decode_b_mb_intfr(VC1Context *v)
                 mvbp = v->twomvbp;
                 dmv_x = dmv_y = 0;
                 if (mvbp & 2)
-                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, 0);
+                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, NULL);
 
                 ff_vc1_pred_mv_intfr(v, 0, dmv_x, dmv_y, 1, v->range_x, v->range_y, v->mb_type[0], 0);
                 ff_vc1_mc_1mv(v, 0);
 
                 dmv_x = dmv_y = 0;
                 if (mvbp & 1)
-                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, 0);
+                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, NULL);
 
                 ff_vc1_pred_mv_intfr(v, 0, dmv_x, dmv_y, 1, v->range_x, v->range_y, v->mb_type[0], 1);
                 ff_vc1_interp_mc(v);
@@ -2384,12 +2384,12 @@ static int vc1_decode_b_mb_intfr(VC1Context *v)
                 mvbp = v->twomvbp;
                 dmv_x = dmv_y = 0;
                 if (mvbp & 2)
-                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, 0);
+                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, NULL);
                 ff_vc1_pred_mv_intfr(v, 0, dmv_x, dmv_y, 2, v->range_x, v->range_y, v->mb_type[0], dir);
 
                 dmv_x = dmv_y = 0;
                 if (mvbp & 1)
-                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, 0);
+                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, NULL);
                 ff_vc1_pred_mv_intfr(v, 2, dmv_x, dmv_y, 2, v->range_x, v->range_y, v->mb_type[0], dir2);
 
                 if (mvsw) {
@@ -2415,7 +2415,7 @@ static int vc1_decode_b_mb_intfr(VC1Context *v)
                 mvbp = ff_vc1_mbmode_intfrp[0][idx_mbmode][2];
                 dmv_x = dmv_y = 0;
                 if (mvbp)
-                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, 0);
+                    get_mvdata_interlaced(v, &dmv_x, &dmv_y, NULL);
 
                 ff_vc1_pred_mv_intfr(v, 0, dmv_x, dmv_y, 1, v->range_x, v->range_y, v->mb_type[0], dir);
                 v->blk_mv_type[s->block_index[0]] = 1;
