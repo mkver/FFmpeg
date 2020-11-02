@@ -614,11 +614,6 @@ static int msmpeg4_decode_dc(MpegEncContext * s, int n, int *dir_ptr)
         } else {
             level = get_vlc2(&s->gb, ff_msmp4_dc_chroma_vlc[s->dc_table_index].table, DC_VLC_BITS, 3);
         }
-        if (level < 0){
-            av_log(s->avctx, AV_LOG_ERROR, "illegal dc vlc\n");
-            *dir_ptr = 0;
-            return -1;
-        }
 
         if (level == DC_MAX) {
             level = get_bits(&s->gb, 8);
