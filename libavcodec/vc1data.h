@@ -152,9 +152,8 @@ extern const uint8_t ff_vc1_ttmb_bits[3][16];
 extern const uint8_t ff_vc1_ttblk_codes[3][8];
 extern const uint8_t ff_vc1_ttblk_bits[3][8];
 
-/* SUBBLKPAT tables, p93-94, reordered */
-extern const uint8_t ff_vc1_subblkpat_codes[3][15];
-extern const uint8_t ff_vc1_subblkpat_bits[3][15];
+/* SUBBLKPAT tables, p93-94, reordered and offset by 1 */
+extern const uint8_t ff_vc1_subblkpat_tabs[3][15][2];
 
 /* MV differential tables, p265 */
 extern const uint16_t ff_vc1_mv_diff_codes[4][73];

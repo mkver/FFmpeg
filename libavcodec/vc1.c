@@ -1616,9 +1616,10 @@ av_cold int ff_vc1_init_common(VC1Context *v)
                      ff_vc1_ttblk_codes[i], 1, 1, INIT_VLC_USE_NEW_STATIC);
             ff_vc1_subblkpat_vlc[i].table           = &vlc_table[vlc_offs[i * 3 + 2]];
             ff_vc1_subblkpat_vlc[i].table_allocated = vlc_offs[i * 3 + 3] - vlc_offs[i * 3 + 2];
-            init_vlc(&ff_vc1_subblkpat_vlc[i], VC1_SUBBLKPAT_VLC_BITS, 15,
-                     ff_vc1_subblkpat_bits[i], 1, 1,
-                     ff_vc1_subblkpat_codes[i], 1, 1, INIT_VLC_USE_NEW_STATIC);
+            ff_init_vlc_from_lengths(&ff_vc1_subblkpat_vlc[i], VC1_SUBBLKPAT_VLC_BITS, 15,
+                                     &ff_vc1_subblkpat_tabs[i][0][1], 2,
+                                     &ff_vc1_subblkpat_tabs[i][0][0], 2, 1,
+                                     0, INIT_VLC_USE_NEW_STATIC, NULL);
         }
         for (i = 0; i < 4; i++) {
             ff_vc1_4mv_block_pattern_vlc[i].table           = &vlc_table[vlc_offs[i * 3 + 9]];
