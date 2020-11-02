@@ -30,13 +30,6 @@
 #include "vc1.h"
 #include "vc1data.h"
 
-/** Table for conversion between TTBLK and TTMB */
-const int ff_vc1_ttblk_to_tt[3][8] = {
-    { TT_8X4, TT_4X8, TT_8X8, TT_4X4, TT_8X4_TOP, TT_8X4_BOTTOM, TT_4X8_RIGHT, TT_4X8_LEFT },
-    { TT_8X8, TT_4X8_RIGHT, TT_4X8_LEFT, TT_4X4, TT_8X4, TT_4X8, TT_8X4_BOTTOM, TT_8X4_TOP },
-    { TT_8X8, TT_4X8, TT_4X4, TT_8X4_BOTTOM, TT_4X8_RIGHT, TT_4X8_LEFT, TT_8X4, TT_8X4_TOP }
-};
-
 const int ff_vc1_ttfrm_to_tt[4] = { TT_8X8, TT_8X4, TT_4X8, TT_4X4 };
 
 /** MV P mode - the 5th element is only used for mode 1 */
@@ -908,17 +901,20 @@ const uint8_t ff_vc1_ttmb_bits[3][16] = {
     11
   }
 };
-
 /* TTBLK (Transform Type per Block) tables */
-const uint8_t ff_vc1_ttblk_codes[3][8] = {
-    {  0,  1,  3,  5, 16, 17, 18, 19 },
-    {  3,  0,  1,  2,  3,  5,  8,  9 },
-    {  1,  0,  1,  4,  6,  7, 10, 11 }
-};
-const uint8_t ff_vc1_ttblk_bits[3][8] = {
-    {  2,  2,  2,  3,  5,  5,  5,  5 },
-    {  2,  3,  3,  3,  3,  3,  4,  4 },
-    {  2,  3,  3,  3,  3,  3,  4,  4 }
+const uint8_t ff_vc1_ttblk_tabs[3][8][2] = {
+    {
+        { TT_8X4, 2 }, { TT_4X8, 2 }, { TT_8X4_TOP, 5 }, { TT_8X4_BOTTOM, 5 },
+        { TT_4X8_RIGHT, 5 }, { TT_4X8_LEFT, 5 }, { TT_4X4, 3 }, { TT_8X8, 2 },
+    },
+    {
+        { TT_4X8_RIGHT, 3 }, { TT_4X8_LEFT, 3 }, { TT_4X4, 3 }, { TT_8X4, 3 },
+        { TT_8X4_BOTTOM, 4 }, { TT_8X4_TOP, 4 }, { TT_4X8, 3 }, { TT_8X8, 2 },
+    },
+    {
+        { TT_4X8, 3 }, { TT_4X4, 3 }, { TT_8X8, 2 }, { TT_8X4_BOTTOM, 3 },
+        { TT_8X4, 4 }, { TT_8X4_TOP, 4 }, { TT_4X8_RIGHT, 3 }, { TT_4X8_LEFT, 3 },
+    },
 };
 
 /* SUBBLKPAT tables, p93-94, reordered and offset by 1 */

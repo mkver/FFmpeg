@@ -34,9 +34,6 @@
 
 #include "vlc.h"
 
-/** Table for conversion between TTBLK and TTMB */
-extern const int ff_vc1_ttblk_to_tt[3][8];
-
 extern const int ff_vc1_ttfrm_to_tt[4];
 
 /** MV P mode - the 5th element is only used for mode 1 */
@@ -149,8 +146,7 @@ extern const uint16_t ff_vc1_ttmb_codes[3][16];
 extern const uint8_t ff_vc1_ttmb_bits[3][16];
 
 /* TTBLK (Transform Type per Block) tables */
-extern const uint8_t ff_vc1_ttblk_codes[3][8];
-extern const uint8_t ff_vc1_ttblk_bits[3][8];
+extern const uint8_t ff_vc1_ttblk_tabs[3][8][2];
 
 /* SUBBLKPAT tables, p93-94, reordered and offset by 1 */
 extern const uint8_t ff_vc1_subblkpat_tabs[3][15][2];
