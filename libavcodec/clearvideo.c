@@ -24,6 +24,8 @@
  * ClearVideo decoder
  */
 
+#include "libavutil/thread.h"
+
 #include "avcodec.h"
 #include "bytestream.h"
 #include "get_bits.h"
@@ -75,12 +77,14 @@ typedef struct CLVContext {
     MVInfo         mvi;
     int            tile_size;
     int            tile_shift;
-    VLC            dc_vlc, ac_vlc;
-    LevelCodes     lev[4 + 3 + 3]; // 0..3: Y, 4..6: U, 7..9: V
     int            luma_dc_quant, chroma_dc_quant, ac_quant;
     DECLARE_ALIGNED(16, int16_t, block)[64];
     int            top_dc[3], left_dc[4];
 } CLVContext;
+
+static VLC        dc_vlc, ac_vlc;
+static LevelCodes lev[4 + 3 + 3]; // 0..3: Y, 4..6: U, 7..9: V
+static VLC_TYPE   vlc_buf[16716][2];
 
 static inline int decode_block(CLVContext *ctx, int16_t *blk, int has_ac,
                                int ac_quant)
@@ -89,13 +93,13 @@ static inline int decode_block(CLVContext *ctx, int16_t *blk, int has_ac,
     int idx = 1, last = 0, val, skip;
 
     memset(blk, 0, sizeof(*blk) * 64);
-    blk[0] = get_vlc2(gb, ctx->dc_vlc.table, CLV_VLC_BITS, 3);
+    blk[0] = get_vlc2(gb, dc_vlc.table, CLV_VLC_BITS, 3);
 
     if (!has_ac)
         return 0;
 
     while (idx < 64 && !last) {
-        val = get_vlc2(gb, ctx->ac_vlc.table, CLV_VLC_BITS, 2);
+        val = get_vlc2(gb, ac_vlc.table, CLV_VLC_BITS, 2);
         if (val < 0)
             return AVERROR_INVALIDDATA;
         if (val != 0x1BFF) {
@@ -358,7 +362,7 @@ static void mvi_update_row(MVInfo *mvi)
     }
 }
 
-static TileInfo* decode_tile_info(GetBitContext *gb, LevelCodes *lc, int level)
+static TileInfo *decode_tile_info(GetBitContext *gb, const LevelCodes *lc, int level)
 {
     TileInfo *ti;
     int i, flags = 0;
@@ -595,7 +599,7 @@ static int clv_decode_frame(AVCodecContext *avctx, void *data,
                     TileInfo *tile;
                     MV mv, cmv;
 
-                    tile = decode_tile_info(&c->gb, &c->lev[0], 0); // Y
+                    tile = decode_tile_info(&c->gb, &lev[0], 0); // Y
                     if (!tile)
                         return AVERROR(ENOMEM);
                     mv = mvi_predict(&c->mvi, i, j, tile->mv);
@@ -610,14 +614,14 @@ static int clv_decode_frame(AVCodecContext *avctx, void *data,
                     cmv.x /= 2;
                     cmv.y /= 2;
                     av_freep(&tile);
-                    tile = decode_tile_info(&c->gb, &c->lev[4], 0); // U
+                    tile = decode_tile_info(&c->gb, &lev[4], 0); // U
                     if (!tile)
                         return AVERROR(ENOMEM);
                     ret = restore_tree(avctx, c->pic, c->prev, 1, x, y, size, tile, cmv);
                     if (ret < 0)
                         mb_ret = ret;
                     av_freep(&tile);
-                    tile = decode_tile_info(&c->gb, &c->lev[7], 0); // V
+                    tile = decode_tile_info(&c->gb, &lev[7], 0); // V
                     if (!tile)
                         return AVERROR(ENOMEM);
                     ret = restore_tree(avctx, c->pic, c->prev, 2, x, y, size, tile, cmv);
@@ -647,12 +651,11 @@ static int clv_decode_frame(AVCodecContext *avctx, void *data,
     return mb_ret < 0 ? mb_ret : buf_size;
 }
 
-static av_cold int build_vlc(VLC *vlc, const uint8_t counts[16],
-                             const uint16_t **syms)
+static av_cold void build_vlc(VLC *vlc, const uint8_t counts[16],
+                              const uint16_t **syms, unsigned *offset)
 {
     uint8_t lens[MAX_VLC_ENTRIES];
     unsigned num = 0;
-    int ret;
 
     for (int i = 0; i < 16; i++) {
         unsigned count = counts[i];
@@ -661,19 +664,54 @@ static av_cold int build_vlc(VLC *vlc, const uint8_t counts[16],
         for (count += num; num < count; num++)
             lens[num] = i + 1;
     }
-    ret = ff_init_vlc_from_lengths(vlc, CLV_VLC_BITS, num, lens, 1,
-                                   *syms, 2, 2, 0, 0, NULL);
-    if (ret < 0)
-        return ret;
+    vlc->table           = &vlc_buf[*offset];
+    vlc->table_allocated = FF_ARRAY_ELEMS(vlc_buf) - *offset;
+    ff_init_vlc_from_lengths(vlc, CLV_VLC_BITS, num, lens, 1,
+                             *syms, 2, 2, 0, INIT_VLC_STATIC_OVERLONG, NULL);
     *syms += num;
-    return 0;
+    *offset += vlc->table_size;
+}
+
+static av_cold void clv_init_static(void)
+{
+    static const uint8_t has_flags[] = { 1, 1, 1, 0, 1, 1, 0, 1, 1 };
+    const uint16_t *mv_syms = clv_mv_syms, *bias_syms = clv_bias_syms;
+
+    INIT_VLC_STATIC_FROM_LENGTHS(&dc_vlc, CLV_VLC_BITS, NUM_DC_CODES,
+                                 clv_dc_lens, 1,
+                                 clv_dc_syms, 1, 1, -63, 0, 1104);
+    INIT_VLC_STATIC_FROM_LENGTHS(&ac_vlc, CLV_VLC_BITS, NUM_AC_CODES,
+                                 clv_ac_bits, 1,
+                                 clv_ac_syms, 2, 2, 0, 0, 554);
+    for (unsigned i = 0, j = 0, k = 0, offset = 0;; i++) {
+        if (clv_mv_escape[i]) {
+            lev[i].mv_esc = clv_mv_escape[i];
+            build_vlc(&lev[i].mv_cb, clv_mv_len_counts[k], &mv_syms, &offset);
+            k++;
+        }
+        if (i == FF_ARRAY_ELEMS(has_flags))
+            break;
+        if (has_flags[i]) {
+            lev[i].flags_cb.table           = &vlc_buf[offset];
+            lev[i].flags_cb.table_allocated = FF_ARRAY_ELEMS(vlc_buf) - offset;
+            ff_init_vlc_from_lengths(&lev[i].flags_cb, CLV_VLC_BITS, 16,
+                                     clv_flags_bits[j], 1,
+                                     clv_flags_syms[j], 1, 1,
+                                     0, INIT_VLC_STATIC_OVERLONG, NULL);
+            offset += lev[i].flags_cb.table_size;
+
+            lev[i + 1].bias_esc = 0x100;
+            build_vlc(&lev[i + 1].bias_cb, clv_bias_len_counts[j],
+                      &bias_syms, &offset);
+            j++;
+        }
+    }
 }
 
 static av_cold int clv_decode_init(AVCodecContext *avctx)
 {
+    static AVOnce init_static_once = AV_ONCE_INIT;
     CLVContext *const c = avctx->priv_data;
-    static const uint8_t has_flags[] = { 1, 1, 1, 0, 1, 1, 0, 1, 1 };
-    const uint16_t *mv_syms = clv_mv_syms, *bias_syms = clv_bias_syms;
     int ret, w, h;
 
     if (avctx->extradata_size == 110) {
@@ -714,46 +752,9 @@ static av_cold int clv_decode_init(AVCodecContext *avctx)
         return AVERROR(ENOMEM);
 
     ff_idctdsp_init(&c->idsp, avctx);
-    ret = ff_init_vlc_from_lengths(&c->dc_vlc, CLV_VLC_BITS, NUM_DC_CODES,
-                                   clv_dc_lens, 1,
-                                   clv_dc_syms, 1, 1, -63, 0, avctx);
-    if (ret) {
-        av_log(avctx, AV_LOG_ERROR, "Error initialising DC VLC\n");
-        return ret;
-    }
-    ret = ff_init_vlc_from_lengths(&c->ac_vlc, CLV_VLC_BITS, NUM_AC_CODES,
-                                   clv_ac_bits, 1,
-                                   clv_ac_syms, 2, 2, 0, 0, avctx);
-    if (ret) {
-        av_log(avctx, AV_LOG_ERROR, "Error initialising AC VLC\n");
-        return ret;
-    }
 
-    for (int i = 0, j = 0, k = 0;; i++) {
-        if (clv_mv_escape[i]) {
-            c->lev[i].mv_esc = clv_mv_escape[i];
-            ret = build_vlc(&c->lev[i].mv_cb, clv_mv_len_counts[k], &mv_syms);
-            if (ret < 0)
-                return ret;
-            k++;
-        }
-        if (i == FF_ARRAY_ELEMS(has_flags))
-            break;
-        if (has_flags[i]) {
-            ret = ff_init_vlc_from_lengths(&c->lev[i].flags_cb, CLV_VLC_BITS, 16,
-                                           clv_flags_bits[j], 1,
-                                           clv_flags_syms[j], 1, 1, 0, 0, avctx);
-            if (ret < 0)
-                return ret;
+    ff_thread_once(&init_static_once, clv_init_static);
 
-            c->lev[i + 1].bias_esc = 0x100;
-            ret = build_vlc(&c->lev[i + 1].bias_cb,
-                            clv_bias_len_counts[j], &bias_syms);
-            if (ret < 0)
-                return ret;
-            j++;
-        }
-    }
     return 0;
 }
 
@@ -765,14 +766,6 @@ static av_cold int clv_decode_end(AVCodecContext *avctx)
     av_frame_free(&c->pic);
 
     av_freep(&c->mvi.mv);
-
-    ff_free_vlc(&c->dc_vlc);
-    ff_free_vlc(&c->ac_vlc);
-    for (int i = 0; i < FF_ARRAY_ELEMS(c->lev); i++) {
-        ff_free_vlc(&c->lev[i].mv_cb);
-        ff_free_vlc(&c->lev[i].flags_cb);
-        ff_free_vlc(&c->lev[i].bias_cb);
-    }
 
     return 0;
 }
