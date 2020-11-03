@@ -201,5 +201,10 @@ extern const uint16_t ff_vc1_b_field_mvpred_scales[7][4];
 #define AC_MODES 8
 
 extern const int ff_vc1_ac_sizes[AC_MODES];
+/* Symbol == 0 belongs to the escape code;
+ * otherwise run is contained in bits 0x3F, level in 0x7E
+ * and 0x100 indicates whether this is the last code. */
+extern const uint16_t ff_vc1_ac_coeff_syms[];
+extern const uint8_t  ff_vc1_ac_coeff_lens[];
 
 #endif /* AVCODEC_VC1DATA_H */

@@ -504,25 +504,25 @@ static int vc1_decode_ac_coeff(VC1Context *v, int *last, int *skip,
                                 int *value, int codingset)
 {
     GetBitContext *gb = &v->s.gb;
-    int index, run, level, lst, sign;
+    int symbol, run, level, lst, sign;
 
-    index = get_vlc2(gb, ff_vc1_ac_coeff_table[codingset].table, AC_VLC_BITS, 3);
-    if (index < 0)
-        return index;
-    if (index != ff_vc1_ac_sizes[codingset] - 1) {
-        run   = vc1_index_decode_table[codingset][index][0];
-        level = vc1_index_decode_table[codingset][index][1];
-        lst   = index >= vc1_last_decode_table[codingset] || get_bits_left(gb) < 0;
+    symbol = get_vlc2(gb, ff_vc1_ac_coeff_table[codingset].table, AC_VLC_BITS, 3);
+    if (symbol < 0)
+        return symbol;
+    if (symbol > 0) {
+        run   = symbol & 0xFF;
+        level = symbol >> 9;
+        lst   = symbol & 0x100 || get_bits_left(gb) < 0;
         sign  = get_bits1(gb);
     } else {
         int escape = decode210(gb);
         if (escape != 2) {
-            index = get_vlc2(gb, ff_vc1_ac_coeff_table[codingset].table, AC_VLC_BITS, 3);
-            if (index >= ff_vc1_ac_sizes[codingset] - 1U)
+            symbol = get_vlc2(gb, ff_vc1_ac_coeff_table[codingset].table, AC_VLC_BITS, 3);
+            if (symbol <= 0)
                 return AVERROR_INVALIDDATA;
-            run   = vc1_index_decode_table[codingset][index][0];
-            level = vc1_index_decode_table[codingset][index][1];
-            lst   = index >= vc1_last_decode_table[codingset];
+            run   = symbol & 0xFF;
+            level = symbol >> 9;
+            lst   = symbol & 0x100;
             if (escape == 0) {
                 if (lst)
                     level += vc1_last_delta_level_table[codingset][run];
