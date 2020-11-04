@@ -222,7 +222,8 @@ static void vc1_put_blocks_clamped(VC1Context *v, int put_signed)
  * @param _dmv_y Vertical differential for decoded MV
  */
 #define GET_MVDATA(_dmv_x, _dmv_y)                                      \
-    index = 1 + get_vlc2(gb, ff_vc1_mv_diff_vlc[s->mv_table_index].table, \
+do {                                                                    \
+    int index = 1 + get_vlc2(gb, ff_vc1_mv_diff_vlc[s->mv_table_index].table, \
                          VC1_MV_DIFF_VLC_BITS, 2);                      \
     if (index > 36) {                                                   \
         mb_has_coeffs = 1;                                              \
@@ -240,7 +241,7 @@ static void vc1_put_blocks_clamped(VC1Context *v, int put_signed)
         _dmv_y = 0;                                                     \
         s->mb_intra = 1;                                                \
     } else {                                                            \
-        index1 = index % 6;                                             \
+        int index1 = index % 6, sign, val;                              \
         _dmv_x = offset_table[1][index1];                               \
         val = size_table[index1] - (!s->quarter_sample && index1 == 5); \
         if (val > 0) {                                                  \
@@ -257,7 +258,8 @@ static void vc1_put_blocks_clamped(VC1Context *v, int put_signed)
             sign = 0 - (val & 1);                                       \
             _dmv_y = (sign ^ ((val >> 1) + _dmv_y)) - sign;             \
         }                                                               \
-    }
+    }                                                                   \
+} while (0)
 
 static av_always_inline void get_mvdata_interlaced(VC1Context *v, int *dmv_x,
                                                    int *dmv_y, int *pred_flag)
@@ -1287,8 +1289,6 @@ static int vc1_decode_p_mb(VC1Context *v)
 
     int mb_has_coeffs = 1; /* last_flag */
     int dmv_x, dmv_y; /* Differential MV components */
-    int index, index1; /* LUT indexes */
-    int val, sign; /* temp values */
     int first_block = 1;
     int dst_idx, off;
     int skipped, fourmv;
@@ -1338,9 +1338,9 @@ static int vc1_decode_p_mb(VC1Context *v)
             if (!s->mb_intra) ff_vc1_mc_1mv(v, 0);
             dst_idx = 0;
             for (i = 0; i < 6; i++) {
+                int val = ((cbp >> (5 - i)) & 1);
                 s->dc_val[0][s->block_index[i]] = 0;
                 dst_idx += i >> 2;
-                val = ((cbp >> (5 - i)) & 1);
                 off = (i & 4) ? 0 : ((i & 1) * 8 + (i & 2) * 4 * s->linesize);
                 v->mb_type[0][s->block_index[i]] = s->mb_intra;
                 if (s->mb_intra) {
@@ -1391,7 +1391,7 @@ static int vc1_decode_p_mb(VC1Context *v)
             /* Get CBPCY */
             cbp = get_vlc2(&v->s.gb, v->cbpcy_vlc->table, VC1_CBPCY_P_VLC_BITS, 2);
             for (i = 0; i < 6; i++) {
-                val = ((cbp >> (5 - i)) & 1);
+                int val = ((cbp >> (5 - i)) & 1);
                 s->dc_val[0][s->block_index[i]] = 0;
                 s->mb_intra                     = 0;
                 if (i < 4) {
@@ -1851,8 +1851,6 @@ static int vc1_decode_b_mb(VC1Context *v)
     int mqdiff, mquant; /* MB quantization */
     int ttmb = v->ttfrm; /* MB Transform type */
     int mb_has_coeffs = 0; /* last_flag */
-    int index, index1; /* LUT indexes */
-    int val, sign; /* temp values */
     int first_block = 1;
     int dst_idx, off;
     int skipped, direct;
@@ -1957,9 +1955,9 @@ static int vc1_decode_b_mb(VC1Context *v)
     }
     dst_idx = 0;
     for (i = 0; i < 6; i++) {
+        int val = ((cbp >> (5 - i)) & 1);
         s->dc_val[0][s->block_index[i]] = 0;
         dst_idx += i >> 2;
-        val = ((cbp >> (5 - i)) & 1);
         off = (i & 4) ? 0 : ((i & 1) * 8 + (i & 2) * 4 * s->linesize);
         v->mb_type[0][s->block_index[i]] = s->mb_intra;
         if (s->mb_intra) {
