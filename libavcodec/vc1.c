@@ -1414,9 +1414,10 @@ av_cold int ff_vc1_init_common(VC1Context *v)
                      ff_vc1_cbpcy_p_codes[i], 2, 2, INIT_VLC_USE_NEW_STATIC);
             ff_vc1_mv_diff_vlc[i].table           = &vlc_table[vlc_offs[i * 3 + 11]];
             ff_vc1_mv_diff_vlc[i].table_allocated = vlc_offs[i * 3 + 12] - vlc_offs[i * 3 + 11];
-            init_vlc(&ff_vc1_mv_diff_vlc[i], VC1_MV_DIFF_VLC_BITS, 73,
-                     ff_vc1_mv_diff_bits[i], 1, 1,
-                     ff_vc1_mv_diff_codes[i], 2, 2, INIT_VLC_USE_NEW_STATIC);
+            ff_init_vlc_from_lengths(&ff_vc1_mv_diff_vlc[i], VC1_MV_DIFF_VLC_BITS, 73,
+                                     &ff_vc1_mv_diff_tabs[i][0][1], 2,
+                                     &ff_vc1_mv_diff_tabs[i][0][0], 2, 1,
+                                     -4, INIT_VLC_USE_NEW_STATIC, NULL);
         }
         for (int i = 0, ac_offset = 0; i < 8; i++) {
             ff_vc1_ac_coeff_table[i].table           = &vlc_table[vlc_offs[i * 2 + 21]];

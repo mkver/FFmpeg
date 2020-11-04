@@ -223,25 +223,16 @@ static void vc1_put_blocks_clamped(VC1Context *v, int put_signed)
  */
 #define GET_MVDATA(_dmv_x, _dmv_y)                                      \
 do {                                                                    \
-    int index = 1 + get_vlc2(gb, ff_vc1_mv_diff_vlc[s->mv_table_index].table, \
+    int symbol = get_vlc2(gb, ff_vc1_mv_diff_vlc[s->mv_table_index].table, \
                          VC1_MV_DIFF_VLC_BITS, 2);                      \
-    if (index > 36) {                                                   \
-        mb_has_coeffs = 1;                                              \
-        index -= 37;                                                    \
-    } else                                                              \
-        mb_has_coeffs = 0;                                              \
-    s->mb_intra = 0;                                                    \
-    if (!index) {                                                       \
+    mb_has_coeffs = symbol & 1;                                         \
+    symbol      >>= 1;                                                  \
+    s->mb_intra   = symbol & 1;                                         \
+    symbol      >>= 1;                                                  \
+    if (!symbol) {                                                      \
         _dmv_x = _dmv_y = 0;                                            \
-    } else if (index == 35) {                                           \
-        _dmv_x = get_bits(gb, v->k_x - 1 + s->quarter_sample);          \
-        _dmv_y = get_bits(gb, v->k_y - 1 + s->quarter_sample);          \
-    } else if (index == 36) {                                           \
-        _dmv_x = 0;                                                     \
-        _dmv_y = 0;                                                     \
-        s->mb_intra = 1;                                                \
-    } else {                                                            \
-        int index1 = index % 6, sign, val;                              \
+    } else if (symbol > 0) {                                            \
+        int index1 = symbol & 7, sign, val;                             \
         _dmv_x = offset_table[1][index1];                               \
         val = size_table[index1] - (!s->quarter_sample && index1 == 5); \
         if (val > 0) {                                                  \
@@ -250,7 +241,7 @@ do {                                                                    \
             _dmv_x = (sign ^ ((val >> 1) + _dmv_x)) - sign;             \
         }                                                               \
                                                                         \
-        index1 = index / 6;                                             \
+        index1 = symbol >> 3;                                           \
         _dmv_y = offset_table[1][index1];                               \
         val = size_table[index1] - (!s->quarter_sample && index1 == 5); \
         if (val > 0) {                                                  \
@@ -258,6 +249,9 @@ do {                                                                    \
             sign = 0 - (val & 1);                                       \
             _dmv_y = (sign ^ ((val >> 1) + _dmv_y)) - sign;             \
         }                                                               \
+    } else {                                                            \
+        _dmv_x = get_bits(gb, v->k_x - 1 + s->quarter_sample);          \
+        _dmv_y = get_bits(gb, v->k_y - 1 + s->quarter_sample);          \
     }                                                                   \
 } while (0)
 

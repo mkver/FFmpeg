@@ -152,8 +152,7 @@ extern const uint8_t ff_vc1_ttblk_tabs[3][8][2];
 extern const uint8_t ff_vc1_subblkpat_tabs[3][15][2];
 
 /* MV differential tables, p265 */
-extern const uint16_t ff_vc1_mv_diff_codes[4][73];
-extern const uint8_t ff_vc1_mv_diff_bits[4][73];
+extern const uint8_t ff_vc1_mv_diff_tabs[4][73][2];
 
 /* Interlaced frame picture MBMODE VLC tables (p. 246, p. 360) */
 extern const uint16_t ff_vc1_intfr_4mv_mbmode_codes[4][15];
