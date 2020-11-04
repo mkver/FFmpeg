@@ -167,13 +167,15 @@ extern const uint8_t ff_vc1_if_mmv_mbmode_bits[8][8];
 extern const uint8_t ff_vc1_if_1mv_mbmode_codes[8][6];
 extern const uint8_t ff_vc1_if_1mv_mbmode_bits[8][6];
 
-/* Interlaced frame/field picture MVDATA VLC tables */
+/* Interlaced frame/field picture MVDATA VLC tables
+ * The escape value of each table has the symbol 0;
+ * for every other symbol the lower nibble contains
+ * (index + 1) % 9 and the higher nibble (index + 1) / 9
+ * with index being the index in the spec's interlace MV tables. */
 /* 1-reference tables */
-extern const uint32_t ff_vc1_1ref_mvdata_codes[4][72];
-extern const uint8_t ff_vc1_1ref_mvdata_bits[4][72];
+extern const uint8_t ff_vc1_1ref_mvdata_tabs[4][72][2];
 /* 2-reference tables */
-extern const uint32_t ff_vc1_2ref_mvdata_codes[8][126];
-extern const uint8_t ff_vc1_2ref_mvdata_bits[8][126];
+extern const uint8_t ff_vc1_2ref_mvdata_tabs[8][126][2];
 
 /* DC differentials low+hi-mo, p217 are the same as in msmpeg4data .h */
 

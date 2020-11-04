@@ -1648,9 +1648,10 @@ av_cold int ff_vc1_init_common(VC1Context *v)
             /* initialize interlaced MVDATA tables (2-Ref) */
             ff_vc1_2ref_mvdata_vlc[i].table           = &vlc_table[vlc_offs[i * 2 + 22]];
             ff_vc1_2ref_mvdata_vlc[i].table_allocated = vlc_offs[i * 2 + 23] - vlc_offs[i * 2 + 22];
-            init_vlc(&ff_vc1_2ref_mvdata_vlc[i], VC1_2REF_MVDATA_VLC_BITS, 126,
-                     ff_vc1_2ref_mvdata_bits[i], 1, 1,
-                     ff_vc1_2ref_mvdata_codes[i], 4, 4, INIT_VLC_USE_NEW_STATIC);
+            ff_init_vlc_from_lengths(&ff_vc1_2ref_mvdata_vlc[i], VC1_2REF_MVDATA_VLC_BITS, 126,
+                                     &ff_vc1_2ref_mvdata_tabs[i][0][1], 2,
+                                     &ff_vc1_2ref_mvdata_tabs[i][0][0], 2, 1,
+                                     0, INIT_VLC_USE_NEW_STATIC, NULL);
         }
         for (i = 0; i < 4; i++) {
             /* initialize 4MV MBMODE VLC tables for interlaced frame P picture */
@@ -1668,9 +1669,10 @@ av_cold int ff_vc1_init_common(VC1Context *v)
             /* initialize interlaced MVDATA tables (1-Ref) */
             ff_vc1_1ref_mvdata_vlc[i].table           = &vlc_table[vlc_offs[i * 3 + 39]];
             ff_vc1_1ref_mvdata_vlc[i].table_allocated = vlc_offs[i * 3 + 40] - vlc_offs[i * 3 + 39];
-            init_vlc(&ff_vc1_1ref_mvdata_vlc[i], VC1_1REF_MVDATA_VLC_BITS, 72,
-                     ff_vc1_1ref_mvdata_bits[i], 1, 1,
-                     ff_vc1_1ref_mvdata_codes[i], 4, 4, INIT_VLC_USE_NEW_STATIC);
+            ff_init_vlc_from_lengths(&ff_vc1_1ref_mvdata_vlc[i], VC1_1REF_MVDATA_VLC_BITS, 72,
+                                     &ff_vc1_1ref_mvdata_tabs[i][0][1], 2,
+                                     &ff_vc1_1ref_mvdata_tabs[i][0][0], 2, 1,
+                                     0, INIT_VLC_USE_NEW_STATIC, NULL);
         }
         for (i = 0; i < 4; i++) {
             /* Initialize 2MV Block pattern VLC tables */
