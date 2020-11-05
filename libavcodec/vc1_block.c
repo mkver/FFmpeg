@@ -1518,7 +1518,7 @@ static int vc1_decode_p_mb_intfr(VC1Context *v)
     int dst_idx, off;
     int skipped, fourmv = 0, twomv = 0;
     int block_cbp = 0, pat, block_tt = 0;
-    int idx_mbmode = 0, mvbp;
+    int mvbp;
     int fieldtx;
 
     mquant = v->pq; /* Lossy initialization */
@@ -1528,11 +1528,11 @@ static int vc1_decode_p_mb_intfr(VC1Context *v)
     else
         skipped = v->s.mbskip_table[mb_pos];
     if (!skipped) {
-        if (v->fourmvswitch)
-            idx_mbmode = get_vlc2(gb, v->mbmode_vlc->table, VC1_INTFR_4MV_MBMODE_VLC_BITS, 2); // try getting this done
-        else
-            idx_mbmode = get_vlc2(gb, v->mbmode_vlc->table, VC1_INTFR_NON4MV_MBMODE_VLC_BITS, 2); // in a single line
-        switch (ff_vc1_mbmode_intfrp[v->fourmvswitch][idx_mbmode][0]) {
+        int bits = v->fourmvswitch ? VC1_INTFR_4MV_MBMODE_VLC_BITS :
+                                     VC1_INTFR_NON4MV_MBMODE_VLC_BITS;
+        int mbmode = get_vlc2(gb, v->mbmode_vlc->table, bits, 2);
+
+        switch (mbmode & 0x1F) {
         /* store the motion vector type in a flag (useful later) */
         case MV_PMODE_INTFR_4MV:
             fourmv = 1;
@@ -1562,7 +1562,7 @@ static int vc1_decode_p_mb_intfr(VC1Context *v)
             v->blk_mv_type[s->block_index[3]] = 0;
             break;
         }
-        if (ff_vc1_mbmode_intfrp[v->fourmvswitch][idx_mbmode][0] == MV_PMODE_INTFR_INTRA) { // intra MB
+        if ((mbmode & 0x1F) == MV_PMODE_INTFR_INTRA) { // intra MB
             for (i = 0; i < 4; i++) {
                 s->current_picture.motion_val[1][s->block_index[i]][0] = 0;
                 s->current_picture.motion_val[1][s->block_index[i]][1] = 0;
@@ -1605,21 +1605,21 @@ static int vc1_decode_p_mb_intfr(VC1Context *v)
             }
 
         } else { // inter MB
-            mb_has_coeffs = ff_vc1_mbmode_intfrp[v->fourmvswitch][idx_mbmode][3];
+            mb_has_coeffs = !!(mbmode & RESIDUAL);
             if (mb_has_coeffs)
                 cbp = 1 + get_vlc2(&v->s.gb, v->cbpcy_vlc->table, VC1_CBPCY_P_VLC_BITS, 2);
-            if (ff_vc1_mbmode_intfrp[v->fourmvswitch][idx_mbmode][0] == MV_PMODE_INTFR_2MV_FIELD) {
+            if ((mbmode & 0x1F) == MV_PMODE_INTFR_2MV_FIELD) {
                 v->twomvbp = get_vlc2(gb, v->twomvbp_vlc->table, VC1_2MV_BLOCK_PATTERN_VLC_BITS, 1);
             } else {
-                if ((ff_vc1_mbmode_intfrp[v->fourmvswitch][idx_mbmode][0] == MV_PMODE_INTFR_4MV)
-                    || (ff_vc1_mbmode_intfrp[v->fourmvswitch][idx_mbmode][0] == MV_PMODE_INTFR_4MV_FIELD)) {
+                if (((mbmode & 0x1F) == MV_PMODE_INTFR_4MV) ||
+                    ((mbmode & 0x1F) == MV_PMODE_INTFR_4MV_FIELD)) {
                     v->fourmvbp = get_vlc2(gb, v->fourmvbp_vlc->table, VC1_4MV_BLOCK_PATTERN_VLC_BITS, 1);
                 }
             }
             s->mb_intra = v->is_intra[s->mb_x] = 0;
             for (i = 0; i < 6; i++)
                 v->mb_type[0][s->block_index[i]] = 0;
-            fieldtx = v->fieldtx_plane[mb_pos] = ff_vc1_mbmode_intfrp[v->fourmvswitch][idx_mbmode][1];
+            fieldtx = v->fieldtx_plane[mb_pos] = !!(mbmode & FIELDTX);
             /* for all motion vector read MVDATA and motion compensate each block */
             dst_idx = 0;
             if (fourmv) {
@@ -1650,7 +1650,7 @@ static int vc1_decode_p_mb_intfr(VC1Context *v)
                 ff_vc1_mc_4mv_luma(v, 3, 0, 0);
                 ff_vc1_mc_4mv_chroma4(v, 0, 0, 0);
             } else {
-                mvbp = ff_vc1_mbmode_intfrp[v->fourmvswitch][idx_mbmode][2];
+                mvbp = !!(mbmode & MVDIFF);
                 dmv_x = dmv_y = 0;
                 if (mvbp) {
                     get_mvdata_interlaced(v, &dmv_x, &dmv_y, NULL);
@@ -2175,7 +2175,7 @@ static int vc1_decode_b_mb_intfr(VC1Context *v)
     int dst_idx, off;
     int skipped, direct, twomv = 0;
     int block_cbp = 0, pat, block_tt = 0;
-    int idx_mbmode = 0, mvbp;
+    int mbmode = MV_PMODE_INTFR_1MV | MVDIFF | RESIDUAL, mvbp;
     int stride_y, fieldtx;
     int bmvtype = BMV_TYPE_BACKWARD;
     int dir, dir2;
@@ -2188,8 +2188,9 @@ static int vc1_decode_b_mb_intfr(VC1Context *v)
         skipped = v->s.mbskip_table[mb_pos];
 
     if (!skipped) {
-        idx_mbmode = get_vlc2(gb, v->mbmode_vlc->table, VC1_INTFR_NON4MV_MBMODE_VLC_BITS, 2);
-        if (ff_vc1_mbmode_intfrp[0][idx_mbmode][0] == MV_PMODE_INTFR_2MV_FIELD) {
+        mbmode = get_vlc2(gb, v->mbmode_vlc->table,
+                          VC1_INTFR_NON4MV_MBMODE_VLC_BITS, 2);
+        if ((mbmode & 0x1F) == MV_PMODE_INTFR_2MV_FIELD) {
             twomv = 1;
             v->blk_mv_type[s->block_index[0]] = 1;
             v->blk_mv_type[s->block_index[1]] = 1;
@@ -2203,7 +2204,7 @@ static int vc1_decode_b_mb_intfr(VC1Context *v)
         }
     }
 
-    if (ff_vc1_mbmode_intfrp[0][idx_mbmode][0] == MV_PMODE_INTFR_INTRA) { // intra MB
+    if ((mbmode & 0x1F) == MV_PMODE_INTFR_INTRA) { // intra MB
         for (i = 0; i < 4; i++) {
             s->mv[0][i][0] = s->current_picture.motion_val[0][s->block_index[i]][0] = 0;
             s->mv[0][i][1] = s->current_picture.motion_val[0][s->block_index[i]][1] = 0;
@@ -2309,7 +2310,7 @@ static int vc1_decode_b_mb_intfr(VC1Context *v)
         }
 
         if (!skipped) { // inter MB
-            mb_has_coeffs = ff_vc1_mbmode_intfrp[0][idx_mbmode][3];
+            mb_has_coeffs = !!(mbmode & RESIDUAL);
             if (mb_has_coeffs)
                 cbp = 1 + get_vlc2(&v->s.gb, v->cbpcy_vlc->table, VC1_CBPCY_P_VLC_BITS, 2);
             if (!direct) {
@@ -2322,7 +2323,7 @@ static int vc1_decode_b_mb_intfr(VC1Context *v)
 
             for (i = 0; i < 6; i++)
                 v->mb_type[0][s->block_index[i]] = 0;
-            fieldtx = v->fieldtx_plane[mb_pos] = ff_vc1_mbmode_intfrp[0][idx_mbmode][1];
+            fieldtx = v->fieldtx_plane[mb_pos] = !!(mbmode & FIELDTX);
             /* for all motion vector read MVDATA and motion compensate each block */
             dst_idx = 0;
             if (direct) {
@@ -2404,7 +2405,7 @@ static int vc1_decode_b_mb_intfr(VC1Context *v)
             } else {
                 dir = bmvtype == BMV_TYPE_BACKWARD;
 
-                mvbp = ff_vc1_mbmode_intfrp[0][idx_mbmode][2];
+                mvbp = !!(mbmode & MVDIFF);
                 dmv_x = dmv_y = 0;
                 if (mvbp)
                     get_mvdata_interlaced(v, &dmv_x, &dmv_y, NULL);

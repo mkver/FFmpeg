@@ -1439,15 +1439,17 @@ av_cold int ff_vc1_init_common(VC1Context *v)
             /* initialize 4MV MBMODE VLC tables for interlaced frame P picture */
             ff_vc1_intfr_4mv_mbmode_vlc[i].table           = &vlc_table[vlc_offs[i * 3 + 37]];
             ff_vc1_intfr_4mv_mbmode_vlc[i].table_allocated = vlc_offs[i * 3 + 38] - vlc_offs[i * 3 + 37];
-            init_vlc(&ff_vc1_intfr_4mv_mbmode_vlc[i], VC1_INTFR_4MV_MBMODE_VLC_BITS, 15,
-                     ff_vc1_intfr_4mv_mbmode_bits[i], 1, 1,
-                     ff_vc1_intfr_4mv_mbmode_codes[i], 2, 2, INIT_VLC_USE_NEW_STATIC);
+            ff_init_vlc_from_lengths(&ff_vc1_intfr_4mv_mbmode_vlc[i], VC1_INTFR_4MV_MBMODE_VLC_BITS, 15,
+                                     &ff_vc1_intfr_4mv_mbmode_tabs[i][0][1], 2,
+                                     &ff_vc1_intfr_4mv_mbmode_tabs[i][0][0], 2, 1,
+                                     0, INIT_VLC_USE_NEW_STATIC, NULL);
             /* initialize NON-4MV MBMODE VLC tables for the same */
             ff_vc1_intfr_non4mv_mbmode_vlc[i].table           = &vlc_table[vlc_offs[i * 3 + 38]];
             ff_vc1_intfr_non4mv_mbmode_vlc[i].table_allocated = vlc_offs[i * 3 + 39] - vlc_offs[i * 3 + 38];
-            init_vlc(&ff_vc1_intfr_non4mv_mbmode_vlc[i], VC1_INTFR_NON4MV_MBMODE_VLC_BITS, 9,
-                     ff_vc1_intfr_non4mv_mbmode_bits[i], 1, 1,
-                     ff_vc1_intfr_non4mv_mbmode_codes[i], 1, 1, INIT_VLC_USE_NEW_STATIC);
+            ff_init_vlc_from_lengths(&ff_vc1_intfr_non4mv_mbmode_vlc[i], VC1_INTFR_NON4MV_MBMODE_VLC_BITS, 9,
+                                     &ff_vc1_intfr_non4mv_mbmode_tabs[i][0][1], 2,
+                                     &ff_vc1_intfr_non4mv_mbmode_tabs[i][0][0], 2, 1,
+                                     0, INIT_VLC_USE_NEW_STATIC, NULL);
             /* initialize interlaced MVDATA tables (1-Ref) */
             ff_vc1_1ref_mvdata_vlc[i].table           = &vlc_table[vlc_offs[i * 3 + 39]];
             ff_vc1_1ref_mvdata_vlc[i].table_allocated = vlc_offs[i * 3 + 40] - vlc_offs[i * 3 + 39];

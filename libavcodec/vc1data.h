@@ -43,9 +43,6 @@ extern const uint8_t ff_vc1_mv_pmode_table2[2][4];
 extern const int ff_vc1_fps_nr[7], ff_vc1_fps_dr[2];
 extern const uint8_t ff_vc1_pquant_table[3][32];
 
-/* MBMODE table for interlaced frame P-picture */
-extern const uint8_t ff_vc1_mbmode_intfrp[2][15][4];
-
 /** @name VC-1 VLC tables and defines
  *  @todo TODO move this into the context
  */
@@ -154,11 +151,16 @@ extern const uint8_t ff_vc1_subblkpat_tabs[3][15][2];
 /* MV differential tables, p265 */
 extern const uint8_t ff_vc1_mv_diff_tabs[4][73][2];
 
-/* Interlaced frame picture MBMODE VLC tables (p. 246, p. 360) */
-extern const uint16_t ff_vc1_intfr_4mv_mbmode_codes[4][15];
-extern const uint8_t ff_vc1_intfr_4mv_mbmode_bits[4][15];
-extern const uint8_t ff_vc1_intfr_non4mv_mbmode_codes[4][9];
-extern const uint8_t ff_vc1_intfr_non4mv_mbmode_bits[4][9];
+/* Interlaced frame picture MBMODE VLC tables (tables 160-167)
+ * The lowest five bits of the symbol contain the MBMODE,
+ * the next three bits the following properties: */
+enum MBModeProperties {
+    FIELDTX  = 1 << 5,
+    MVDIFF   = 1 << 6,
+    RESIDUAL = 1 << 7,
+};
+extern const uint8_t ff_vc1_intfr_4mv_mbmode_tabs[4][15][2];
+extern const uint8_t ff_vc1_intfr_non4mv_mbmode_tabs[4][9][2];
 
 /* Interlaced field picture MBMODE VLC tables (p. 356 - 11.4.1, 11.4.2) */
 extern const uint8_t ff_vc1_if_mmv_mbmode_codes[8][8];

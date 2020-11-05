@@ -42,41 +42,6 @@ const uint8_t ff_vc1_mv_pmode_table2[2][4] = {
     { MV_PMODE_1MV, MV_PMODE_MIXED_MV, MV_PMODE_1MV_HPEL, MV_PMODE_1MV_HPEL_BILIN }
 };
 
-/* MBMODE table for interlaced frame P-picture */
-const uint8_t ff_vc1_mbmode_intfrp[2][15][4] = {
-    { /* 1: 4-MV, 0: non-4-MV */
-        /* Type, FIELDTX, 1-MV Differential present, Residuals (CBP) present */
-        /* Table 164 - Table 167 */
-        { MV_PMODE_INTFR_1MV      , 0, 1, 1 },
-        { MV_PMODE_INTFR_1MV      , 1, 1, 1 },
-        { MV_PMODE_INTFR_1MV      , 0, 1, 0 },
-        { MV_PMODE_INTFR_1MV      , 0, 0, 1 },
-        { MV_PMODE_INTFR_1MV      , 1, 0, 1 },
-        { MV_PMODE_INTFR_2MV_FIELD, 0, 0, 1 },
-        { MV_PMODE_INTFR_2MV_FIELD, 1, 0, 1 },
-        { MV_PMODE_INTFR_2MV_FIELD, 1, 0, 0 },
-        { MV_PMODE_INTFR_INTRA    , 0, 0, 0 }
-    },
-    {
-        /* Table 160 - Table 163 */
-        { MV_PMODE_INTFR_1MV      , 0, 1, 1 },
-        { MV_PMODE_INTFR_1MV      , 1, 1, 1 },
-        { MV_PMODE_INTFR_1MV      , 0, 1, 0 },
-        { MV_PMODE_INTFR_1MV      , 0, 0, 1 },
-        { MV_PMODE_INTFR_1MV      , 1, 0, 1 },
-        { MV_PMODE_INTFR_2MV_FIELD, 0, 0, 1 },
-        { MV_PMODE_INTFR_2MV_FIELD, 1, 0, 1 },
-        { MV_PMODE_INTFR_2MV_FIELD, 1, 0, 0 },
-        { MV_PMODE_INTFR_4MV      , 0, 0, 1 },
-        { MV_PMODE_INTFR_4MV      , 1, 0, 1 },
-        { MV_PMODE_INTFR_4MV      , 0, 0, 0 },
-        { MV_PMODE_INTFR_4MV_FIELD, 0, 0, 1 },
-        { MV_PMODE_INTFR_4MV_FIELD, 1, 0, 1 },
-        { MV_PMODE_INTFR_4MV_FIELD, 1, 0, 0 },
-        { MV_PMODE_INTFR_INTRA    , 0, 0, 0 }
-    }
-};
-
 const int ff_vc1_fps_nr[7] = { 24, 25, 30, 50, 60, 48, 72 },
           ff_vc1_fps_dr[2] = { 1000, 1001 };
 const uint8_t ff_vc1_pquant_table[3][32] = {
@@ -256,34 +221,124 @@ const uint8_t ff_vc1_2mv_block_pattern_bits[4][4] = {
     { 2, 2, 2, 2 }, { 1, 2, 3, 3 }, { 3, 2, 3, 1 }, { 1, 3, 3, 2 }
 };
 
-/* Interlaced frame picture 4MV MBMODE VLC tables (p. 246, p. 360) */
-const uint16_t ff_vc1_intfr_4mv_mbmode_codes[4][15] = {
-    { 22,  17,  0, 47,  32, 10,  1,  3, 67,  133, 132,  92,  19,  93,   18 },
-    {  3,  45,  0,  7,  23,  6,  1,  2, 10,   39,  44,   8,  18,  77,   76 },
-    { 15,   6, 28,  9,  41,  6,  2, 15, 14,    8,  40,  29,   0,  21,   11 },
-    {  7, 198,  1,  2, 193, 13, 25,  0, 97, 1599,  98, 398, 798, 192, 1598 }
+/* Interlaced frame picture 4MV MBMODE VLC tables (tables 160-163) */
+const uint8_t ff_vc1_intfr_4mv_mbmode_tabs[4][15][2] = {
+    {
+        { MV_PMODE_INTFR_1MV | MVDIFF,  2 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX | RESIDUAL,  2 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | RESIDUAL,  6 },
+        { MV_PMODE_INTFR_4MV,  8 },
+        { MV_PMODE_INTFR_4MV | FIELDTX | RESIDUAL,  8 },
+        { MV_PMODE_INTFR_4MV | RESIDUAL,  7 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | MVDIFF | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_INTRA,  5 },
+        { MV_PMODE_INTFR_4MV_FIELD | FIELDTX | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_2MV_FIELD | RESIDUAL,  4 },
+        { MV_PMODE_INTFR_1MV | MVDIFF | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_4MV_FIELD | RESIDUAL,  7 },
+        { MV_PMODE_INTFR_4MV_FIELD | FIELDTX,  7 },
+        { MV_PMODE_INTFR_1MV | RESIDUAL,  6 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX,  2 },
+    },
+    {
+        { MV_PMODE_INTFR_1MV | MVDIFF,  3 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX | RESIDUAL,  3 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX,  3 },
+        { MV_PMODE_INTFR_1MV | MVDIFF | RESIDUAL,  3 },
+        { MV_PMODE_INTFR_4MV_FIELD | RESIDUAL,  4 },
+        { MV_PMODE_INTFR_4MV_FIELD | FIELDTX | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_INTRA,  7 },
+        { MV_PMODE_INTFR_4MV_FIELD | FIELDTX,  7 },
+        { MV_PMODE_INTFR_4MV | FIELDTX | RESIDUAL,  6 },
+        { MV_PMODE_INTFR_4MV | RESIDUAL,  4 },
+        { MV_PMODE_INTFR_4MV,  6 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | MVDIFF | RESIDUAL,  6 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_2MV_FIELD | RESIDUAL,  3 },
+        { MV_PMODE_INTFR_1MV | RESIDUAL,  3 },
+    },
+    {
+        { MV_PMODE_INTFR_4MV_FIELD | FIELDTX | RESIDUAL,  2 },
+        { MV_PMODE_INTFR_4MV | FIELDTX | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_1MV | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_4MV,  7 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | RESIDUAL,  7 },
+        { MV_PMODE_INTFR_4MV_FIELD | FIELDTX,  6 },
+        { MV_PMODE_INTFR_INTRA,  5 },
+        { MV_PMODE_INTFR_2MV_FIELD | RESIDUAL,  4 },
+        { MV_PMODE_INTFR_4MV | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX,  5 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX | RESIDUAL,  2 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | MVDIFF | RESIDUAL,  3 },
+        { MV_PMODE_INTFR_1MV | MVDIFF,  5 },
+        { MV_PMODE_INTFR_4MV_FIELD | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_1MV | MVDIFF | RESIDUAL,  4 },
+    },
+    {
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX,  2 },
+        { MV_PMODE_INTFR_1MV | RESIDUAL,  3 },
+        { MV_PMODE_INTFR_4MV_FIELD | FIELDTX,  9 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | RESIDUAL,  9 },
+        { MV_PMODE_INTFR_4MV | RESIDUAL,  8 },
+        { MV_PMODE_INTFR_4MV,  8 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | MVDIFF | RESIDUAL,  9 },
+        { MV_PMODE_INTFR_4MV_FIELD | RESIDUAL, 10 },
+        { MV_PMODE_INTFR_4MV_FIELD | FIELDTX | RESIDUAL, 11 },
+        { MV_PMODE_INTFR_INTRA, 12 },
+        { MV_PMODE_INTFR_4MV | FIELDTX | RESIDUAL, 12 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX | RESIDUAL,  6 },
+        { MV_PMODE_INTFR_2MV_FIELD | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_1MV | MVDIFF | RESIDUAL,  4 },
+        { MV_PMODE_INTFR_1MV | MVDIFF,  1 },
+    },
 };
 
-const uint8_t ff_vc1_intfr_4mv_mbmode_bits[4][15] = {
-    { 5, 5, 2, 6, 6, 4, 2, 2, 7,  8, 8,  7,  5, 7,  5 },
-    { 3, 6, 3, 3, 5, 3, 3, 3, 4,  6, 6,  4,  5, 7,  7 },
-    { 4, 3, 5, 5, 7, 4, 2, 5, 5,  5, 7,  5,  2, 6,  5 },
-    { 4, 9, 1, 3, 9, 5, 6, 2, 8, 12, 8, 10, 11, 9, 12 }
-};
-
-/* Interlaced frame picture NON-4MV MBMODE VLC tables (p. 363) */
-const uint8_t ff_vc1_intfr_non4mv_mbmode_codes[4][9] = {
-    {  9, 22,  0, 17, 16, 10,  1,  3, 23 },
-    {  7,  0,  5,  2,  1,  1,  6,  3,  4 },
-    {  1,  0, 10, 23, 44,  8,  3,  9, 45 },
-    {  7, 97,  1,  2, 49, 13, 25,  0, 96 }
-};
-
-const uint8_t ff_vc1_intfr_non4mv_mbmode_bits[4][9] = {
-    {  4,  5,  2,  5,  5,  4,  2,  2,  5 },
-    {  3,  4,  6,  2,  3,  2,  3,  5,  6 },
-    {  2,  2,  4,  5,  6,  4,  2,  4,  6 },
-    {  4,  8,  1,  3,  7,  5,  6,  2,  8 }
+/* Interlaced frame picture NON-4MV MBMODE VLC tables (tables 164-167) */
+const uint8_t ff_vc1_intfr_non4mv_mbmode_tabs[4][9][2] = {
+    {
+        { MV_PMODE_INTFR_1MV | MVDIFF,  2 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX | RESIDUAL,  2 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_1MV | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_1MV | MVDIFF | RESIDUAL,  4 },
+        { MV_PMODE_INTFR_2MV_FIELD | RESIDUAL,  4 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | MVDIFF | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_INTRA,  5 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX,  2 },
+    },
+    {
+        { MV_PMODE_INTFR_1MV | FIELDTX | MVDIFF | RESIDUAL,  4 },
+        { MV_PMODE_INTFR_INTRA,  6 },
+        { MV_PMODE_INTFR_1MV | MVDIFF,  6 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX,  5 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | RESIDUAL,  3 },
+        { MV_PMODE_INTFR_2MV_FIELD | RESIDUAL,  2 },
+        { MV_PMODE_INTFR_1MV | RESIDUAL,  2 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX | RESIDUAL,  3 },
+        { MV_PMODE_INTFR_1MV | MVDIFF | RESIDUAL,  3 },
+    },
+    {
+        { MV_PMODE_INTFR_1MV | FIELDTX | MVDIFF | RESIDUAL,  2 },
+        { MV_PMODE_INTFR_1MV | MVDIFF | RESIDUAL,  2 },
+        { MV_PMODE_INTFR_2MV_FIELD | RESIDUAL,  4 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX,  4 },
+        { MV_PMODE_INTFR_1MV | MVDIFF,  4 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | RESIDUAL,  6 },
+        { MV_PMODE_INTFR_INTRA,  6 },
+        { MV_PMODE_INTFR_1MV | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX | RESIDUAL,  2 },
+    },
+    {
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX,  2 },
+        { MV_PMODE_INTFR_1MV | RESIDUAL,  3 },
+        { MV_PMODE_INTFR_INTRA,  8 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | MVDIFF | RESIDUAL,  8 },
+        { MV_PMODE_INTFR_1MV | FIELDTX | RESIDUAL,  7 },
+        { MV_PMODE_INTFR_2MV_FIELD | FIELDTX | RESIDUAL,  6 },
+        { MV_PMODE_INTFR_2MV_FIELD | RESIDUAL,  5 },
+        { MV_PMODE_INTFR_1MV | MVDIFF | RESIDUAL,  4 },
+        { MV_PMODE_INTFR_1MV | MVDIFF,  1 },
+    },
 };
 
 /* Interlaced field picture MBMODE VLC tables (p. 356 - 11.4.1, 11.4.2) */
