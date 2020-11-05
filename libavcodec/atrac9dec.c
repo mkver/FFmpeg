@@ -833,7 +833,7 @@ static av_cold int atrac9_decode_close(AVCodecContext *avctx)
     ATRAC9Context *s = avctx->priv_data;
 
     ff_mdct_end(&s->imdct);
-    av_free(s->fdsp);
+    av_freep(&s->fdsp);
 
     return 0;
 }
