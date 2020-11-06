@@ -94,30 +94,25 @@ extern VLC ff_vc1_ac_coeff_table[8];
 
 /* pre-computed scales for all bfractions and base=256 */
 extern const int16_t ff_vc1_bfraction_lut[23];
-extern const uint8_t ff_vc1_bfraction_bits[23];
-extern const uint8_t ff_vc1_bfraction_codes[23];
+extern const uint8_t ff_vc1_bfraction_tab[23][2];
 
 //Same as H.264
 extern const AVRational ff_vc1_pixel_aspect[16];
 
 /* BitPlane IMODE - such a small table... */
-extern const uint8_t ff_vc1_imode_codes[7];
-extern const uint8_t ff_vc1_imode_bits[7];
+extern const uint8_t ff_vc1_imode_tab[7][2];
 
 /* Normal-2 imode */
-extern const uint8_t ff_vc1_norm2_codes[4];
-extern const uint8_t ff_vc1_norm2_bits[4];
+extern const uint8_t ff_vc1_norm2_tab[4][2];
 extern const uint8_t ff_vc1_norm6_tab[77][2];
 /* Normal-6 imode */
 extern const uint8_t ff_vc1_norm6_spec[64][5];
 
 /* 4MV Block pattern VLC tables */
-extern const uint8_t ff_vc1_4mv_block_pattern_codes[4][16];
-extern const uint8_t ff_vc1_4mv_block_pattern_bits[4][16];
+extern const uint8_t ff_vc1_4mv_block_pattern_tabs[4][16][2];
 
 /* 2MV Block pattern VLC tables */
-extern const uint8_t ff_vc1_2mv_block_pattern_codes[4][4];
-extern const uint8_t ff_vc1_2mv_block_pattern_bits[4][4];
+extern const uint8_t ff_vc1_2mv_block_pattern_tabs[4][4][2];
 
 extern const uint8_t ff_wmv3_dc_scale_table[32];
 
@@ -158,10 +153,8 @@ extern const uint8_t ff_vc1_intfr_4mv_mbmode_tabs[4][15][2];
 extern const uint8_t ff_vc1_intfr_non4mv_mbmode_tabs[4][9][2];
 
 /* Interlaced field picture MBMODE VLC tables (p. 356 - 11.4.1, 11.4.2) */
-extern const uint8_t ff_vc1_if_mmv_mbmode_codes[8][8];
-extern const uint8_t ff_vc1_if_mmv_mbmode_bits[8][8];
-extern const uint8_t ff_vc1_if_1mv_mbmode_codes[8][6];
-extern const uint8_t ff_vc1_if_1mv_mbmode_bits[8][6];
+extern const uint8_t ff_vc1_if_mmv_mbmode_tabs[8][8][2];
+extern const uint8_t ff_vc1_if_1mv_mbmode_tabs[8][6][2];
 
 /* Interlaced frame/field picture MVDATA VLC tables
  * The escape value of each table has the symbol 0;
