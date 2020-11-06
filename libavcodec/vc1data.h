@@ -107,8 +107,7 @@ extern const uint8_t ff_vc1_imode_bits[7];
 /* Normal-2 imode */
 extern const uint8_t ff_vc1_norm2_codes[4];
 extern const uint8_t ff_vc1_norm2_bits[4];
-extern const uint16_t ff_vc1_norm6_codes[64];
-extern const uint8_t ff_vc1_norm6_bits[64];
+extern const uint8_t ff_vc1_norm6_tab[77][2];
 /* Normal-6 imode */
 extern const uint8_t ff_vc1_norm6_spec[64][5];
 
@@ -123,12 +122,10 @@ extern const uint8_t ff_vc1_2mv_block_pattern_bits[4][4];
 extern const uint8_t ff_wmv3_dc_scale_table[32];
 
 /* P-Picture CBPCY VLC tables */
-extern const uint16_t ff_vc1_cbpcy_p_codes[4][64];
-extern const uint8_t ff_vc1_cbpcy_p_bits[4][64];
+extern const uint8_t ff_vc1_cbpcy_p_tabs[4][64][2];
 
 /* Interlaced CBPCY VLC tables (Table 124 - Table 131) */
-extern const uint16_t ff_vc1_icbpcy_p_codes[8][63];
-extern const uint8_t ff_vc1_icbpcy_p_bits[8][63];
+extern const uint8_t ff_vc1_icbpcy_p_tabs[8][63][2];
 
 /* MacroBlock Transform Type: 7.1.3.11, p89
  * 8x8:B
@@ -138,9 +135,7 @@ extern const uint8_t ff_vc1_icbpcy_p_bits[8][63];
  * 8x4:MB:btm  8x4:MB:top  8x4,MB,both
  * 4x8,MB,right  4x8,MB,left
  * 4x4,MB                               */
-extern const uint16_t ff_vc1_ttmb_codes[3][16];
-
-extern const uint8_t ff_vc1_ttmb_bits[3][16];
+extern const uint8_t ff_vc1_ttmb_tabs[3][16][2];
 
 /* TTBLK (Transform Type per Block) tables */
 extern const uint8_t ff_vc1_ttblk_tabs[3][8][2];
