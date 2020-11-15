@@ -25,6 +25,8 @@
  * aka Microsoft Expression Encoder Screen) decoder
  */
 
+#include "libavutil/thread.h"
+
 #include "avcodec.h"
 #include "bytestream.h"
 #include "get_bits.h"
@@ -119,9 +121,6 @@ static av_cold void mss4_init_vlc(VLC *vlc, unsigned *offset,
 
 static av_cold void mss4_init_vlcs(void)
 {
-    if (vec_entry_vlc[1].table_size)
-        return;
-
     for (unsigned i = 0, offset = 0; i < 2; i++) {
         mss4_init_vlc(&dc_vlc[i], &offset, mss4_dc_vlc_lens[i], NULL);
         mss4_init_vlc(&ac_vlc[i], &offset,
@@ -581,6 +580,7 @@ static av_cold int mss4_decode_end(AVCodecContext *avctx)
 
 static av_cold int mss4_decode_init(AVCodecContext *avctx)
 {
+    static AVOnce static_init_done = AV_ONCE_INIT;
     MSS4Context * const c = avctx->priv_data;
     int i;
 
@@ -599,7 +599,7 @@ static av_cold int mss4_decode_init(AVCodecContext *avctx)
 
     avctx->pix_fmt     = AV_PIX_FMT_YUV444P;
 
-    mss4_init_vlcs();
+    ff_thread_once(&static_init_done, mss4_init_vlcs);
 
     return 0;
 }
@@ -614,5 +614,5 @@ AVCodec ff_mts2_decoder = {
     .close          = mss4_decode_end,
     .decode         = mss4_decode_frame,
     .capabilities   = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP | FF_CODEC_CAP_INIT_THREADSAFE,
 };
