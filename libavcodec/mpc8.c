@@ -27,6 +27,7 @@
 
 #include "libavutil/channel_layout.h"
 #include "libavutil/lfg.h"
+#include "libavutil/thread.h"
 #include "avcodec.h"
 #include "get_bits.h"
 #include "internal.h"
@@ -126,8 +127,6 @@ static av_cold int mpc8_decode_init(AVCodecContext * avctx)
     av_lfg_init(&c->rnd, 0xDEADBEEF);
     ff_mpadsp_init(&c->mpadsp);
 
-    ff_mpc_init();
-
     init_get_bits(&gb, avctx->extradata, 16);
 
     skip_bits(&gb, 3);//sample rate
@@ -171,6 +170,8 @@ static av_cold int mpc8_decode_init(AVCodecContext * avctx)
                       &q_syms, -((8 << j) - 1));
     }
     vlc_initialized = 1;
+
+    ff_thread_once(&ff_mpa_synth_init_done_fixed, ff_mpa_synth_init_fixed);
 
     return 0;
 }

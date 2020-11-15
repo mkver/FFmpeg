@@ -36,6 +36,7 @@
 #include <stdio.h>
 
 #include "libavutil/channel_layout.h"
+#include "libavutil/thread.h"
 
 #define BITSTREAM_READER_LE
 #include "avcodec.h"
@@ -1604,7 +1605,8 @@ static av_cold void qdm2_init_static_data(void) {
         return;
 
     qdm2_init_vlc();
-    ff_mpa_synth_init_float(ff_mpa_synth_window_float);
+    ff_thread_once(&ff_mpa_synth_init_done_float, ff_mpa_synth_init_float);
+
     softclip_table_init();
     rnd_table_init();
     init_noise_samples();

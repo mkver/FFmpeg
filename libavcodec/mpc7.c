@@ -28,6 +28,7 @@
 #include "libavutil/channel_layout.h"
 #include "libavutil/internal.h"
 #include "libavutil/lfg.h"
+#include "libavutil/thread.h"
 #include "avcodec.h"
 #include "get_bits.h"
 #include "internal.h"
@@ -64,7 +65,6 @@ static av_cold int mpc7_decode_init(AVCodecContext * avctx)
     ff_bswapdsp_init(&c->bdsp);
     ff_mpadsp_init(&c->mpadsp);
     c->bdsp.bswap_buf((uint32_t *) buf, (const uint32_t *) avctx->extradata, 4);
-    ff_mpc_init();
     init_get_bits(&gb, buf, 128);
 
     c->IS = get_bits1(&gb);
@@ -109,6 +109,7 @@ static av_cold int mpc7_decode_init(AVCodecContext * avctx)
         }
     }
     vlc_initialized = 1;
+    ff_thread_once(&ff_mpa_synth_init_done_fixed, ff_mpa_synth_init_fixed);
 
     return 0;
 }

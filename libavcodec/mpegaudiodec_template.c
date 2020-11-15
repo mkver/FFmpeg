@@ -30,6 +30,7 @@
 #include "libavutil/crc.h"
 #include "libavutil/float_dsp.h"
 #include "libavutil/libm.h"
+#include "libavutil/thread.h"
 #include "avcodec.h"
 #include "get_bits.h"
 #include "internal.h"
@@ -289,7 +290,7 @@ static av_cold void decode_init_static(void)
                 scale_factor_mult[i][2]);
     }
 
-    RENAME(ff_mpa_synth_init)(RENAME(ff_mpa_synth_window));
+    ff_thread_once(&RENAME(ff_mpa_synth_init_done), RENAME(ff_mpa_synth_init));
 
     /* huffman decode tables */
     offset = 0;

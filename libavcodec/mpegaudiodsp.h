@@ -23,6 +23,7 @@
 #include <stdint.h>
 
 #include "libavutil/common.h"
+#include "libavutil/thread.h"
 
 typedef struct MPADSPContext {
     void (*apply_window_float)(float *synth_buf, float *window,
@@ -67,8 +68,13 @@ void ff_mpadsp_init_x86_tabs(void);
 void ff_mpadsp_init_mipsfpu(MPADSPContext *s);
 void ff_mpadsp_init_mipsdsp(MPADSPContext *s);
 
-void ff_mpa_synth_init_float(float *window);
-void ff_mpa_synth_init_fixed(int32_t *window);
+extern AVOnce ff_mpa_synth_init_done_fixed;
+extern AVOnce ff_mpa_synth_init_done_float;
+
+/* Initialize ff_mpa_synth_window_* tables;
+ * to be used with the above AVOnce */
+void ff_mpa_synth_init_float(void);
+void ff_mpa_synth_init_fixed(void);
 
 void ff_mpadsp_apply_window_float(float *synth_buf, float *window,
                                   int *dither_state, float *samples,

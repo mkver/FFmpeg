@@ -192,7 +192,7 @@ void RENAME(ff_mpa_synth_filter)(MPADSPContext *s, MPA_INT *synth_buf_ptr,
     *synth_buf_offset = offset;
 }
 
-av_cold void RENAME(ff_mpa_synth_init)(MPA_INT *window)
+static av_cold void mpa_synth_init(MPA_INT *window)
 {
     int i, j;
 
@@ -219,6 +219,11 @@ av_cold void RENAME(ff_mpa_synth_init)(MPA_INT *window)
     for(i=0; i < 8; i++)
         for(j=0; j < 16; j++)
             window[512+128+16*i+j] = window[64*i+48-j];
+}
+
+av_cold void RENAME(ff_mpa_synth_init)(void)
+{
+    mpa_synth_init(RENAME(ff_mpa_synth_window));
 }
 
 /* cos(pi*i/18) */

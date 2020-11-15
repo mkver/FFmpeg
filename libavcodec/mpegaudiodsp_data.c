@@ -54,3 +54,6 @@ const int32_t ff_mpa_enwindow[257] = {
 -72169,-72835,-73415,-73908,-74313,-74630,-74856,-74992,
  75038,
 };
+
+AVOnce ff_mpa_synth_init_done_fixed = AV_ONCE_INIT;
+AVOnce ff_mpa_synth_init_done_float = AV_ONCE_INIT;
