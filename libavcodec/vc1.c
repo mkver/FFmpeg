@@ -1364,7 +1364,6 @@ static av_cold void vc1_init_vlc(VLC *vlc, int nb_bits, int nb_codes,
 static av_cold void vc1_init_static(void)
 {
     unsigned offset = 0;
-    int i = 0;
 
     vc1_init_vlc(&ff_vc1_bfraction_vlc, VC1_BFRACTION_VLC_BITS, 23,
                  &offset, ff_vc1_bfraction_tab, 0);
@@ -1374,15 +1373,15 @@ static av_cold void vc1_init_static(void)
                  &offset, ff_vc1_norm6_tab, 0);
     vc1_init_vlc(&ff_vc1_imode_vlc, VC1_IMODE_VLC_BITS, 7,
                  &offset, ff_vc1_imode_tab, 0);
-        for (i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++) {
         vc1_init_vlc(&ff_vc1_ttmb_vlc[i], VC1_TTMB_VLC_BITS, 16,
                      &offset, ff_vc1_ttmb_tabs[i], 0);
         vc1_init_vlc(&ff_vc1_ttblk_vlc[i], VC1_TTBLK_VLC_BITS, 8,
                      &offset, ff_vc1_ttblk_tabs[i], 0);
         vc1_init_vlc(&ff_vc1_subblkpat_vlc[i], VC1_SUBBLKPAT_VLC_BITS, 15,
                      &offset, ff_vc1_subblkpat_tabs[i], 0);
-        }
-        for (i = 0; i < 4; i++) {
+    }
+    for (int i = 0; i < 4; i++) {
         vc1_init_vlc(&ff_vc1_4mv_block_pattern_vlc[i], VC1_4MV_BLOCK_PATTERN_VLC_BITS, 16,
                      &offset, ff_vc1_4mv_block_pattern_tabs[i], 0);
         vc1_init_vlc(&ff_vc1_cbpcy_p_vlc[i], VC1_CBPCY_P_VLC_BITS, 64,
@@ -1401,30 +1400,28 @@ static av_cold void vc1_init_static(void)
         /* Initialize 2MV Block pattern VLC tables */
         vc1_init_vlc(&ff_vc1_2mv_block_pattern_vlc[i], VC1_2MV_BLOCK_PATTERN_VLC_BITS, 4,
                      &offset, ff_vc1_2mv_block_pattern_tabs[i], 0);
-        }
-        for (int i = 0, ac_offset = 0; i < 8; i++) {
+    }
+    for (int i = 0, ac_offset = 0; i < 8; i++) {
         ff_vc1_ac_coeff_table[i].table           = &vlc_buf[offset];
         ff_vc1_ac_coeff_table[i].table_allocated = FF_ARRAY_ELEMS(vlc_buf) - offset;
-            ff_init_vlc_from_lengths(&ff_vc1_ac_coeff_table[i], AC_VLC_BITS, ff_vc1_ac_sizes[i],
-                                     ff_vc1_ac_coeff_lens + ac_offset, 1,
-                                     ff_vc1_ac_coeff_syms + ac_offset, 2, 2,
+        ff_init_vlc_from_lengths(&ff_vc1_ac_coeff_table[i], AC_VLC_BITS, ff_vc1_ac_sizes[i],
+                                 ff_vc1_ac_coeff_lens + ac_offset, 1,
+                                 ff_vc1_ac_coeff_syms + ac_offset, 2, 2,
                                  0, INIT_VLC_STATIC_OVERLONG, NULL);
-            ac_offset += ff_vc1_ac_sizes[i];
+        ac_offset += ff_vc1_ac_sizes[i];
         offset    += ff_vc1_ac_coeff_table[i].table_size;
-            /* initialize interlaced MVDATA tables (2-Ref) */
+        /* initialize interlaced MVDATA tables (2-Ref) */
         vc1_init_vlc(&ff_vc1_2ref_mvdata_vlc[i], VC1_2REF_MVDATA_VLC_BITS, 126,
                      &offset, ff_vc1_2ref_mvdata_tabs[i], 0);
-        }
-        for (i = 0; i < 8; i++) {
-            /* Initialize interlaced CBPCY VLC tables (Table 124 - Table 131) */
+        /* Initialize interlaced CBPCY VLC tables (Table 124 - Table 131) */
         vc1_init_vlc(&ff_vc1_icbpcy_vlc[i], VC1_ICBPCY_VLC_BITS, 63,
                      &offset, ff_vc1_icbpcy_p_tabs[i], 0);
-            /* Initialize interlaced field picture MBMODE VLC tables */
+        /* Initialize interlaced field picture MBMODE VLC tables */
         vc1_init_vlc(&ff_vc1_if_mmv_mbmode_vlc[i], VC1_IF_MMV_MBMODE_VLC_BITS, 8,
                      &offset, ff_vc1_if_mmv_mbmode_tabs[i], 0);
         vc1_init_vlc(&ff_vc1_if_1mv_mbmode_vlc[i], VC1_IF_1MV_MBMODE_VLC_BITS, 6,
                      &offset, ff_vc1_if_1mv_mbmode_tabs[i], 0);
-        }
+    }
 }
 
 /**
