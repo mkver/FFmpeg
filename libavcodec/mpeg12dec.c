@@ -1072,33 +1072,6 @@ static av_cold int mpeg_decode_init(AVCodecContext *avctx)
     return 0;
 }
 
-#if HAVE_THREADS
-static int mpeg_decode_update_thread_context(AVCodecContext *avctx,
-                                             const AVCodecContext *avctx_from)
-{
-    Mpeg1Context *ctx = avctx->priv_data, *ctx_from = avctx_from->priv_data;
-    MpegEncContext *s = &ctx->mpeg_enc_ctx, *s1 = &ctx_from->mpeg_enc_ctx;
-    int err;
-
-    if (avctx == avctx_from               ||
-        !ctx_from->mpeg_enc_ctx_allocated ||
-        !s1->context_initialized)
-        return 0;
-
-    err = ff_mpeg_update_thread_context(avctx, avctx_from);
-    if (err)
-        return err;
-
-    if (!ctx->mpeg_enc_ctx_allocated)
-        memcpy(s + 1, s1 + 1, sizeof(Mpeg1Context) - sizeof(MpegEncContext));
-
-    if (!(s->pict_type == AV_PICTURE_TYPE_B || s->low_delay))
-        s->picture_number++;
-
-    return 0;
-}
-#endif
-
 static void quant_matrix_rebuild(uint16_t *matrix, const uint8_t *old_perm,
                                  const uint8_t *new_perm)
 {
@@ -2902,7 +2875,6 @@ AVCodec ff_mpeg1video_decoder = {
                              FF_CODEC_CAP_SKIP_FRAME_FILL_PARAM,
     .flush                 = flush,
     .max_lowres            = 3,
-    .update_thread_context = ONLY_IF_THREADS_ENABLED(mpeg_decode_update_thread_context),
     .hw_configs            = (const AVCodecHWConfigInternal *const []) {
 #if CONFIG_MPEG1_NVDEC_HWACCEL
                                HWACCEL_NVDEC(mpeg1),
