@@ -457,6 +457,15 @@ static void free_duplicate_context(MpegEncContext *s)
     s->block = NULL;
 }
 
+static void free_duplicate_contexts(MpegEncContext *s)
+{
+    for (int i = 1; i < s->slice_context_count; i++) {
+        free_duplicate_context(s->thread_context[i]);
+        av_freep(&s->thread_context[i]);
+    }
+    free_duplicate_context(s);
+}
+
 static void backup_duplicate_context(MpegEncContext *bak, MpegEncContext *src)
 {
 #define COPY(a) bak->a = src->a
@@ -1048,16 +1057,7 @@ int ff_mpv_common_frame_size_change(MpegEncContext *s)
     if (!s->context_initialized)
         return AVERROR(EINVAL);
 
-    if (s->slice_context_count > 1) {
-        for (i = 0; i < s->slice_context_count; i++) {
-            free_duplicate_context(s->thread_context[i]);
-        }
-        for (i = 1; i < s->slice_context_count; i++) {
-            av_freep(&s->thread_context[i]);
-        }
-    } else
-        free_duplicate_context(s);
-
+    free_duplicate_contexts(s);
     free_context_frame(s);
 
     if (s->picture)
@@ -1105,15 +1105,9 @@ void ff_mpv_common_end(MpegEncContext *s)
     if (!s)
         return;
 
-    if (s->slice_context_count > 1) {
-        for (i = 0; i < s->slice_context_count; i++) {
-            free_duplicate_context(s->thread_context[i]);
-        }
-        for (i = 1; i < s->slice_context_count; i++) {
-            av_freep(&s->thread_context[i]);
-        }
+    free_duplicate_contexts(s);
+    if (s->slice_context_count > 1)
         s->slice_context_count = 1;
-    } else free_duplicate_context(s);
 
     av_freep(&s->parse_context.buffer);
     s->parse_context.buffer_size = 0;
