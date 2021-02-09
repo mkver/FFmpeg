@@ -14,10 +14,10 @@ INSTHEADERS := $(INSTHEADERS) $(HEADERS:%=$(SUBDIR)%)
 all-$(CONFIG_STATIC): $(SUBDIR)$(LIBNAME)  $(SUBDIR)lib$(FULLNAME).pc
 all-$(CONFIG_SHARED): $(SUBDIR)$(SLIBNAME) $(SUBDIR)lib$(FULLNAME).pc
 
-LIBOBJS := $(OBJS) $(SUBDIR)%.h.o $(TESTOBJS)
+LIBOBJS := $(OBJS) $(SHLIBOBJS) $(STLIBOBJS) $(SUBDIR)%.h.o $(TESTOBJS)
 $(LIBOBJS) $(LIBOBJS:.o=.s) $(LIBOBJS:.o=.i):   CPPFLAGS += -DHAVE_AV_CONFIG_H
 
-$(SUBDIR)$(LIBNAME): $(OBJS)
+$(SUBDIR)$(LIBNAME): $(OBJS) $(STLIBOBJS)
 	$(RM) $@
 	$(AR) $(ARFLAGS) $(AR_O) $^
 	$(RANLIB) $@
@@ -48,7 +48,7 @@ $(SUBDIR)lib$(NAME).ver: $(SUBDIR)lib$(NAME).v $(OBJS)
 $(SUBDIR)$(SLIBNAME): $(SUBDIR)$(SLIBNAME_WITH_MAJOR)
 	$(Q)cd ./$(SUBDIR) && $(LN_S) $(SLIBNAME_WITH_MAJOR) $(SLIBNAME)
 
-$(SUBDIR)$(SLIBNAME_WITH_MAJOR): $(OBJS) $(SLIBOBJS) $(SUBDIR)lib$(NAME).ver
+$(SUBDIR)$(SLIBNAME_WITH_MAJOR): $(OBJS) $(SHLIBOBJS) $(SLIBOBJS) $(SUBDIR)lib$(NAME).ver
 	$(SLIB_CREATE_DEF_CMD)
 	$$(LD) $(SHFLAGS) $(LDFLAGS) $(LDSOFLAGS) $$(LD_O) $$(filter %.o,$$^) $(FFEXTRALIBS)
 	$(SLIB_EXTRA_CMD)
@@ -103,5 +103,14 @@ $(eval $(RULES))
 
 $(TOOLS):     $(DEP_LIBS) $(SUBDIR)$($(CONFIG_SHARED:yes=S)LIBNAME)
 $(TESTPROGS): $(DEP_LIBS) $(SUBDIR)$(LIBNAME)
+ifdef CONFIG_SHARED
+# Test programs are always statically linked against their library,
+# even when doing a shared build. Yet linking against dependend libraries
+# still uses dynamic linking. But the above recipe for static archives
+# presumes the other libraries to be linked statically, thereby providing
+# access to their internal symbols. This is not true in this case,
+# so use copies of the required symbols.
+$(TESTPROGS): $(SHLIBOBJS)
+endif
 
 testprogs: $(TESTPROGS)
