@@ -275,7 +275,8 @@ OBJS-$(CONFIG_CSCD_DECODER)            += cscd.o
 OBJS-$(CONFIG_CYUV_DECODER)            += cyuv.o
 OBJS-$(CONFIG_DCA_DECODER)             += dcadec.o dca.o dcadata.o dcahuff.o \
                                           dca_core.o dca_exss.o dca_xll.o dca_lbr.o \
-                                          dcadsp.o dcadct.o synth_filter.o
+                                          dcadsp.o dcadct.o dca_sample_rate_tab.o \
+                                          synth_filter.o
 OBJS-$(CONFIG_DCA_ENCODER)             += dcaenc.o dcadata.o dcahuff.o \
                                           dcaadpcm.o
 OBJS-$(CONFIG_DDS_DECODER)             += dds.o
@@ -988,7 +989,7 @@ OBJS-$(CONFIG_MXF_MUXER)               += dnxhddata.o
 OBJS-$(CONFIG_NUT_MUXER)               += mpegaudiodata.o
 OBJS-$(CONFIG_NUT_DEMUXER)             += mpegaudiodata.o mpeg4audio.o
 OBJS-$(CONFIG_RTP_MUXER)               += mpeg4audio.o
-OBJS-$(CONFIG_SPDIF_MUXER)             += dca.o
+OBJS-$(CONFIG_SPDIF_MUXER)             += dca_sample_rate_tab.o
 OBJS-$(CONFIG_TAK_DEMUXER)             += tak.o
 OBJS-$(CONFIG_WEBM_MUXER)              += mpeg4audio.o
 
@@ -1085,7 +1086,8 @@ OBJS-$(CONFIG_BMP_PARSER)              += bmp_parser.o
 OBJS-$(CONFIG_CAVSVIDEO_PARSER)        += cavs_parser.o
 OBJS-$(CONFIG_COOK_PARSER)             += cook_parser.o
 OBJS-$(CONFIG_CRI_PARSER)              += cri_parser.o
-OBJS-$(CONFIG_DCA_PARSER)              += dca_parser.o dca_exss.o dca.o
+OBJS-$(CONFIG_DCA_PARSER)              += dca_parser.o dca_exss.o dca.o \
+                                          dca_sample_rate_tab.o
 OBJS-$(CONFIG_DIRAC_PARSER)            += dirac_parser.o
 OBJS-$(CONFIG_DNXHD_PARSER)            += dnxhd_parser.o dnxhddata.o
 OBJS-$(CONFIG_DOLBY_E_PARSER)          += dolby_e_parser.o dolby_e_parse.o
