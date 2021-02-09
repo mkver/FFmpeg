@@ -83,20 +83,6 @@ const uint8_t ff_ac3_channels_tab[8] = {
     2, 1, 2, 3, 3, 4, 4, 5
 };
 
-/**
- * Map audio coding mode (acmod) to channel layout mask.
- */
-const uint16_t avpriv_ac3_channel_layout_tab[8] = {
-    AV_CH_LAYOUT_STEREO,
-    AV_CH_LAYOUT_MONO,
-    AV_CH_LAYOUT_STEREO,
-    AV_CH_LAYOUT_SURROUND,
-    AV_CH_LAYOUT_2_1,
-    AV_CH_LAYOUT_4POINT0,
-    AV_CH_LAYOUT_2_2,
-    AV_CH_LAYOUT_5POINT0
-};
-
 #define COMMON_CHANNEL_MAP \
     { { 0, 1,          }, { 0, 1, 2,         } },\
     { { 0,             }, { 0, 1,            } },\
