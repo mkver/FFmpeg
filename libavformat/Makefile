@@ -201,6 +201,7 @@ OBJS-$(CONFIG_FLIC_DEMUXER)              += flic.o
 OBJS-$(CONFIG_FLV_DEMUXER)               += flvdec.o
 OBJS-$(CONFIG_LIVE_FLV_DEMUXER)          += flvdec.o
 OBJS-$(CONFIG_FLV_MUXER)                 += flvenc.o avc.o
+SLIBOBJS-$(CONFIG_FLV_MUXER)             += mpeg4audio_sample_rates.o
 OBJS-$(CONFIG_FOURXM_DEMUXER)            += 4xm.o
 OBJS-$(CONFIG_FRAMECRC_MUXER)            += framecrcenc.o framehash.o
 OBJS-$(CONFIG_FRAMEHASH_MUXER)           += hashenc.o framehash.o
@@ -311,6 +312,7 @@ OBJS-$(CONFIG_MATROSKA_DEMUXER)          += matroskadec.o matroska.o  \
                                             flac_picture.o isom_tags.o rmsipr.o \
                                             oggparsevorbis.o vorbiscomment.o \
                                             qtpalette.o replaygain.o
+SLIBOBJS-$(CONFIG_MATROSKA_DEMUXER)      += mpeg4audio_sample_rates.o
 OBJS-$(CONFIG_MATROSKA_MUXER)            += matroskaenc.o matroska.o \
                                             av1.o avc.o hevc.o isom_tags.o \
                                             flacenc_header.o avlanguage.o \
@@ -483,7 +485,7 @@ OBJS-$(CONFIG_RTP_MUXER)                 += rtp.o         \
                                             rtpenc_vp9.o                \
                                             rtpenc_xiph.o \
                                             avc.o hevc.o
-SLIBOBJS-$(CONFIG_RTP_MUXER)             += jpegtables.o
+SLIBOBJS-$(CONFIG_RTP_MUXER)             += jpegtables.o mpeg4audio_sample_rates.o
 OBJS-$(CONFIG_RTSP_DEMUXER)              += rtsp.o rtspdec.o httpauth.o \
                                             urldecode.o
 OBJS-$(CONFIG_RTSP_MUXER)                += rtsp.o rtspenc.o httpauth.o \
