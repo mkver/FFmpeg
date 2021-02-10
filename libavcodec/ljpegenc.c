@@ -321,12 +321,12 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     ff_mjpeg_build_huffman_codes(s->huff_size_dc_luminance,
                                  s->huff_code_dc_luminance,
-                                 avpriv_mjpeg_bits_dc_luminance,
-                                 avpriv_mjpeg_val_dc);
+                                 ff_mjpeg_bits_dc_luminance,
+                                 ff_mjpeg_val_dc);
     ff_mjpeg_build_huffman_codes(s->huff_size_dc_chrominance,
                                  s->huff_code_dc_chrominance,
-                                 avpriv_mjpeg_bits_dc_chrominance,
-                                 avpriv_mjpeg_val_dc);
+                                 ff_mjpeg_bits_dc_chrominance,
+                                 ff_mjpeg_val_dc);
 
     return 0;
 }

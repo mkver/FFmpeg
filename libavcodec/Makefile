@@ -1003,7 +1003,9 @@ OBJS-$(CONFIG_WEBM_MUXER)              += mpeg4audio.o
 # with legacy libavformat archives.
 OBJS-$(CONFIG_MOV_DEMUXER)             += ac3_channel_layout_tab.o
 STLIBOBJS-$(CONFIG_MXF_MUXER)          += golomb.o
+OBJS-$(CONFIG_RTPDEC)                  += jpegtables.o
 STLIBOBJS-$(CONFIG_RTP_MUXER)          += golomb.o
+OBJS-$(CONFIG_RTP_MUXER)               += jpegtables.o
 OBJS-$(CONFIG_SPDIF_MUXER)             += dca_sample_rate_tab.o
 
 # libavfilter dependencies
