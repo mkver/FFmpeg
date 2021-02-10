@@ -58,6 +58,7 @@ OBJS-$(CONFIG_RTPDEC)                    += rdt.o                       \
                                             rtpdec_vp8.o                \
                                             rtpdec_vp9.o                \
                                             rtpdec_xiph.o
+SLIBOBJS-$(CONFIG_RTPDEC)                += jpegtables.o
 OBJS-$(CONFIG_RTPENC_CHAIN)              += rtpenc_chain.o rtp.o
 SLIBOBJS                                 += log2_tab.o golomb_tab.o
 OBJS-$(CONFIG_SRTP)                      += srtp.o
@@ -482,6 +483,7 @@ OBJS-$(CONFIG_RTP_MUXER)                 += rtp.o         \
                                             rtpenc_vp9.o                \
                                             rtpenc_xiph.o \
                                             avc.o hevc.o
+SLIBOBJS-$(CONFIG_RTP_MUXER)             += jpegtables.o
 OBJS-$(CONFIG_RTSP_DEMUXER)              += rtsp.o rtspdec.o httpauth.o \
                                             urldecode.o
 OBJS-$(CONFIG_RTSP_MUXER)                += rtsp.o rtspenc.o httpauth.o \
