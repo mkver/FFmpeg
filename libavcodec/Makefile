@@ -587,7 +587,7 @@ OBJS-$(CONFIG_RA_144_ENCODER)          += ra144enc.o ra144.o celp_filters.o
 OBJS-$(CONFIG_RA_288_DECODER)          += ra288.o celp_filters.o
 OBJS-$(CONFIG_RALF_DECODER)            += ralf.o
 OBJS-$(CONFIG_RASC_DECODER)            += rasc.o
-OBJS-$(CONFIG_RAWVIDEO_DECODER)        += rawdec.o
+OBJS-$(CONFIG_RAWVIDEO_DECODER)        += rawdec.o raw_pix_fmts.o
 OBJS-$(CONFIG_RAWVIDEO_ENCODER)        += rawenc.o
 OBJS-$(CONFIG_REALTEXT_DECODER)        += realtextdec.o ass.o
 OBJS-$(CONFIG_RL2_DECODER)             += rl2.o
@@ -975,6 +975,7 @@ OBJS-$(CONFIG_VP8_QSV_HWACCEL)            += qsvdec.o
 # libavformat dependencies
 OBJS-$(CONFIG_ISO_MEDIA)               += mpegaudiodata.o
 
+OBJS-$(CONFIG_AVI_MUXER)               += raw_pix_fmts.o
 OBJS-$(CONFIG_CODEC2_DEMUXER)          += codec2utils.o
 OBJS-$(CONFIG_CODEC2_MUXER)            += codec2utils.o
 OBJS-$(CONFIG_CODEC2RAW_DEMUXER)       += codec2utils.o
@@ -983,6 +984,7 @@ OBJS-$(CONFIG_FITS_DEMUXER)            += fits.o
 OBJS-$(CONFIG_FLV_MUXER)               += mpeg4audio_sample_rates.o
 OBJS-$(CONFIG_MATROSKA_DEMUXER)        += mpeg4audio_sample_rates.o
 OBJS-$(CONFIG_MOV_DEMUXER)             += ac3_channel_layout_tab.o
+OBJS-$(CONFIG_MOV_MUXER)               += raw_pix_fmts.o
 OBJS-$(CONFIG_MXF_MUXER)               += dnxhddata.o
 OBJS-$(CONFIG_NUT_MUXER)               += mpegaudiodata.o
 OBJS-$(CONFIG_RTP_MUXER)               += mpeg4audio_sample_rates.o

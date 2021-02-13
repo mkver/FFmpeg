@@ -340,6 +340,7 @@ SLIBOBJS-$(CONFIG_MOV_DEMUXER)           += ac3_channel_layout_tab.o
 OBJS-$(CONFIG_MOV_MUXER)                 += movenc.o av1.o avc.o hevc.o vpcc.o \
                                             movenchint.o mov_chan.o rtp.o \
                                             movenccenc.o rawutils.o
+SLIBOBJS-$(CONFIG_MOV_MUXER)             += raw_pix_fmts.o
 OBJS-$(CONFIG_MP2_MUXER)                 += rawenc.o
 OBJS-$(CONFIG_MP3_DEMUXER)               += mp3dec.o replaygain.o
 OBJS-$(CONFIG_MP3_MUXER)                 += mp3enc.o rawenc.o id3v2enc.o
