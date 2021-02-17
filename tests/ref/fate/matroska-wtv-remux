@@ -1,0 +1,134 @@
+3e7e269c8ad51d4694261de5e0faecba *tests/data/fate/matroska-wtv-remux.matroska
+752607 tests/data/fate/matroska-wtv-remux.matroska
+#extradata 0:        5, 0x001c0014
+#extradata 1:       22, 0x12dc010c
+#extradata 2:       22, 0x12dc010c
+#extradata 3:       36, 0x435d0438
+#tb 0: 1/1000
+#media_type 0: subtitle
+#codec_id 0: dvb_subtitle
+#tb 1: 1/1000
+#media_type 1: audio
+#codec_id 1: mp2
+#sample_rate 1: 48000
+#channel_layout 1: 3
+#channel_layout_name 1: stereo
+#tb 2: 1/1000
+#media_type 2: audio
+#codec_id 2: mp2
+#sample_rate 2: 48000
+#channel_layout 2: 4
+#channel_layout_name 2: mono
+#tb 3: 1/1000
+#media_type 3: audio
+#codec_id 3: alac
+#sample_rate 3: 48000
+#channel_layout 3: 4
+#channel_layout_name 3: mono
+#tb 4: 1/1000
+#media_type 4: audio
+#codec_id 4: pcm_s24be
+#sample_rate 4: 48000
+#channel_layout 4: 3
+#channel_layout_name 4: stereo
+1,          0,          0,       24,      576, 0x9b6e1638
+4,          0,          0,       24,     6912, 0x3c9d4857
+1,         24,         24,       24,      576, 0x0ca91183
+4,         24,         24,       24,     6912, 0x2c6d0715
+1,         48,         48,       24,      576, 0xec6a180f
+4,         48,         48,       24,     6912, 0x2b1df5f0
+1,         72,         72,       24,      576, 0x478a2b9b
+4,         72,         72,       24,     6912, 0x84df4f03
+1,         96,         96,       24,      576, 0x00fa15b3
+4,         96,         96,       24,     6912, 0x071d6767
+1,        120,        120,       24,      576, 0xfb551816
+4,        120,        120,       24,     6912, 0x2aeb66ea
+1,        144,        144,       24,      576, 0x422e12bd
+4,        144,        144,       24,     6912, 0xfccb037f
+2,        163,        163,       24,      192, 0xc948791d
+3,        163,        163,        0,       23, 0x478e0a10
+1,        168,        168,       24,      576, 0xa7581b29
+4,        168,        168,       24,     6912, 0xa650ad97
+2,        187,        187,       24,      192, 0xc948791d
+1,        192,        192,       24,      576, 0xd4b31a74
+4,        192,        192,       24,     6912, 0x1b33cb40
+[STREAM]
+index=0
+codec_name=dvb_subtitle
+DISPOSITION:default=1
+DISPOSITION:dub=0
+DISPOSITION:original=0
+DISPOSITION:comment=0
+DISPOSITION:lyrics=0
+DISPOSITION:karaoke=0
+DISPOSITION:forced=0
+DISPOSITION:hearing_impaired=0
+DISPOSITION:visual_impaired=0
+DISPOSITION:clean_effects=0
+DISPOSITION:attached_pic=0
+DISPOSITION:timed_thumbnails=0
+[/STREAM]
+[STREAM]
+index=1
+codec_name=mp2
+DISPOSITION:default=1
+DISPOSITION:dub=0
+DISPOSITION:original=1
+DISPOSITION:comment=0
+DISPOSITION:lyrics=0
+DISPOSITION:karaoke=0
+DISPOSITION:forced=0
+DISPOSITION:hearing_impaired=0
+DISPOSITION:visual_impaired=0
+DISPOSITION:clean_effects=0
+DISPOSITION:attached_pic=0
+DISPOSITION:timed_thumbnails=0
+[/STREAM]
+[STREAM]
+index=2
+codec_name=mp2
+DISPOSITION:default=0
+DISPOSITION:dub=0
+DISPOSITION:original=0
+DISPOSITION:comment=1
+DISPOSITION:lyrics=0
+DISPOSITION:karaoke=0
+DISPOSITION:forced=0
+DISPOSITION:hearing_impaired=1
+DISPOSITION:visual_impaired=0
+DISPOSITION:clean_effects=0
+DISPOSITION:attached_pic=0
+DISPOSITION:timed_thumbnails=0
+[/STREAM]
+[STREAM]
+index=3
+codec_name=alac
+DISPOSITION:default=0
+DISPOSITION:dub=0
+DISPOSITION:original=0
+DISPOSITION:comment=0
+DISPOSITION:lyrics=0
+DISPOSITION:karaoke=0
+DISPOSITION:forced=0
+DISPOSITION:hearing_impaired=1
+DISPOSITION:visual_impaired=0
+DISPOSITION:clean_effects=0
+DISPOSITION:attached_pic=0
+DISPOSITION:timed_thumbnails=0
+[/STREAM]
+[STREAM]
+index=4
+codec_name=pcm_s24be
+DISPOSITION:default=0
+DISPOSITION:dub=1
+DISPOSITION:original=0
+DISPOSITION:comment=0
+DISPOSITION:lyrics=0
+DISPOSITION:karaoke=0
+DISPOSITION:forced=0
+DISPOSITION:hearing_impaired=0
+DISPOSITION:visual_impaired=0
+DISPOSITION:clean_effects=0
+DISPOSITION:attached_pic=0
+DISPOSITION:timed_thumbnails=0
+[/STREAM]

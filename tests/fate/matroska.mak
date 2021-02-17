@@ -100,6 +100,29 @@ FATE_MATROSKA_FFMPEG_FFPROBE-$(call ALLYES, FILE_PROTOCOL MATROSKA_DEMUXER \
                                += fate-matroska-vp8-alpha-remux
 fate-matroska-vp8-alpha-remux: CMD = transcode matroska $(TARGET_SAMPLES)/vp8_alpha/vp8_video_with_alpha.webm matroska "-c copy -disposition +hearing_impaired -cluster_size_limit 100000" "-c copy -t 0.2" "" "-show_entries stream_disposition:stream_side_data_list"
 
+# The second input audio track is for the hearing impaired. It is muxed twice,
+# once using streamcopy and once encoded with alac to test that dispositions
+# are preserved during encoding; the streamcopied track is also marked as
+# commentary. The other audio stream is also muxed twice, once streamcopied,
+# once as pcm_s24be; one of them is marked as dub and one as original language.
+# The subtitle stream is furthermore marked as containing descriptions.
+FATE_MATROSKA_FFMPEG_FFPROBE-$(call ALLYES, FILE_PROTOCOL WTV_DEMUXER       \
+                                            MPEGAUDIO_PARSER DVBSUB_PARSER  \
+                                            MP2_DECODER ARESAMPLE_FILTER    \
+                                            ALAC_ENCODER PCM_S24BE_ENCODER  \
+                                            MATROSKA_MUXER MATROSKA_DEMUXER \
+                                            FRAMECRC_MUXER PIPE_PROTOCOL)   \
+                               += fate-matroska-wtv-remux
+fate-matroska-wtv-remux: CMD = transcode wtv $(TARGET_SAMPLES)/wtv/law-and-order-partial.wtv matroska "-map 0 -vn -map 0:a:1 -c:s copy -disposition:s +descriptions -c:a:0 copy -disposition:a:0 +original -c:a:1 copy -disposition:a:1 +comment -c:a:2 alac -compression_level 1 -map 0:a:0 -filter:a:3 aresample -c:a:3 pcm_s24be -disposition:a:3 +dub" "-map 0 -c copy -t 0.2" "" "-show_entries stream_disposition:stream=index,codec_name"
+
+# The audio stream to be remuxed here has AV_DISPOSITION_VISUAL_IMPAIRED.
+FATE_MATROSKA_FFMPEG_FFPROBE-$(call ALLYES, FILE_PROTOCOL MPEGTS_DEMUXER    \
+                                            AC3_DECODER MATROSKA_MUXER      \
+                                            MATROSKA_DEMUXER FRAMECRC_MUXER \
+                                            PIPE_PROTOCOL)                  \
+                               += fate-matroska-mpegts-remux
+fate-matroska-mpegts-remux: CMD = transcode mpegts $(TARGET_SAMPLES)/mpegts/pmtchange.ts matroska "-map 0:2 -map 0:2 -c copy -disposition:a:1 -visual_impaired+hearing_impaired" "-map 0 -c copy" "" "-show_entries stream_disposition:stream=index"
+
 FATE_MATROSKA_FFPROBE-$(call ALLYES, MATROSKA_DEMUXER) += fate-matroska-spherical-mono
 fate-matroska-spherical-mono: CMD = run ffprobe$(PROGSSUF)$(EXESUF) -show_entries stream_side_data_list -select_streams v -v 0 $(TARGET_SAMPLES)/mkv/spherical.mkv
 
