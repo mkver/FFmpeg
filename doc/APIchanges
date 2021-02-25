@@ -17,6 +17,10 @@ API changes, most recent first:
 2021-04-17 - xxxxxxxxxx - lavu 56.73.100 - frame.h detection_bbox.h
   Add AV_FRAME_DATA_DETECTION_BBOXES
 
+2021-04-14 - xxxxxxxxxx - lavd yyyyyyyyy - avdevice.h
+  avdevice_list_input_sources and avdevice_list_output_sinks now accept
+  pointers to const AVInputFormat resp. const AVOutputFormat.
+
 2021-04-14 - xxxxxxxxxx - lavf yyyyyyyyy - avformat.h
   av_find_best_stream now uses a const AVCodec ** parameter
   for the returned decoder.
