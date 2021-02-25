@@ -967,7 +967,7 @@ static const AVClass adpcm_encoder_class = {
 };
 
 #define ADPCM_ENCODER(id_, name_, sample_fmts_, capabilities_, long_name_) \
-AVCodec ff_ ## name_ ## _encoder = {                                       \
+const AVCodec ff_ ## name_ ## _encoder = {                                 \
     .name           = #name_,                                              \
     .long_name      = NULL_IF_CONFIG_SMALL(long_name_),                    \
     .type           = AVMEDIA_TYPE_AUDIO,                                  \

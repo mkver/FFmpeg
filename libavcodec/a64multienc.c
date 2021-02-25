@@ -396,7 +396,7 @@ static int a64multi_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 }
 
 #if CONFIG_A64MULTI_ENCODER
-AVCodec ff_a64multi_encoder = {
+const AVCodec ff_a64multi_encoder = {
     .name           = "a64multi",
     .long_name      = NULL_IF_CONFIG_SMALL("Multicolor charset for Commodore 64"),
     .type           = AVMEDIA_TYPE_VIDEO,
@@ -411,7 +411,7 @@ AVCodec ff_a64multi_encoder = {
 };
 #endif
 #if CONFIG_A64MULTI5_ENCODER
-AVCodec ff_a64multi5_encoder = {
+const AVCodec ff_a64multi5_encoder = {
     .name           = "a64multi5",
     .long_name      = NULL_IF_CONFIG_SMALL("Multicolor charset for Commodore 64, extended with 5th color (colram)"),
     .type           = AVMEDIA_TYPE_VIDEO,
