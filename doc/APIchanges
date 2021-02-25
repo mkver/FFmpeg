@@ -18,6 +18,10 @@ API changes, most recent first:
   Add AV_FRAME_DATA_DETECTION_BBOXES
 
 2021-04-14 - xxxxxxxxxx - lavd yyyyyyyyy - avdevice.h
+  The av_*_device_next API functions now accept and return
+  pointers to const AVInputFormat resp. AVOutputFormat.
+
+2021-04-14 - xxxxxxxxxx - lavd yyyyyyyyy - avdevice.h
   avdevice_list_input_sources and avdevice_list_output_sinks now accept
   pointers to const AVInputFormat resp. const AVOutputFormat.
 
