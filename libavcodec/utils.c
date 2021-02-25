@@ -1864,13 +1864,6 @@ void av_register_hwaccel(AVHWAccel *hwaccel)
 }
 #endif
 
-#if FF_API_LOCKMGR
-int av_lockmgr_register(int (*cb)(void **mutex, enum AVLockOp op))
-{
-    return 0;
-}
-#endif
-
 unsigned int avpriv_toupper4(unsigned int x)
 {
     return av_toupper(x & 0xFF) +
