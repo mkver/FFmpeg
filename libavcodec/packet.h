@@ -29,8 +29,6 @@
 #include "libavutil/dict.h"
 #include "libavutil/rational.h"
 
-#include "libavcodec/version.h"
-
 /**
  * @defgroup lavc_packet AVPacket
  *
@@ -550,14 +548,6 @@ int av_packet_shrink_side_data(AVPacket *pkt, enum AVPacketSideDataType type,
  */
 uint8_t* av_packet_get_side_data(const AVPacket *pkt, enum AVPacketSideDataType type,
                                  int *size);
-
-#if FF_API_MERGE_SD_API
-attribute_deprecated
-int av_packet_merge_side_data(AVPacket *pkt);
-
-attribute_deprecated
-int av_packet_split_side_data(AVPacket *pkt);
-#endif
 
 const char *av_packet_side_data_name(enum AVPacketSideDataType type);
 
