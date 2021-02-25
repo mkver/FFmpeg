@@ -368,17 +368,6 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
 
     avctx->bits_per_raw_sample = av_clip(avctx->bits_per_raw_sample, 0, 8);
 
-#if FF_API_PRIVATE_OPT
-FF_DISABLE_DEPRECATION_WARNINGS
-    if (avctx->rtp_payload_size)
-        s->rtp_payload_size = avctx->rtp_payload_size;
-    if (avctx->me_penalty_compensation)
-        s->me_penalty_compensation = avctx->me_penalty_compensation;
-    if (avctx->pre_me)
-        s->me_pre = avctx->pre_me;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
-
     s->bit_rate = avctx->bit_rate;
     s->width    = avctx->width;
     s->height   = avctx->height;
@@ -624,13 +613,6 @@ FF_ENABLE_DEPRECATION_WARNINGS
         return AVERROR(EINVAL);
     }
 
-#if FF_API_PRIVATE_OPT
-    FF_DISABLE_DEPRECATION_WARNINGS
-    if (avctx->mpeg_quant)
-        s->mpeg_quant = avctx->mpeg_quant;
-    FF_ENABLE_DEPRECATION_WARNINGS
-#endif
-
     // FIXME mpeg2 uses that too
     if (s->mpeg_quant && (   s->codec_id != AV_CODEC_ID_MPEG4
                           && s->codec_id != AV_CODEC_ID_MPEG2VIDEO)) {
@@ -658,13 +640,6 @@ FF_ENABLE_DEPRECATION_WARNINGS
                "QP RD is no longer compatible with MJPEG or AMV\n");
         return AVERROR(EINVAL);
     }
-
-#if FF_API_PRIVATE_OPT
-FF_DISABLE_DEPRECATION_WARNINGS
-    if (avctx->scenechange_threshold)
-        s->scenechange_threshold = avctx->scenechange_threshold;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
 
     if (s->scenechange_threshold < 1000000000 &&
         (avctx->flags & AV_CODEC_FLAG_CLOSED_GOP)) {
@@ -725,15 +700,6 @@ FF_ENABLE_DEPRECATION_WARNINGS
         av_log(avctx, AV_LOG_ERROR, "framerate not set\n");
         return AVERROR(EINVAL);
     }
-
-#if FF_API_PRIVATE_OPT
-FF_DISABLE_DEPRECATION_WARNINGS
-    if (avctx->b_frame_strategy)
-        s->b_frame_strategy = avctx->b_frame_strategy;
-    if (avctx->b_sensitivity != 40)
-        s->b_sensitivity = avctx->b_sensitivity;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
 
     if (s->b_frame_strategy && (avctx->flags & AV_CODEC_FLAG_PASS2)) {
         av_log(avctx, AV_LOG_INFO,
@@ -924,13 +890,6 @@ FF_ENABLE_DEPRECATION_WARNINGS
         return AVERROR(EINVAL);
     }
 
-#if FF_API_PRIVATE_OPT
-    FF_DISABLE_DEPRECATION_WARNINGS
-    if (avctx->noise_reduction)
-        s->noise_reduction = avctx->noise_reduction;
-    FF_ENABLE_DEPRECATION_WARNINGS
-#endif
-
     avctx->has_b_frames = !s->low_delay;
 
     s->encoding = 1;
@@ -987,19 +946,6 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     s->quant_precision = 5;
 
-#if FF_API_PRIVATE_OPT
-FF_DISABLE_DEPRECATION_WARNINGS
-    if (avctx->frame_skip_threshold)
-        s->frame_skip_threshold = avctx->frame_skip_threshold;
-    if (avctx->frame_skip_factor)
-        s->frame_skip_factor = avctx->frame_skip_factor;
-    if (avctx->frame_skip_exp)
-        s->frame_skip_exp = avctx->frame_skip_exp;
-    if (avctx->frame_skip_cmp != FF_CMP_DCTMAX)
-        s->frame_skip_cmp = avctx->frame_skip_cmp;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
-
     ff_set_cmp(&s->mecc, s->mecc.ildct_cmp,      avctx->ildct_cmp);
     ff_set_cmp(&s->mecc, s->mecc.frame_skip_cmp, s->frame_skip_cmp);
 
@@ -1052,16 +998,6 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     if ((ret = ff_rate_control_init(s)) < 0)
         return ret;
-
-#if FF_API_PRIVATE_OPT
-    FF_DISABLE_DEPRECATION_WARNINGS
-    if (avctx->brd_scale)
-        s->brd_scale = avctx->brd_scale;
-
-    if (avctx->prediction_method)
-        s->pred = avctx->prediction_method + 1;
-    FF_ENABLE_DEPRECATION_WARNINGS
-#endif
 
     if (s->b_frame_strategy == 2) {
         for (i = 0; i < s->max_b_frames + 2; i++) {
