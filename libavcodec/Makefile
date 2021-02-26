@@ -31,7 +31,6 @@ OBJS = ac3_parser.o                                                     \
        allcodecs.o                                                      \
        avdct.o                                                          \
        avpacket.o                                                       \
-       avpicture.o                                                      \
        bitstream.o                                                      \
        bitstream_filters.o                                              \
        bsf.o                                                            \
@@ -1213,7 +1212,6 @@ TESTPROGS = avpacket                                                    \
             celp_math                                                   \
             codec_desc                                                  \
             htmlsubtitles                                               \
-            imgconvert                                                  \
             jpeg2000dwt                                                 \
             mathops                                                    \
             options                                                     \
