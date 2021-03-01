@@ -465,6 +465,7 @@ int avcodec_default_execute2(AVCodecContext *c, int (*func)(AVCodecContext *c2, 
     return 0;
 }
 
+#if LIBAVCODEC_VERSION_MAJOR < 59
 enum AVPixelFormat avpriv_find_pix_fmt(const PixelFormatTag *tags,
                                        unsigned int fourcc)
 {
@@ -475,7 +476,7 @@ enum AVPixelFormat avpriv_find_pix_fmt(const PixelFormatTag *tags,
     }
     return AV_PIX_FMT_NONE;
 }
-
+#endif
 #if FF_API_CODEC_GET_SET
 MAKE_ACCESSORS(AVCodecContext, codec, AVRational, pkt_timebase)
 MAKE_ACCESSORS(AVCodecContext, codec, const AVCodecDescriptor *, codec_descriptor)
