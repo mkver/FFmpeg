@@ -26,6 +26,7 @@
 typedef struct IMM5Context {
     AVCodecContext *h264_avctx;   // wrapper context for H264
     AVCodecContext *hevc_avctx;   // wrapper context for HEVC
+    AVPacket *pkt;
 } IMM5Context;
 
 static const struct IMM5_unit {
@@ -80,6 +81,10 @@ static av_cold int imm5_init(AVCodecContext *avctx)
     if (ret < 0)
         return ret;
 
+    ctx->pkt = av_packet_alloc();
+    if (!ctx->pkt)
+        return AVERROR(ENOMEM);
+
     return 0;
 }
 
@@ -97,6 +102,11 @@ static int imm5_decode_frame(AVCodecContext *avctx, void *data,
         int new_size = AV_RL32(avpkt->data + 4);
         int offset, off;
 
+        ret = av_packet_ref(ctx->pkt, avpkt);
+        if (ret < 0)
+            return ret;
+        avpkt = ctx->pkt;
+
         if (codec_type == 0xA) {
             codec_avctx = ctx->hevc_avctx;
         } else if (index == 17) {
@@ -106,9 +116,11 @@ static int imm5_decode_frame(AVCodecContext *avctx, void *data,
         }
 
         if (index >= 1 && index <= 12) {
-            ret = av_packet_make_writable(avpkt);
-            if (ret < 0)
+            ret = av_packet_make_writable(ctx->pkt);
+            if (ret < 0) {
+                av_packet_unref(ctx->pkt);
                 return ret;
+            }
 
             index -= 1;
             off = offset = IMM5_units[index].len;
@@ -118,8 +130,8 @@ static int imm5_decode_frame(AVCodecContext *avctx, void *data,
                 offset += IMM5_units[13].len;
             }
 
-            avpkt->data += 24 - offset;
-            avpkt->size = new_size + offset;
+            ctx->pkt->data += 24 - offset;
+            ctx->pkt->size  = new_size + offset;
 
             memcpy(avpkt->data, IMM5_units[index].bits, IMM5_units[index].len);
             if (codec_type == 2) {
@@ -128,12 +140,14 @@ static int imm5_decode_frame(AVCodecContext *avctx, void *data,
                 memcpy(avpkt->data + off, IMM5_units[13].bits, IMM5_units[13].len);
             }
         } else {
-            avpkt->data += 24;
-            avpkt->size -= 24;
+            ctx->pkt->data += 24;
+            ctx->pkt->size -= 24;
         }
     }
 
     ret = avcodec_send_packet(codec_avctx, avpkt);
+    if (avpkt == ctx->pkt)
+        av_packet_unref(ctx->pkt);
     if (ret < 0) {
         av_log(avctx, AV_LOG_ERROR, "Error submitting a packet for decoding\n");
         return ret;
@@ -174,6 +188,7 @@ static av_cold int imm5_close(AVCodecContext *avctx)
 
     avcodec_free_context(&ctx->h264_avctx);
     avcodec_free_context(&ctx->hevc_avctx);
+    av_packet_free(&ctx->pkt);
 
     return 0;
 }
