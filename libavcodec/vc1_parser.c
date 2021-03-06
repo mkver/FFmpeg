@@ -286,7 +286,7 @@ static av_cold int vc1_parse_init(AVCodecParserContext *s)
     return ff_vc1_init_common(&vpc->v);
 }
 
-AVCodecParser ff_vc1_parser = {
+const AVCodecParser ff_vc1_parser = {
     .codec_ids      = { AV_CODEC_ID_VC1 },
     .priv_data_size = sizeof(VC1ParseContext),
     .parser_init    = vc1_parse_init,
