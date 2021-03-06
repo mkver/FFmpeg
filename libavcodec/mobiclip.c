@@ -1208,7 +1208,7 @@ static int predict_motion(AVCodecContext *avctx,
 }
 
 static int mobiclip_decode(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *pkt)
+                           int *got_frame, const AVPacket *pkt)
 {
     MobiClipContext *s = avctx->priv_data;
     GetBitContext *gb = &s->gb;

@@ -1252,7 +1252,8 @@ end:
     return 0;
 }
 
-static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame, AVPacket *pkt)
+static int decode_frame(AVCodecContext *avctx, void *data,
+                        int *got_frame, const AVPacket *pkt)
 {
     BinkContext * const c = avctx->priv_data;
     AVFrame *frame = data;

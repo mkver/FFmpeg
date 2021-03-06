@@ -1604,7 +1604,7 @@ static void save_bits(WMAProDecodeCtx *s, GetBitContext* gb, int len,
 }
 
 static int decode_packet(AVCodecContext *avctx, WMAProDecodeCtx *s,
-                         void *data, int *got_frame_ptr, AVPacket *avpkt)
+                         void *data, int *got_frame_ptr, const AVPacket *avpkt)
 {
     GetBitContext* gb  = &s->pgb;
     const uint8_t* buf = avpkt->data;
@@ -1809,7 +1809,7 @@ static int decode_packet(AVCodecContext *avctx, WMAProDecodeCtx *s,
  *@return number of bytes that were read from the input buffer
  */
 static int wmapro_decode_packet(AVCodecContext *avctx, void *data,
-                                int *got_frame_ptr, AVPacket *avpkt)
+                                int *got_frame_ptr, const AVPacket *avpkt)
 {
     WMAProDecodeCtx *s = avctx->priv_data;
     AVFrame *frame = data;
@@ -1826,7 +1826,7 @@ static int wmapro_decode_packet(AVCodecContext *avctx, void *data,
 }
 
 static int xma_decode_packet(AVCodecContext *avctx, void *data,
-                             int *got_frame_ptr, AVPacket *avpkt)
+                             int *got_frame_ptr, const AVPacket *avpkt)
 {
     XMADecodeCtx *s = avctx->priv_data;
     int got_stream_frame_ptr = 0;

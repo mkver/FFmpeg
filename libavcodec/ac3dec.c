@@ -1466,7 +1466,7 @@ static int decode_audio_block(AC3DecodeContext *s, int blk, int offset)
  * Decode a single AC-3 frame.
  */
 static int ac3_decode_frame(AVCodecContext * avctx, void *data,
-                            int *got_frame_ptr, AVPacket *avpkt)
+                            int *got_frame_ptr, const AVPacket *avpkt)
 {
     AVFrame *frame     = data;
     const uint8_t *buf = avpkt->data;

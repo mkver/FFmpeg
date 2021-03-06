@@ -606,7 +606,7 @@ static void run_postproc(AVCodecContext *avctx, AVFrame *frame)
 }
 
 static int dds_decode(AVCodecContext *avctx, void *data,
-                      int *got_frame, AVPacket *avpkt)
+                      int *got_frame, const AVPacket *avpkt)
 {
     DDSContext *ctx = avctx->priv_data;
     GetByteContext *gbc = &ctx->gbc;

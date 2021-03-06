@@ -415,7 +415,7 @@ static int decode_element(AVCodecContext *avctx, AVFrame *frame, int ch_index,
 }
 
 static int alac_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame_ptr, AVPacket *avpkt)
+                             int *got_frame_ptr, const AVPacket *avpkt)
 {
     ALACContext *alac = avctx->priv_data;
     AVFrame *frame    = data;

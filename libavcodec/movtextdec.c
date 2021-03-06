@@ -472,8 +472,8 @@ static int mov_text_init(AVCodecContext *avctx) {
         return ff_ass_subtitle_header_default(avctx);
 }
 
-static int mov_text_decode_frame(AVCodecContext *avctx,
-                            void *data, int *got_sub_ptr, AVPacket *avpkt)
+static int mov_text_decode_frame(AVCodecContext *avctx, void *data,
+                                 int *got_sub_ptr, const AVPacket *avpkt)
 {
     AVSubtitle *sub = data;
     MovTextContext *m = avctx->priv_data;

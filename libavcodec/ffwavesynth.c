@@ -413,7 +413,7 @@ static void wavesynth_enter_intervals(struct wavesynth_context *ws, int64_t ts)
 }
 
 static int wavesynth_decode(AVCodecContext *avc, void *rframe, int *rgot_frame,
-                            AVPacket *packet)
+                            const AVPacket *packet)
 {
     struct wavesynth_context *ws = avc->priv_data;
     AVFrame *frame = rframe;

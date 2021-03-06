@@ -187,7 +187,7 @@ static int decode_skip_count(GetBitContext* gb)
 }
 
 static int escape130_decode_frame(AVCodecContext *avctx, void *data,
-                                  int *got_frame, AVPacket *avpkt)
+                                  int *got_frame, const AVPacket *avpkt)
 {
     int buf_size        = avpkt->size;
     Escape130Context *s = avctx->priv_data;

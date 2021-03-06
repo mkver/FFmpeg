@@ -400,7 +400,7 @@ static int xan_decode_frame_type1(AVCodecContext *avctx)
 
 static int xan_decode_frame(AVCodecContext *avctx,
                             void *data, int *got_frame,
-                            AVPacket *avpkt)
+                            const AVPacket *avpkt)
 {
     XanContext *s = avctx->priv_data;
     int ftype;

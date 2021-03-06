@@ -117,7 +117,7 @@ WRITE_FRAME(8, int8_t, byte)
 WRITE_FRAME(16, int16_t, be16)
 
 static int pgx_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *avpkt)
+                            int *got_frame, const AVPacket *avpkt)
 {
     AVFrame *p = data;
     int ret;

@@ -1077,7 +1077,7 @@ static int filter_frame(DBEDecodeContext *s, AVFrame *frame)
 }
 
 static int dolby_e_decode_frame(AVCodecContext *avctx, void *data,
-                                int *got_frame_ptr, AVPacket *avpkt)
+                                int *got_frame_ptr, const AVPacket *avpkt)
 {
     DBEDecodeContext *s1 = avctx->priv_data;
     DBEContext *s = &s1->dectx;

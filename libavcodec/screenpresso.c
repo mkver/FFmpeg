@@ -102,7 +102,7 @@ static void sum_delta_flipped(uint8_t       *dst, int dst_linesize,
 }
 
 static int screenpresso_decode_frame(AVCodecContext *avctx, void *data,
-                                     int *got_frame, AVPacket *avpkt)
+                                     int *got_frame, const AVPacket *avpkt)
 {
     ScreenpressoContext *ctx = avctx->priv_data;
     AVFrame *frame = data;

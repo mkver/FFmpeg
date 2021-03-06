@@ -447,7 +447,7 @@ static av_cold int qtrle_decode_init(AVCodecContext *avctx)
 
 static int qtrle_decode_frame(AVCodecContext *avctx,
                               void *data, int *got_frame,
-                              AVPacket *avpkt)
+                              const AVPacket *avpkt)
 {
     QtrleContext *s = avctx->priv_data;
     int header, start_line;

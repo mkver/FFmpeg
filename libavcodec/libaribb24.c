@@ -282,7 +282,8 @@ next_region:
     return ret;
 }
 
-static int libaribb24_decode(AVCodecContext *avctx, void *data, int *got_sub_ptr, AVPacket *pkt)
+static int libaribb24_decode(AVCodecContext *avctx, void *data,
+                             int *got_sub_ptr, const AVPacket *pkt)
 {
     Libaribb24Context *b24 = avctx->priv_data;
     AVSubtitle *sub = data;

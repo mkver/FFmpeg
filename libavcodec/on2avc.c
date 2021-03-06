@@ -839,7 +839,7 @@ static int on2avc_decode_subframe(On2AVCContext *c, const uint8_t *buf,
 }
 
 static int on2avc_decode_frame(AVCodecContext * avctx, void *data,
-                               int *got_frame_ptr, AVPacket *avpkt)
+                               int *got_frame_ptr, const AVPacket *avpkt)
 {
     AVFrame *frame     = data;
     const uint8_t *buf = avpkt->data;

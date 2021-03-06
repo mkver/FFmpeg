@@ -985,7 +985,7 @@ static int send_next_delayed_frame(H264Context *h, AVFrame *dst_frame,
 }
 
 static int h264_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame, AVPacket *avpkt)
+                             int *got_frame, const AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;

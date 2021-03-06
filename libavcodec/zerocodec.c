@@ -28,7 +28,7 @@ typedef struct ZeroCodecContext {
 } ZeroCodecContext;
 
 static int zerocodec_decode_frame(AVCodecContext *avctx, void *data,
-                                  int *got_frame, AVPacket *avpkt)
+                                  int *got_frame, const AVPacket *avpkt)
 {
     ZeroCodecContext *zc = avctx->priv_data;
     AVFrame *pic         = data;

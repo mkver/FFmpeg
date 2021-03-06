@@ -353,7 +353,7 @@ static int decode_inter(AVCodecContext *avctx, GetBitContext *gb,
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame, AVPacket *avpkt)
+                        int *got_frame, const AVPacket *avpkt)
 {
     IMM4Context *s = avctx->priv_data;
     GetBitContext *gb = &s->gb;

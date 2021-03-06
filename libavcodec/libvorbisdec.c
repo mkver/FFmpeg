@@ -147,7 +147,7 @@ static inline int conv(int samples, float **pcm, char *buf, int channels) {
 }
 
 static int oggvorbis_decode_frame(AVCodecContext *avccontext, void *data,
-                        int *got_frame_ptr, AVPacket *avpkt)
+                                  int *got_frame_ptr, const AVPacket *avpkt)
 {
     OggVorbisDecContext *context = avccontext->priv_data ;
     AVFrame *frame = data;

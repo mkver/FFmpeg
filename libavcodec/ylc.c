@@ -280,7 +280,7 @@ static const uint8_t table_v[] = {
 
 static int decode_frame(AVCodecContext *avctx,
                         void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     int TL[4] = { 128, 128, 128, 128 };
     int L[4]  = { 128, 128, 128, 128 };

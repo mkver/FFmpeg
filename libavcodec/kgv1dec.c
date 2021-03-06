@@ -44,7 +44,7 @@ static void decode_flush(AVCodecContext *avctx)
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     AVFrame *frame = data;
     const uint8_t *buf = avpkt->data;

@@ -1376,7 +1376,7 @@ fail:
 }
 
 static int svq3_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame, AVPacket *avpkt)
+                             int *got_frame, const AVPacket *avpkt)
 {
     SVQ3Context *s     = avctx->priv_data;
     int buf_size       = avpkt->size;

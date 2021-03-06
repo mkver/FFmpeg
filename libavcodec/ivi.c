@@ -1066,7 +1066,7 @@ static int decode_band(IVI45DecContext *ctx,
 }
 
 int ff_ivi_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     IVI45DecContext *ctx = avctx->priv_data;
     const uint8_t   *buf = avpkt->data;

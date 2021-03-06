@@ -84,7 +84,7 @@ static void delta_decode(uint8_t *dst, const uint8_t *src, int src_size,
 
 /** decode a frame */
 static int eightsvx_decode_frame(AVCodecContext *avctx, void *data,
-                                 int *got_frame_ptr, AVPacket *avpkt)
+                                 int *got_frame_ptr, const AVPacket *avpkt)
 {
     EightSvxContext *esc = avctx->priv_data;
     AVFrame *frame       = data;

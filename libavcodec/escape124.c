@@ -197,7 +197,7 @@ static const uint16_t mask_matrix[] = {0x1,   0x2,   0x10,   0x20,
 
 static int escape124_decode_frame(AVCodecContext *avctx,
                                   void *data, int *got_frame,
-                                  AVPacket *avpkt)
+                                  const AVPacket *avpkt)
 {
     int buf_size = avpkt->size;
     Escape124Context *s = avctx->priv_data;

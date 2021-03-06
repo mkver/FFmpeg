@@ -89,7 +89,7 @@ static inline uint16_t dv_audio_12to16(uint16_t sample)
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame_ptr, AVPacket *pkt)
+                        int *got_frame_ptr, const AVPacket *pkt)
 {
     DVAudioContext *s = avctx->priv_data;
     AVFrame *frame = data;

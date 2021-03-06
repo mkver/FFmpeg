@@ -105,7 +105,7 @@ static void set_sample(int i, int j, int v, float *result, int *pads, float valu
 }
 
 static int fastaudio_decode(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *pkt)
+                            int *got_frame, const AVPacket *pkt)
 {
     FastAudioContext *s = avctx->priv_data;
     GetByteContext gb;

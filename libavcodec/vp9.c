@@ -1547,7 +1547,7 @@ static int vp9_export_enc_params(VP9Context *s, VP9Frame *frame)
 }
 
 static int vp9_decode_frame(AVCodecContext *avctx, void *frame,
-                            int *got_frame, AVPacket *pkt)
+                            int *got_frame, const AVPacket *pkt)
 {
     const uint8_t *data = pkt->data;
     int size = pkt->size;

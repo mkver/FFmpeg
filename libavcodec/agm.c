@@ -1094,7 +1094,7 @@ static int decode_huffman2(AVCodecContext *avctx, int header, int size)
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame, AVPacket *avpkt)
+                        int *got_frame, const AVPacket *avpkt)
 {
     AGMContext *s = avctx->priv_data;
     GetBitContext *gb = &s->gb;

@@ -189,7 +189,7 @@ static int vb_decode_framedata(VBDecContext *c, int offset)
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     VBDecContext * const c = avctx->priv_data;
     AVFrame *frame         = data;

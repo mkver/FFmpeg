@@ -162,8 +162,8 @@ static void jacosub_to_ass(AVCodecContext *avctx, AVBPrint *dst, const char *src
     }
 }
 
-static int jacosub_decode_frame(AVCodecContext *avctx,
-                                void *data, int *got_sub_ptr, AVPacket *avpkt)
+static int jacosub_decode_frame(AVCodecContext *avctx, void *data,
+                                int *got_sub_ptr, const AVPacket *avpkt)
 {
     int ret;
     AVSubtitle *sub = data;

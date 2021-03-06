@@ -464,7 +464,8 @@ static av_cold int gif_decode_init(AVCodecContext *avctx)
     return 0;
 }
 
-static int gif_decode_frame(AVCodecContext *avctx, void *data, int *got_frame, AVPacket *avpkt)
+static int gif_decode_frame(AVCodecContext *avctx, void *data,
+                            int *got_frame, const AVPacket *avpkt)
 {
     GifState *s = avctx->priv_data;
     int ret;

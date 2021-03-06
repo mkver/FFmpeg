@@ -257,7 +257,7 @@ static av_cold int rpza_decode_init(AVCodecContext *avctx)
 
 static int rpza_decode_frame(AVCodecContext *avctx,
                              void *data, int *got_frame,
-                             AVPacket *avpkt)
+                             const AVPacket *avpkt)
 {
     RpzaContext *s = avctx->priv_data;
     int ret;

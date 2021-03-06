@@ -268,7 +268,7 @@ static int decode_0(PAFVideoDecContext *c, uint8_t *pkt, uint8_t code)
 }
 
 static int paf_video_decode(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *pkt)
+                            int *got_frame, const AVPacket *pkt)
 {
     PAFVideoDecContext *c = avctx->priv_data;
     uint8_t code, *dst, *end;

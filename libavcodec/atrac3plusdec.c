@@ -334,7 +334,7 @@ static void reconstruct_frame(ATRAC3PContext *ctx, Atrac3pChanUnitCtx *ch_unit,
 }
 
 static int atrac3p_decode_frame(AVCodecContext *avctx, void *data,
-                                int *got_frame_ptr, AVPacket *avpkt)
+                                int *got_frame_ptr, const AVPacket *avpkt)
 {
     ATRAC3PContext *ctx = avctx->priv_data;
     AVFrame *frame      = data;

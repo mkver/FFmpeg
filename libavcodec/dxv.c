@@ -1039,7 +1039,7 @@ static int dxv_decompress_raw(AVCodecContext *avctx)
 }
 
 static int dxv_decode(AVCodecContext *avctx, void *data,
-                      int *got_frame, AVPacket *avpkt)
+                      int *got_frame, const AVPacket *avpkt)
 {
     DXVContext *ctx = avctx->priv_data;
     ThreadFrame tframe;

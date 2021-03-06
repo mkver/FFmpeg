@@ -703,7 +703,7 @@ static int decode_vector(SirenContext *s, int number_of_regions,
 }
 
 static int siren_decode(AVCodecContext *avctx, void *data,
-                        int *got_frame, AVPacket *avpkt)
+                        int *got_frame, const AVPacket *avpkt)
 {
     SirenContext *s = avctx->priv_data;
     GetBitContext *gb = &s->gb;

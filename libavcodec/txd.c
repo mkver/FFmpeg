@@ -32,7 +32,8 @@
 #define TXD_DXT3 0x33545844
 
 static int txd_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                            AVPacket *avpkt) {
+                            const AVPacket *avpkt)
+{
     GetByteContext gb;
     TextureDSPContext dxtc;
     AVFrame * const p = data;

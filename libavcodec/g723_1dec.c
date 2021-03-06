@@ -925,7 +925,7 @@ static void generate_noise(G723_1_ChannelContext *p)
 }
 
 static int g723_1_decode_frame(AVCodecContext *avctx, void *data,
-                               int *got_frame_ptr, AVPacket *avpkt)
+                               int *got_frame_ptr, const AVPacket *avpkt)
 {
     G723_1_Context *s  = avctx->priv_data;
     AVFrame *frame     = data;

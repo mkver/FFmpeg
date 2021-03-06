@@ -200,7 +200,7 @@ static int read_uncompressed_sgi(unsigned char *out_buf, SgiState *s)
 
 static int decode_frame(AVCodecContext *avctx,
                         void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     SgiState *s = avctx->priv_data;
     AVFrame *p = data;

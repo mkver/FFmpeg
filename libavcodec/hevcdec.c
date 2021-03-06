@@ -3437,7 +3437,7 @@ static int hevc_decode_extradata(HEVCContext *s, uint8_t *buf, int length, int f
 }
 
 static int hevc_decode_frame(AVCodecContext *avctx, void *data, int *got_output,
-                             AVPacket *avpkt)
+                             const AVPacket *avpkt)
 {
     int ret;
     size_t new_extradata_size;

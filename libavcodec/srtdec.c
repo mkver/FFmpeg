@@ -53,8 +53,8 @@ static int srt_to_ass(AVCodecContext *avctx, AVBPrint *dst,
     return ff_htmlmarkup_to_ass(avctx, dst, in);
 }
 
-static int srt_decode_frame(AVCodecContext *avctx,
-                            void *data, int *got_sub_ptr, AVPacket *avpkt)
+static int srt_decode_frame(AVCodecContext *avctx, void *data,
+                            int *got_sub_ptr, const AVPacket *avpkt)
 {
     AVSubtitle *sub = data;
     AVBPrint buffer;

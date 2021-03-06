@@ -277,9 +277,8 @@ static void mp_decode_frame_helper(MotionPixelsContext *mp, GetBitContext *gb)
             mp_decode_line(mp, gb, y);
 }
 
-static int mp_decode_frame(AVCodecContext *avctx,
-                                 void *data, int *got_frame,
-                                 AVPacket *avpkt)
+static int mp_decode_frame(AVCodecContext *avctx, void *data,
+                           int *got_frame, const AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;

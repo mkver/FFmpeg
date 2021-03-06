@@ -87,7 +87,7 @@ static av_cold int ilbc_decode_init(AVCodecContext *avctx)
 }
 
 static int ilbc_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame_ptr, AVPacket *avpkt)
+                             int *got_frame_ptr, const AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;

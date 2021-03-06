@@ -1903,7 +1903,7 @@ static void copy_bits(PutBitContext *pb,
  * For more information about frames, see #synth_superframe().
  */
 static int wmavoice_decode_packet(AVCodecContext *ctx, void *data,
-                                  int *got_frame_ptr, AVPacket *avpkt)
+                                  int *got_frame_ptr, const AVPacket *avpkt)
 {
     WMAVoiceContext *s = ctx->priv_data;
     GetBitContext *gb = &s->gb;

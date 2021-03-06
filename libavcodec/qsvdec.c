@@ -815,7 +815,7 @@ fail:
 }
 
 static int qsv_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *avpkt)
+                            int *got_frame, const AVPacket *avpkt)
 {
     QSVDecContext *s = avctx->priv_data;
     AVFrame *frame    = data;

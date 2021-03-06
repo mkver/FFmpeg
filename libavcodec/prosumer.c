@@ -144,7 +144,7 @@ static void vertical_predict(uint32_t *dst, int offset, const uint32_t *src, int
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame, AVPacket *avpkt)
+                        int *got_frame, const AVPacket *avpkt)
 {
     ProSumerContext *s = avctx->priv_data;
     AVFrame * const frame = data;

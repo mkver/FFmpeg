@@ -87,7 +87,7 @@ static av_cold int svc_decode_init(AVCodecContext *avctx)
 }
 
 static int svc_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *avpkt)
+                            int *got_frame, const AVPacket *avpkt)
 {
     SVCContext *s = avctx->priv_data;
     SBufferInfo info = { 0 };

@@ -155,7 +155,8 @@ static int zlib_decomp(AVCodecContext *avctx, const uint8_t *src, int src_len, i
 #endif
 
 
-static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame, AVPacket *avpkt)
+static int decode_frame(AVCodecContext *avctx, void *data,
+                        int *got_frame, const AVPacket *avpkt)
 {
     AVFrame *frame = data;
     ThreadFrame tframe = { .f = data };

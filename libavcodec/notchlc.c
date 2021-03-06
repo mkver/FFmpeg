@@ -461,7 +461,7 @@ static int decode_blocks(AVCodecContext *avctx, AVFrame *p, ThreadFrame *frame,
 
 static int decode_frame(AVCodecContext *avctx,
                         void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     NotchLCContext *s = avctx->priv_data;
     ThreadFrame frame = { .f = data };

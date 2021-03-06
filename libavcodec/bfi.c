@@ -48,7 +48,7 @@ static av_cold int bfi_decode_init(AVCodecContext *avctx)
 }
 
 static int bfi_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *avpkt)
+                            int *got_frame, const AVPacket *avpkt)
 {
     AVFrame *frame = data;
     GetByteContext g;

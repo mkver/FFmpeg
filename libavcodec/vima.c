@@ -117,7 +117,7 @@ static av_cold int decode_init(AVCodecContext *avctx)
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame_ptr, AVPacket *pkt)
+                        int *got_frame_ptr, const AVPacket *pkt)
 {
     GetBitContext gb;
     AVFrame *frame = data;

@@ -135,7 +135,7 @@ static int fraps2_decode_plane(FrapsContext *s, uint8_t *dst, int stride, int w,
 
 static int decode_frame(AVCodecContext *avctx,
                         void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     FrapsContext * const s = avctx->priv_data;
     const uint8_t *buf     = avpkt->data;

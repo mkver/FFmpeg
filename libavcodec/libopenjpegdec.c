@@ -319,7 +319,7 @@ static av_cold int libopenjpeg_decode_init(AVCodecContext *avctx)
 
 static int libopenjpeg_decode_frame(AVCodecContext *avctx,
                                     void *data, int *got_frame,
-                                    AVPacket *avpkt)
+                                    const AVPacket *avpkt)
 {
     uint8_t *buf            = avpkt->data;
     int buf_size            = avpkt->size;

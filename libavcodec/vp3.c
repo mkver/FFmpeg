@@ -2584,7 +2584,7 @@ static int vp3_update_thread_context(AVCodecContext *dst, const AVCodecContext *
 
 static int vp3_decode_frame(AVCodecContext *avctx,
                             void *data, int *got_frame,
-                            AVPacket *avpkt)
+                            const AVPacket *avpkt)
 {
     AVFrame     *frame  = data;
     const uint8_t *buf  = avpkt->data;

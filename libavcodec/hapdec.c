@@ -302,7 +302,7 @@ static int decompress_texture2_thread(AVCodecContext *avctx, void *arg,
 }
 
 static int hap_decode(AVCodecContext *avctx, void *data,
-                      int *got_frame, AVPacket *avpkt)
+                      int *got_frame, const AVPacket *avpkt)
 {
     HapContext *ctx = avctx->priv_data;
     ThreadFrame tframe;

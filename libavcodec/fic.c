@@ -267,7 +267,7 @@ static void fic_draw_cursor(AVCodecContext *avctx, int cur_x, int cur_y)
 }
 
 static int fic_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *avpkt)
+                            int *got_frame, const AVPacket *avpkt)
 {
     FICContext *ctx = avctx->priv_data;
     uint8_t *src = avpkt->data;

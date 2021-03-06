@@ -151,7 +151,7 @@ static int cdtoons_render_sprite(AVCodecContext *avctx, const uint8_t *data,
 }
 
 static int cdtoons_decode_frame(AVCodecContext *avctx, void *data,
-                                int *got_frame, AVPacket *avpkt)
+                                int *got_frame, const AVPacket *avpkt)
 {
     CDToonsContext *c = avctx->priv_data;
     const uint8_t *buf = avpkt->data;

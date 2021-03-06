@@ -33,7 +33,7 @@ static av_cold int v308_decode_init(AVCodecContext *avctx)
 }
 
 static int v308_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame, AVPacket *avpkt)
+                             int *got_frame, const AVPacket *avpkt)
 {
     AVFrame *pic = data;
     const uint8_t *src = avpkt->data;

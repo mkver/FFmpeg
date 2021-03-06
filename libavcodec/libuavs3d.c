@@ -141,7 +141,8 @@ static void libuavs3d_flush(AVCodecContext * avctx)
 }
 
 #define UAVS3D_CHECK_INVALID_RANGE(v, l, r) ((v)<(l)||(v)>(r))
-static int libuavs3d_decode_frame(AVCodecContext *avctx, void *data, int *got_frame, AVPacket *avpkt)
+static int libuavs3d_decode_frame(AVCodecContext *avctx, void *data,
+                                  int *got_frame, const AVPacket *avpkt)
 {
     uavs3d_context *h = avctx->priv_data;
     const uint8_t *buf = avpkt->data;

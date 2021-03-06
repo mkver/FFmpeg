@@ -794,7 +794,7 @@ static int vqa_decode_frame_hicolor(VqaContext *s, AVFrame *frame)
 
 static int vqa_decode_frame(AVCodecContext *avctx,
                             void *data, int *got_frame,
-                            AVPacket *avpkt)
+                            const AVPacket *avpkt)
 {
     VqaContext *s = avctx->priv_data;
     int res;

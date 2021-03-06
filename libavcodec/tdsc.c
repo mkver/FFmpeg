@@ -522,7 +522,7 @@ static int tdsc_parse_dtsm(AVCodecContext *avctx)
 }
 
 static int tdsc_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame, AVPacket *avpkt)
+                             int *got_frame, const AVPacket *avpkt)
 {
     TDSCContext *ctx = avctx->priv_data;
     AVFrame *frame = data;

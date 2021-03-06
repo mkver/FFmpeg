@@ -95,7 +95,7 @@ static int dsd_channel(AVCodecContext *avctx, void *tdata, int j, int threadnr)
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame_ptr, AVPacket *avpkt)
+                        int *got_frame_ptr, const AVPacket *avpkt)
 {
     ThreadData td;
     AVFrame *frame = data;

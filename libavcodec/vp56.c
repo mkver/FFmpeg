@@ -566,7 +566,7 @@ static int vp56_size_changed(VP56Context *s)
 static int ff_vp56_decode_mbs(AVCodecContext *avctx, void *, int, int);
 
 int ff_vp56_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                         AVPacket *avpkt)
+                         const AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     VP56Context *s = avctx->priv_data;

@@ -115,7 +115,7 @@ static void vble_restore_plane(VBLEContext *ctx, AVFrame *pic,
 }
 
 static int vble_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                             AVPacket *avpkt)
+                             const AVPacket *avpkt)
 {
     VBLEContext *ctx = avctx->priv_data;
     AVFrame *pic     = data;

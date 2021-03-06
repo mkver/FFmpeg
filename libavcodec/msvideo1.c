@@ -293,9 +293,8 @@ static void msvideo1_decode_16bit(Msvideo1Context *s)
     }
 }
 
-static int msvideo1_decode_frame(AVCodecContext *avctx,
-                                void *data, int *got_frame,
-                                AVPacket *avpkt)
+static int msvideo1_decode_frame(AVCodecContext *avctx, void *data,
+                                 int *got_frame, const AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;

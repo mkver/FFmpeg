@@ -486,7 +486,7 @@ static void compute_quant_matrix(int *output, int qscale)
 
 static int speedhq_decode_frame(AVCodecContext *avctx,
                                 void *data, int *got_frame,
-                                AVPacket *avpkt)
+                                const AVPacket *avpkt)
 {
     SHQContext * const s = avctx->priv_data;
     const uint8_t *buf   = avpkt->data;

@@ -50,7 +50,7 @@ static av_cold int init(AVCodecContext *avctx)
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame, AVPacket *avpkt)
+                        int *got_frame, const AVPacket *avpkt)
 {
     AVRnContext *a = avctx->priv_data;
     AVFrame *p = data;

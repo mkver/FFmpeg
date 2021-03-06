@@ -130,7 +130,7 @@ static av_cold int libcodec2_close(AVCodecContext *avctx)
 }
 
 static int libcodec2_decode(AVCodecContext *avctx, void *data,
-                            int *got_frame_ptr, AVPacket *pkt)
+                            int *got_frame_ptr, const AVPacket *pkt)
 {
     LibCodec2Context *c2 = avctx->priv_data;
     AVFrame *frame = data;

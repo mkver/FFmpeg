@@ -579,7 +579,7 @@ static int get_consumed_bytes(MpegEncContext *s, int buf_size)
 }
 
 static int h261_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame, AVPacket *avpkt)
+                             int *got_frame, const AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;

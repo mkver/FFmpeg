@@ -301,7 +301,7 @@ static int hqa_decode_frame(HQContext *ctx, AVFrame *pic, size_t data_size)
 }
 
 static int hq_hqa_decode_frame(AVCodecContext *avctx, void *data,
-                               int *got_frame, AVPacket *avpkt)
+                               int *got_frame, const AVPacket *avpkt)
 {
     HQContext *ctx = avctx->priv_data;
     AVFrame *pic = data;

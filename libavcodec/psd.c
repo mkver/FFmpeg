@@ -289,7 +289,7 @@ static int decode_rle(PSDContext * s){
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame, AVPacket *avpkt)
+                        int *got_frame, const AVPacket *avpkt)
 {
     int ret;
     uint8_t *ptr;

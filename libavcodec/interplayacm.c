@@ -552,7 +552,7 @@ static int decode_block(InterplayACMContext *s)
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame_ptr, AVPacket *pkt)
+                        int *got_frame_ptr, const AVPacket *pkt)
 {
     InterplayACMContext *s = avctx->priv_data;
     GetBitContext *gb = &s->gb;

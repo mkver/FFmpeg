@@ -338,7 +338,7 @@ static const char chunk_name[8][5] = {
 
 static int dfa_decode_frame(AVCodecContext *avctx,
                             void *data, int *got_frame,
-                            AVPacket *avpkt)
+                            const AVPacket *avpkt)
 {
     AVFrame *frame = data;
     DfaContext *s = avctx->priv_data;

@@ -428,7 +428,7 @@ static int build_huffman(AVCodecContext *avctx, const uint8_t *table,
 }
 
 static int magy_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame, AVPacket *avpkt)
+                             int *got_frame, const AVPacket *avpkt)
 {
     MagicYUVContext *s = avctx->priv_data;
     ThreadFrame frame = { .f = data };

@@ -108,7 +108,7 @@ static int targa_decode_rle(AVCodecContext *avctx, TargaContext *s,
 
 static int decode_frame(AVCodecContext *avctx,
                         void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     TargaContext * const s = avctx->priv_data;
     AVFrame * const p = data;

@@ -48,7 +48,8 @@ static int64_t parse_timecode(const uint8_t *buf, int64_t packet_time) {
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data, int *got_sub_ptr,
-                        AVPacket *avpkt) {
+                        const AVPacket *avpkt)
+{
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
     AVSubtitle *sub = data;

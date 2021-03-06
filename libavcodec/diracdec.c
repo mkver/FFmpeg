@@ -2259,7 +2259,8 @@ static int dirac_decode_data_unit(AVCodecContext *avctx, const uint8_t *buf, int
     return 0;
 }
 
-static int dirac_decode_frame(AVCodecContext *avctx, void *data, int *got_frame, AVPacket *pkt)
+static int dirac_decode_frame(AVCodecContext *avctx, void *data,
+                              int *got_frame, const AVPacket *pkt)
 {
     DiracContext *s     = avctx->priv_data;
     AVFrame *picture    = data;

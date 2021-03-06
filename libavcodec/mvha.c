@@ -148,7 +148,7 @@ static int build_vlc(AVCodecContext *avctx, VLC *vlc)
 
 static int decode_frame(AVCodecContext *avctx,
                         void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     MVHAContext *s = avctx->priv_data;
     AVFrame *frame = data;

@@ -474,7 +474,7 @@ static void ffat_copy_samples(AVCodecContext *avctx, AVFrame *frame)
 }
 
 static int ffat_decode(AVCodecContext *avctx, void *data,
-                       int *got_frame_ptr, AVPacket *avpkt)
+                       int *got_frame_ptr, const AVPacket *avpkt)
 {
     ATDecodeContext *at = avctx->priv_data;
     AVFrame *frame = data;

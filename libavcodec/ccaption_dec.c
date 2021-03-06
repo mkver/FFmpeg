@@ -838,7 +838,8 @@ static int process_cc608(CCaptionSubContext *ctx, uint8_t hi, uint8_t lo)
     return ret;
 }
 
-static int decode(AVCodecContext *avctx, void *data, int *got_sub, AVPacket *avpkt)
+static int decode(AVCodecContext *avctx, void *data,
+                  int *got_sub, const AVPacket *avpkt)
 {
     CCaptionSubContext *ctx = avctx->priv_data;
     AVSubtitle *sub = data;

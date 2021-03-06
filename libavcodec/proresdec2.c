@@ -776,7 +776,7 @@ static int decode_picture(AVCodecContext *avctx)
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     ProresContext *ctx = avctx->priv_data;
     ThreadFrame tframe = { .f = data };

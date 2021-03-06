@@ -373,7 +373,7 @@ static int alloc_buffers(AVCodecContext *avctx)
 }
 
 static int cfhd_decode(AVCodecContext *avctx, void *data, int *got_frame,
-                       AVPacket *avpkt)
+                       const AVPacket *avpkt)
 {
     CFHDContext *s = avctx->priv_data;
     CFHDDSPContext *dsp = &s->dsp;

@@ -77,7 +77,7 @@ static int wrapped_avframe_encode(AVCodecContext *avctx, AVPacket *pkt,
 }
 
 static int wrapped_avframe_decode(AVCodecContext *avctx, void *data,
-                                  int *got_frame, AVPacket *pkt)
+                                  int *got_frame, const AVPacket *pkt)
 {
     AVFrame *in, *out;
     int err;

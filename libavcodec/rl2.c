@@ -179,7 +179,7 @@ static av_cold int rl2_decode_init(AVCodecContext *avctx)
 
 static int rl2_decode_frame(AVCodecContext *avctx,
                             void *data, int *got_frame,
-                            AVPacket *avpkt)
+                            const AVPacket *avpkt)
 {
     AVFrame *frame     = data;
     const uint8_t *buf = avpkt->data;

@@ -305,7 +305,7 @@ static void truespeech_save_prevvec(TSContext *c)
 }
 
 static int truespeech_decode_frame(AVCodecContext *avctx, void *data,
-                                   int *got_frame_ptr, AVPacket *avpkt)
+                                   int *got_frame_ptr, const AVPacket *avpkt)
 {
     AVFrame *frame     = data;
     const uint8_t *buf = avpkt->data;

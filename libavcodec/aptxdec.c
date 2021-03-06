@@ -134,7 +134,7 @@ static int aptx_decode_samples(AptXContext *ctx,
 }
 
 static int aptx_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame_ptr, AVPacket *avpkt)
+                             int *got_frame_ptr, const AVPacket *avpkt)
 {
     AptXContext *s = avctx->priv_data;
     AVFrame *frame = data;

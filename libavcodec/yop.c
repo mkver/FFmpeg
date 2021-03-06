@@ -191,7 +191,7 @@ static uint8_t yop_get_next_nibble(YopDecContext *s)
 }
 
 static int yop_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                            AVPacket *avpkt)
+                            const AVPacket *avpkt)
 {
     YopDecContext *s = avctx->priv_data;
     AVFrame *frame = s->frame;

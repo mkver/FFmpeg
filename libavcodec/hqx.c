@@ -401,7 +401,7 @@ static int decode_slice_thread(AVCodecContext *avctx, void *arg,
 }
 
 static int hqx_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_picture_ptr, AVPacket *avpkt)
+                            int *got_picture_ptr, const AVPacket *avpkt)
 {
     HQXContext *ctx = avctx->priv_data;
     ThreadFrame frame = { .f = data };

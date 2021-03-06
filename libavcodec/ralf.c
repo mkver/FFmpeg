@@ -422,7 +422,7 @@ static int decode_block(AVCodecContext *avctx, GetBitContext *gb,
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame_ptr,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     RALFContext *ctx = avctx->priv_data;
     AVFrame *frame   = data;

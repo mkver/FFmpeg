@@ -394,7 +394,7 @@ static int decode_type1(GetByteContext *gb, PutByteContext *pb)
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame, AVPacket *avpkt)
+                        int *got_frame, const AVPacket *avpkt)
 {
     FMVCContext *s = avctx->priv_data;
     GetByteContext *gb = &s->gb;

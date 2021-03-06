@@ -790,7 +790,7 @@ static int dxtory_decode_v2_444(AVCodecContext *avctx, AVFrame *pic,
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     AVFrame *pic = data;
     const uint8_t *src = avpkt->data;

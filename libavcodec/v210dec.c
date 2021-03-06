@@ -137,7 +137,7 @@ static int v210_decode_slice(AVCodecContext *avctx, void *arg, int jobnr, int th
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     V210DecContext *s = avctx->priv_data;
     ThreadData td;

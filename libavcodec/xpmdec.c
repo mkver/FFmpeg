@@ -303,7 +303,7 @@ static int ascii2index(const uint8_t *cpixel, int cpp)
 }
 
 static int xpm_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *avpkt)
+                            int *got_frame, const AVPacket *avpkt)
 {
     XPMDecContext *x = avctx->priv_data;
     AVFrame *p=data;

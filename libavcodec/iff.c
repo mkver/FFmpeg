@@ -1526,7 +1526,7 @@ static int unsupported(AVCodecContext *avctx)
 
 static int decode_frame(AVCodecContext *avctx,
                         void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     IffContext *s          = avctx->priv_data;
     AVFrame *frame         = data;

@@ -987,7 +987,7 @@ static int get_current_frame(AVCodecContext *avctx)
 }
 
 static int av1_decode_frame(AVCodecContext *avctx, void *frame,
-                            int *got_frame, AVPacket *pkt)
+                            int *got_frame, const AVPacket *pkt)
 {
     AV1DecContext *s = avctx->priv_data;
     AV1RawTileGroup *raw_tile_group = NULL;

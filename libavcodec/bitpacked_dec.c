@@ -124,7 +124,7 @@ static av_cold int bitpacked_init_decoder(AVCodecContext *avctx)
 }
 
 static int bitpacked_decode(AVCodecContext *avctx, void *data, int *got_frame,
-                            AVPacket *avpkt)
+                            const AVPacket *avpkt)
 {
     struct BitpackedContext *bc = avctx->priv_data;
     int buf_size = avpkt->size;

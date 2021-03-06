@@ -89,7 +89,7 @@ static av_cold int imm5_init(AVCodecContext *avctx)
 }
 
 static int imm5_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame, AVPacket *avpkt)
+                             int *got_frame, const AVPacket *avpkt)
 {
     IMM5Context *ctx = avctx->priv_data;
     AVFrame *frame = data;

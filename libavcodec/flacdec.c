@@ -556,7 +556,7 @@ static int decode_frame(FLACContext *s)
 }
 
 static int flac_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame_ptr, AVPacket *avpkt)
+                             int *got_frame_ptr, const AVPacket *avpkt)
 {
     AVFrame *frame     = data;
     ThreadFrame tframe = { .f = data };

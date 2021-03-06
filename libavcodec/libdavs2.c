@@ -177,7 +177,7 @@ static av_cold int davs2_end(AVCodecContext *avctx)
 }
 
 static int davs2_decode_frame(AVCodecContext *avctx, void *data,
-                              int *got_frame, AVPacket *avpkt)
+                              int *got_frame, const AVPacket *avpkt)
 {
     DAVS2Context *cad      = avctx->priv_data;
     int           buf_size = avpkt->size;

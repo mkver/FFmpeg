@@ -306,7 +306,7 @@ static int decode_tiledata(AVCodecContext *avctx)
 }
 
 static int sga_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *avpkt)
+                            int *got_frame, const AVPacket *avpkt)
 {
     SGAVideoContext *s = avctx->priv_data;
     GetByteContext *gb = &s->gb;

@@ -144,7 +144,7 @@ static inline void decode8x8(GetBitContext *gb, uint8_t *dst, int linesize,
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     JvContext *s = avctx->priv_data;
     const uint8_t *buf = avpkt->data;

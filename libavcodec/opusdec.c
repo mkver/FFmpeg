@@ -412,7 +412,7 @@ finish:
 }
 
 static int opus_decode_packet(AVCodecContext *avctx, void *data,
-                              int *got_frame_ptr, AVPacket *avpkt)
+                              int *got_frame_ptr, const AVPacket *avpkt)
 {
     OpusContext *c      = avctx->priv_data;
     AVFrame *frame      = data;

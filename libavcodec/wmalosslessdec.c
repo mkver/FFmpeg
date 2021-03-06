@@ -1180,7 +1180,7 @@ static void save_bits(WmallDecodeCtx *s, GetBitContext* gb, int len,
 }
 
 static int decode_packet(AVCodecContext *avctx, void *data, int *got_frame_ptr,
-                         AVPacket* avpkt)
+                         const AVPacket* avpkt)
 {
     WmallDecodeCtx *s = avctx->priv_data;
     GetBitContext* gb  = &s->pgb;

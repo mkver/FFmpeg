@@ -817,7 +817,7 @@ static int wma_decode_frame(WMACodecContext *s, float **samples,
 }
 
 static int wma_decode_superframe(AVCodecContext *avctx, void *data,
-                                 int *got_frame_ptr, AVPacket *avpkt)
+                                 int *got_frame_ptr, const AVPacket *avpkt)
 {
     AVFrame *frame = data;
     const uint8_t *buf = avpkt->data;

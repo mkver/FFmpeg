@@ -520,7 +520,7 @@ static av_cold int sipr_decoder_init(AVCodecContext * avctx)
 }
 
 static int sipr_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame_ptr, AVPacket *avpkt)
+                             int *got_frame_ptr, const AVPacket *avpkt)
 {
     SiprContext *ctx = avctx->priv_data;
     AVFrame *frame   = data;

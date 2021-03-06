@@ -202,7 +202,7 @@ static void tgq_calculate_qtable(TgqContext *s, int quant)
 
 static int tgq_decode_frame(AVCodecContext *avctx,
                             void *data, int *got_frame,
-                            AVPacket *avpkt)
+                            const AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;

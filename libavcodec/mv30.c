@@ -601,7 +601,7 @@ fail:
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame, AVPacket *avpkt)
+                        int *got_frame, const AVPacket *avpkt)
 {
     MV30Context *s = avctx->priv_data;
     GetBitContext *gb = &s->gb;

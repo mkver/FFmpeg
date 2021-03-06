@@ -599,7 +599,7 @@ static int decode_rle(AVCodecContext *avctx, AVFrame *frame)
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame, AVPacket *avpkt)
+                        int *got_frame, const AVPacket *avpkt)
 {
     ArgoContext *s = avctx->priv_data;
     GetByteContext *gb = &s->gb;

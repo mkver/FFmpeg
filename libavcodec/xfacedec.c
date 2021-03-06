@@ -110,7 +110,7 @@ static av_cold int xface_decode_init(AVCodecContext *avctx)
 
 static int xface_decode_frame(AVCodecContext *avctx,
                               void *data, int *got_frame,
-                              AVPacket *avpkt)
+                              const AVPacket *avpkt)
 {
     XFaceContext *xface = avctx->priv_data;
     int ret, i, j, k;

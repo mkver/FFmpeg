@@ -188,7 +188,7 @@ static ptrdiff_t lzss_uncompress(MidiVidContext *s, GetByteContext *gb, uint8_t 
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame, AVPacket *avpkt)
+                        int *got_frame, const AVPacket *avpkt)
 {
     MidiVidContext *s = avctx->priv_data;
     GetByteContext *gb = &s->gb;

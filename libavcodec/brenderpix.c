@@ -130,7 +130,7 @@ static int pix_decode_header(PixHeader *out, GetByteContext *pgb)
 }
 
 static int pix_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                            AVPacket *avpkt)
+                            const AVPacket *avpkt)
 {
     AVFrame *frame = data;
 

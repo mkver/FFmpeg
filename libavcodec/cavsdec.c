@@ -1224,7 +1224,7 @@ static void cavs_flush(AVCodecContext * avctx)
 }
 
 static int cavs_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                             AVPacket *avpkt)
+                             const AVPacket *avpkt)
 {
     AVSContext *h      = avctx->priv_data;
     const uint8_t *buf = avpkt->data;

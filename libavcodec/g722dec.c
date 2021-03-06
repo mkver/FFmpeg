@@ -84,7 +84,7 @@ static const int16_t * const low_inv_quants[3] = { ff_g722_low_inv_quant6,
                                                    ff_g722_low_inv_quant4 };
 
 static int g722_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame_ptr, AVPacket *avpkt)
+                             int *got_frame_ptr, const AVPacket *avpkt)
 {
     G722Context *c = avctx->priv_data;
     AVFrame *frame = data;

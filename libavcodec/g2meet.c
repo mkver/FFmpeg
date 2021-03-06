@@ -1372,7 +1372,7 @@ static void g2m_paint_cursor(G2MContext *c, uint8_t *dst, int stride)
 }
 
 static int g2m_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_picture_ptr, AVPacket *avpkt)
+                            int *got_picture_ptr, const AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;

@@ -1102,7 +1102,7 @@ static void update_sub_state(AMRWBContext *ctx)
 }
 
 static int amrwb_decode_frame(AVCodecContext *avctx, void *data,
-                              int *got_frame_ptr, AVPacket *avpkt)
+                              int *got_frame_ptr, const AVPacket *avpkt)
 {
     AMRWBChannelsContext *s  = avctx->priv_data;
     AVFrame *frame     = data;

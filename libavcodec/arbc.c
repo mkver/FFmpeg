@@ -116,7 +116,7 @@ static int fill_tileX(AVCodecContext *avctx, int tile_width, int tile_height,
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame, AVPacket *avpkt)
+                        int *got_frame, const AVPacket *avpkt)
 {
     ARBCContext *s = avctx->priv_data;
     AVFrame *frame = data;

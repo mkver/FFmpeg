@@ -675,7 +675,7 @@ static int decorrelate(TAKDecContext *s, int c1, int c2, int length)
 }
 
 static int tak_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_frame_ptr, AVPacket *pkt)
+                            int *got_frame_ptr, const AVPacket *pkt)
 {
     TAKDecContext *s  = avctx->priv_data;
     AVFrame *frame    = data;

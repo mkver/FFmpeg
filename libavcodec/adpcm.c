@@ -1055,7 +1055,7 @@ static int get_nb_samples(AVCodecContext *avctx, GetByteContext *gb,
 }
 
 static int adpcm_decode_frame(AVCodecContext *avctx, void *data,
-                              int *got_frame_ptr, AVPacket *avpkt)
+                              int *got_frame_ptr, const AVPacket *avpkt)
 {
     AVFrame *frame     = data;
     const uint8_t *buf = avpkt->data;

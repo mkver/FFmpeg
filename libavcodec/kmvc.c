@@ -261,7 +261,7 @@ static int kmvc_decode_inter_8x8(KmvcContext * ctx, int w, int h)
 }
 
 static int decode_frame(AVCodecContext * avctx, void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     KmvcContext *const ctx = avctx->priv_data;
     AVFrame *frame = data;

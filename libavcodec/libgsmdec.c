@@ -81,7 +81,7 @@ static av_cold int libgsm_decode_close(AVCodecContext *avctx) {
 }
 
 static int libgsm_decode_frame(AVCodecContext *avctx, void *data,
-                               int *got_frame_ptr, AVPacket *avpkt)
+                               int *got_frame_ptr, const AVPacket *avpkt)
 {
     int i, ret;
     LibGSMDecodeContext *s = avctx->priv_data;

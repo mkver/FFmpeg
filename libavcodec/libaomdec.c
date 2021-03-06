@@ -156,7 +156,7 @@ static int set_pix_fmt(AVCodecContext *avctx, struct aom_image *img)
 }
 
 static int aom_decode(AVCodecContext *avctx, void *data, int *got_frame,
-                      AVPacket *avpkt)
+                      const AVPacket *avpkt)
 {
     AV1DecodeContext *ctx = avctx->priv_data;
     AVFrame *picture      = data;

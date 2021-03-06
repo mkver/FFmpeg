@@ -481,7 +481,7 @@ static int read_audio_mux_element(struct LATMContext *latmctx,
 
 
 static int latm_decode_frame(AVCodecContext *avctx, void *out,
-                             int *got_frame_ptr, AVPacket *avpkt)
+                             int *got_frame_ptr, const AVPacket *avpkt)
 {
     struct LATMContext *latmctx = avctx->priv_data;
     int                 muxlength, err;

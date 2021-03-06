@@ -47,7 +47,7 @@ static av_cold int imx_decode_init(AVCodecContext *avctx)
 }
 
 static int imx_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *avpkt)
+                            int *got_frame, const AVPacket *avpkt)
 {
     SimbiosisIMXContext *imx = avctx->priv_data;
     int ret, x, y;

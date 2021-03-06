@@ -91,7 +91,7 @@ static int s302m_parse_frame_header(AVCodecContext *avctx, const uint8_t *buf,
 }
 
 static int s302m_decode_frame(AVCodecContext *avctx, void *data,
-                              int *got_frame_ptr, AVPacket *avpkt)
+                              int *got_frame_ptr, const AVPacket *avpkt)
 {
     S302Context *s = avctx->priv_data;
     AVFrame *frame     = data;

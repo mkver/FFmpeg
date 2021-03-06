@@ -264,7 +264,7 @@ static int calc_deflate_block_size(int tmpblock_size)
 }
 
 static int flashsv_decode_frame(AVCodecContext *avctx, void *data,
-                                int *got_frame, AVPacket *avpkt)
+                                int *got_frame, const AVPacket *avpkt)
 {
     int buf_size = avpkt->size;
     FlashSVContext *s = avctx->priv_data;

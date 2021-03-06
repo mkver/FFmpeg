@@ -196,7 +196,7 @@ static int decode_bmv_frame(const uint8_t *source, int src_len, uint8_t *frame, 
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                        AVPacket *pkt)
+                        const AVPacket *pkt)
 {
     BMVDecContext * const c = avctx->priv_data;
     AVFrame *frame = data;

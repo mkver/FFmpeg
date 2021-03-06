@@ -1547,7 +1547,7 @@ static int mp_decode_frame(MPADecodeContext *s, OUT_INT **samples,
 }
 
 static int decode_frame(AVCodecContext * avctx, void *data, int *got_frame_ptr,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     const uint8_t *buf  = avpkt->data;
     int buf_size        = avpkt->size;
@@ -1631,7 +1631,7 @@ static void flush(AVCodecContext *avctx)
 
 #if CONFIG_MP3ADU_DECODER || CONFIG_MP3ADUFLOAT_DECODER
 static int decode_frame_adu(AVCodecContext *avctx, void *data,
-                            int *got_frame_ptr, AVPacket *avpkt)
+                            int *got_frame_ptr, const AVPacket *avpkt)
 {
     const uint8_t *buf  = avpkt->data;
     int buf_size        = avpkt->size;
@@ -1810,7 +1810,7 @@ static void flush_mp3on4(AVCodecContext *avctx)
 
 
 static int decode_frame_mp3on4(AVCodecContext *avctx, void *data,
-                               int *got_frame_ptr, AVPacket *avpkt)
+                               int *got_frame_ptr, const AVPacket *avpkt)
 {
     AVFrame *frame         = data;
     const uint8_t *buf     = avpkt->data;

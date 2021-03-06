@@ -314,7 +314,7 @@ typedef struct AVCodec {
      *         code on failure
      */
     int (*decode)(struct AVCodecContext *avctx, void *outdata,
-                  int *got_frame_ptr, struct AVPacket *avpkt);
+                  int *got_frame_ptr, const struct AVPacket *avpkt);
     int (*close)(struct AVCodecContext *);
     /**
      * Encode API with decoupled frame/packet dataflow. This function is called

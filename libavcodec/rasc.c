@@ -669,7 +669,7 @@ static void draw_cursor(AVCodecContext *avctx)
 
 static int decode_frame(AVCodecContext *avctx,
                         void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     RASCContext *s = avctx->priv_data;
     GetByteContext *gb = &s->gb;

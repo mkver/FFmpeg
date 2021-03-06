@@ -132,8 +132,8 @@ end:
     return ret;
 }
 
-static int sami_decode_frame(AVCodecContext *avctx,
-                             void *data, int *got_sub_ptr, AVPacket *avpkt)
+static int sami_decode_frame(AVCodecContext *avctx, void *data,
+                             int *got_sub_ptr, const AVPacket *avpkt)
 {
     AVSubtitle *sub = data;
     const char *ptr = avpkt->data;

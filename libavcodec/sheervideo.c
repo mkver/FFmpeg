@@ -1807,7 +1807,7 @@ static av_cold int build_vlc(VLC *vlc, const SheerTable *table)
 
 static int decode_frame(AVCodecContext *avctx,
                         void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     SheerVideoContext *s = avctx->priv_data;
     ThreadFrame frame = { .f = data };

@@ -1387,7 +1387,7 @@ static int copy_output(SANMVideoContext *ctx, SANMFrameHeader *hdr)
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame_ptr, AVPacket *pkt)
+                        int *got_frame_ptr, const AVPacket *pkt)
 {
     SANMVideoContext *ctx = avctx->priv_data;
     int i, ret;

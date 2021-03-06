@@ -1625,7 +1625,7 @@ static int dsd_channel(AVCodecContext *avctx, void *frmptr, int jobnr, int threa
 }
 
 static int wavpack_decode_frame(AVCodecContext *avctx, void *data,
-                                int *got_frame_ptr, AVPacket *avpkt)
+                                int *got_frame_ptr, const AVPacket *avpkt)
 {
     WavpackContext *s  = avctx->priv_data;
     const uint8_t *buf = avpkt->data;

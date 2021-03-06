@@ -36,7 +36,7 @@ static av_cold int zero12v_decode_init(AVCodecContext *avctx)
 }
 
 static int zero12v_decode_frame(AVCodecContext *avctx, void *data,
-                                int *got_frame, AVPacket *avpkt)
+                                int *got_frame, const AVPacket *avpkt)
 {
     int line, ret;
     const int width = avctx->width;

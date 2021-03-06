@@ -387,7 +387,7 @@ static void unpack(HCAContext *c, ChannelContext *ch,
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame_ptr, AVPacket *avpkt)
+                        int *got_frame_ptr, const AVPacket *avpkt)
 {
     AVFrame *frame = data;
     HCAContext *c = avctx->priv_data;

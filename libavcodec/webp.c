@@ -1334,7 +1334,7 @@ static int vp8_lossy_decode_frame(AVCodecContext *avctx, AVFrame *p,
 }
 
 static int webp_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                             AVPacket *avpkt)
+                             const AVPacket *avpkt)
 {
     AVFrame * const p = data;
     WebPContext *s = avctx->priv_data;

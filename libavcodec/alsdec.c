@@ -1784,7 +1784,7 @@ static int read_frame_data(ALSDecContext *ctx, unsigned int ra_frame)
 /** Decode an ALS frame.
  */
 static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame_ptr,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     ALSDecContext *ctx       = avctx->priv_data;
     AVFrame *frame           = data;

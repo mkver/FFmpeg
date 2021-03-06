@@ -163,7 +163,7 @@ MKSCALE16(scale16be, AV_RB16, AV_WB16)
 MKSCALE16(scale16le, AV_RL16, AV_WL16)
 
 static int raw_decode(AVCodecContext *avctx, void *data, int *got_frame,
-                      AVPacket *avpkt)
+                      const AVPacket *avpkt)
 {
     const AVPixFmtDescriptor *desc;
     RawVideoContext *context       = avctx->priv_data;

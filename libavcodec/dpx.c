@@ -152,7 +152,7 @@ static uint16_t read12in32(const uint8_t **ptr, uint32_t *lbuf,
 static int decode_frame(AVCodecContext *avctx,
                         void *data,
                         int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;

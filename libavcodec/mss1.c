@@ -140,7 +140,7 @@ static int decode_pal(MSS12Context *ctx, ArithCoder *acoder)
 }
 
 static int mss1_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                             AVPacket *avpkt)
+                             const AVPacket *avpkt)
 {
     MSS1Context *ctx = avctx->priv_data;
     MSS12Context *c = &ctx->ctx;

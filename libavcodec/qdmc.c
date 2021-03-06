@@ -693,7 +693,7 @@ static av_cold void qdmc_flush(AVCodecContext *avctx)
 }
 
 static int qdmc_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame_ptr, AVPacket *avpkt)
+                             int *got_frame_ptr, const AVPacket *avpkt)
 {
     QDMCContext *s = avctx->priv_data;
     AVFrame *frame = data;

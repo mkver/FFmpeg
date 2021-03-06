@@ -787,7 +787,7 @@ imdct:
 }
 
 static int atrac9_decode_frame(AVCodecContext *avctx, void *data,
-                               int *got_frame_ptr, AVPacket *avpkt)
+                               int *got_frame_ptr, const AVPacket *avpkt)
 {
     int ret;
     GetBitContext gb;

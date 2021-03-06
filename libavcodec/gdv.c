@@ -456,7 +456,7 @@ static int decompress_68(AVCodecContext *avctx, unsigned skip, unsigned use8)
 }
 
 static int gdv_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *avpkt)
+                            int *got_frame, const AVPacket *avpkt)
 {
     GDVContext *gdv = avctx->priv_data;
     GetByteContext *gb = &gdv->gb;

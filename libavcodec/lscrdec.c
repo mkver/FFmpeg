@@ -107,7 +107,7 @@ static int decode_idat(LSCRContext *s, int length)
 
 static int decode_frame_lscr(AVCodecContext *avctx,
                              void *data, int *got_frame,
-                             AVPacket *avpkt)
+                             const AVPacket *avpkt)
 {
     LSCRContext *const s = avctx->priv_data;
     GetByteContext *gb = &s->gb;

@@ -170,7 +170,7 @@ static void unpack_10bit(GetByteContext *gb, uint16_t *dst, int shift,
 }
 
 static int cri_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_frame, AVPacket *avpkt)
+                            int *got_frame, const AVPacket *avpkt)
 {
     CRIContext *s = avctx->priv_data;
     GetByteContext *gb = &s->gb;

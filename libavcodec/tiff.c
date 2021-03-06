@@ -1758,7 +1758,7 @@ end:
 }
 
 static int decode_frame(AVCodecContext *avctx,
-                        void *data, int *got_frame, AVPacket *avpkt)
+                        void *data, int *got_frame, const AVPacket *avpkt)
 {
     TiffContext *const s = avctx->priv_data;
     AVFrame *const p = data;

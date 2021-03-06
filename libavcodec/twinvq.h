@@ -196,7 +196,7 @@ static inline float twinvq_mulawinv(float y, float clip, float mu)
 }
 
 int ff_twinvq_decode_frame(AVCodecContext *avctx, void *data,
-                           int *got_frame_ptr, AVPacket *avpkt);
+                           int *got_frame_ptr, const AVPacket *avpkt);
 int ff_twinvq_decode_close(AVCodecContext *avctx);
 int ff_twinvq_decode_init(AVCodecContext *avctx);
 

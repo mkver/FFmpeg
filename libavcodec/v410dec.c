@@ -86,7 +86,7 @@ static int v410_decode_slice(AVCodecContext *avctx, void *arg, int jobnr, int th
 }
 
 static int v410_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame, AVPacket *avpkt)
+                             int *got_frame, const AVPacket *avpkt)
 {
     ThreadData td;
     ThreadFrame frame = { .f = data };

@@ -1507,9 +1507,8 @@ fail:
 }
 
 #if CONFIG_PNG_DECODER
-static int decode_frame_png(AVCodecContext *avctx,
-                        void *data, int *got_frame,
-                        AVPacket *avpkt)
+static int decode_frame_png(AVCodecContext *avctx, void *data,
+                            int *got_frame, const AVPacket *avpkt)
 {
     PNGDecContext *const s = avctx->priv_data;
     const uint8_t *buf     = avpkt->data;
@@ -1574,9 +1573,8 @@ the_end:
 #endif
 
 #if CONFIG_APNG_DECODER
-static int decode_frame_apng(AVCodecContext *avctx,
-                        void *data, int *got_frame,
-                        AVPacket *avpkt)
+static int decode_frame_apng(AVCodecContext *avctx, void *data,
+                             int *got_frame, const AVPacket *avpkt)
 {
     PNGDecContext *const s = avctx->priv_data;
     AVFrame     *dst_frame = data;

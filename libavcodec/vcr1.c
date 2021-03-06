@@ -47,7 +47,7 @@ static av_cold int vcr1_decode_init(AVCodecContext *avctx)
 }
 
 static int vcr1_decode_frame(AVCodecContext *avctx, void *data,
-                             int *got_frame, AVPacket *avpkt)
+                             int *got_frame, const AVPacket *avpkt)
 {
     VCR1Context *const a      = avctx->priv_data;
     AVFrame *const p          = data;

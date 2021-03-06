@@ -94,7 +94,7 @@ static av_cold int amr_nb_decode_close(AVCodecContext *avctx)
 }
 
 static int amr_nb_decode_frame(AVCodecContext *avctx, void *data,
-                               int *got_frame_ptr, AVPacket *avpkt)
+                               int *got_frame_ptr, const AVPacket *avpkt)
 {
     AVFrame *frame     = data;
     const uint8_t *buf = avpkt->data;
@@ -328,7 +328,7 @@ static av_cold int amr_wb_decode_init(AVCodecContext *avctx)
 }
 
 static int amr_wb_decode_frame(AVCodecContext *avctx, void *data,
-                               int *got_frame_ptr, AVPacket *avpkt)
+                               int *got_frame_ptr, const AVPacket *avpkt)
 {
     AVFrame *frame     = data;
     const uint8_t *buf = avpkt->data;

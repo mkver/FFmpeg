@@ -180,7 +180,8 @@ static int fits_read_header(AVCodecContext *avctx, const uint8_t **ptr, FITSHead
     return 0;
 }
 
-static int fits_decode_frame(AVCodecContext *avctx, void *data, int *got_frame, AVPacket *avpkt)
+static int fits_decode_frame(AVCodecContext *avctx, void *data,
+                             int *got_frame, const AVPacket *avpkt)
 {
     AVFrame *p=data;
     const uint8_t *ptr8 = avpkt->data, *end;

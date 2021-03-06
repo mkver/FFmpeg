@@ -346,15 +346,17 @@ static av_cold int fdk_aac_decode_init(AVCodecContext *avctx)
 }
 
 static int fdk_aac_decode_frame(AVCodecContext *avctx, void *data,
-                                int *got_frame_ptr, AVPacket *avpkt)
+                                int *got_frame_ptr, const AVPacket *avpkt)
 {
     FDKAACDecContext *s = avctx->priv_data;
     AVFrame *frame = data;
+    uint8_t *indata = avpkt->data;
+    int insize = avpkt->size;
     int ret;
     AAC_DECODER_ERROR err;
     UINT valid = avpkt->size;
 
-    err = aacDecoder_Fill(s->handle, &avpkt->data, &avpkt->size, &valid);
+    err = aacDecoder_Fill(s->handle, &indata, &insize, &valid);
     if (err != AAC_DEC_OK) {
         av_log(avctx, AV_LOG_ERROR, "aacDecoder_Fill() failed: %x\n", err);
         return AVERROR_INVALIDDATA;
@@ -362,7 +364,7 @@ static int fdk_aac_decode_frame(AVCodecContext *avctx, void *data,
 
     err = aacDecoder_DecodeFrame(s->handle, (INT_PCM *) s->decoder_buffer, s->decoder_buffer_size / sizeof(INT_PCM), 0);
     if (err == AAC_DEC_NOT_ENOUGH_BITS) {
-        ret = avpkt->size - valid;
+        ret = insize - valid;
         goto end;
     }
     if (err != AAC_DEC_OK) {
@@ -389,7 +391,7 @@ static int fdk_aac_decode_frame(AVCodecContext *avctx, void *data,
            av_get_bytes_per_sample(avctx->sample_fmt));
 
     *got_frame_ptr = 1;
-    ret = avpkt->size - valid;
+    ret = insize - valid;
 
 end:
     return ret;

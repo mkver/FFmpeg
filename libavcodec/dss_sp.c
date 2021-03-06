@@ -740,7 +740,7 @@ static int dss_sp_decode_one_frame(DssSpContext *p,
 }
 
 static int dss_sp_decode_frame(AVCodecContext *avctx, void *data,
-                               int *got_frame_ptr, AVPacket *avpkt)
+                               int *got_frame_ptr, const AVPacket *avpkt)
 {
     DssSpContext *p    = avctx->priv_data;
     AVFrame *frame     = data;

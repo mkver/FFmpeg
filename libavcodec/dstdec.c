@@ -236,7 +236,7 @@ static void build_filter(int16_t table[DST_MAX_ELEMENTS][16][256], const Table *
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                        int *got_frame_ptr, AVPacket *avpkt)
+                        int *got_frame_ptr, const AVPacket *avpkt)
 {
     unsigned samples_per_frame = DST_SAMPLES_PER_FRAME(avctx->sample_rate);
     unsigned map_ch_to_felem[DST_MAX_CHANNELS];

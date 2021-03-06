@@ -471,7 +471,7 @@ struct Rectangle {
 #define ARITH2_PADDING 2
 
 static int mss2_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                             AVPacket *avpkt)
+                             const AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;

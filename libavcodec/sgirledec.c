@@ -110,7 +110,7 @@ static int decode_sgirle8(AVCodecContext *avctx, uint8_t *dst,
 }
 
 static int sgirle_decode_frame(AVCodecContext *avctx, void *data,
-                               int *got_frame, AVPacket *avpkt)
+                               int *got_frame, const AVPacket *avpkt)
 {
     AVFrame *frame = data;
     int ret;

@@ -613,7 +613,7 @@ static int dnxhd_decode_row(AVCodecContext *avctx, void *data,
 }
 
 static int dnxhd_decode_frame(AVCodecContext *avctx, void *data,
-                              int *got_frame, AVPacket *avpkt)
+                              int *got_frame, const AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;

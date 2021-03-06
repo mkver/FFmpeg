@@ -492,7 +492,7 @@ static int decompress_p(AVCodecContext *avctx,
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     SCPRContext *s = avctx->priv_data;
     GetByteContext *gb = &s->gb;

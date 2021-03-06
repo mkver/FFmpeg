@@ -148,7 +148,7 @@ static av_cold int rscc_close(AVCodecContext *avctx)
 }
 
 static int rscc_decode_frame(AVCodecContext *avctx, void *data,
-                                     int *got_frame, AVPacket *avpkt)
+                             int *got_frame, const AVPacket *avpkt)
 {
     RsccContext *ctx = avctx->priv_data;
     GetByteContext *gbc = &ctx->gbc;

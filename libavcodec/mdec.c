@@ -168,7 +168,7 @@ static inline void idct_put(MDECContext *a, AVFrame *frame, int mb_x, int mb_y)
 
 static int decode_frame(AVCodecContext *avctx,
                         void *data, int *got_frame,
-                        AVPacket *avpkt)
+                        const AVPacket *avpkt)
 {
     MDECContext * const a = avctx->priv_data;
     const uint8_t *buf    = avpkt->data;

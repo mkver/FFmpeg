@@ -93,7 +93,7 @@ static int adx_decode(ADXContext *c, int16_t *out, int offset,
 }
 
 static int adx_decode_frame(AVCodecContext *avctx, void *data,
-                            int *got_frame_ptr, AVPacket *avpkt)
+                            int *got_frame_ptr, const AVPacket *avpkt)
 {
     AVFrame *frame      = data;
     int buf_size        = avpkt->size;

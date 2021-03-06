@@ -103,7 +103,7 @@ static av_cold int libcelt_dec_close(AVCodecContext *c)
 }
 
 static int libcelt_dec_decode(AVCodecContext *c, void *data,
-                              int *got_frame_ptr, AVPacket *pkt)
+                              int *got_frame_ptr, const AVPacket *pkt)
 {
     struct libcelt_context *celt = c->priv_data;
     AVFrame *frame = data;
