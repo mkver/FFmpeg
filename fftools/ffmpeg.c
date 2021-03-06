@@ -2482,8 +2482,8 @@ fail:
     return err < 0 ? err : ret;
 }
 
-static int transcode_subtitles(InputStream *ist, AVPacket *pkt, int *got_output,
-                               int *decode_failed)
+static int transcode_subtitles(InputStream *ist, const AVPacket *pkt,
+                               int *got_output, int *decode_failed)
 {
     AVSubtitle subtitle;
     int free_sub = 1;
