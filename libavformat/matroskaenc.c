@@ -2180,7 +2180,8 @@ static int mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, const AVPac
     put_ebml_num(pb, track->track_num, track->track_num_size);
     avio_wb16(pb, ts - mkv->cluster_pts);
     avio_w8(pb, flags);
-    avio_printf(pb, "%.*s\n%.*s\n%.*s", id_size, id, settings_size, settings, pkt->size, pkt->data);
+    avio_printf(pb, "%.*s\n%.*s\n%.*s", (int)id_size, id, (int)settings_size,
+                settings, pkt->size, pkt->data);
 
     put_ebml_uint(pb, MATROSKA_ID_BLOCKDURATION, pkt->duration);
     end_ebml_master(pb, blockgroup);

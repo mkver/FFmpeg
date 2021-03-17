@@ -72,8 +72,13 @@ static int webvtt_write_packet(AVFormatContext *ctx, AVPacket *pkt)
     id = av_packet_get_side_data(pkt, AV_PKT_DATA_WEBVTT_IDENTIFIER,
                                  &id_size);
 
-    if (id && id_size > 0)
-        avio_printf(pb, "%.*s\n", id_size, id);
+    if (id && id_size > 0) {
+#if !FF_API_BUFFER_SIZE_T
+        if (id_size > INT_MAX)
+            return AVERROR(ERANGE);
+#endif
+        avio_printf(pb, "%.*s\n", (int)id_size, id);
+    }
 
     webvtt_write_time(pb, pkt->pts);
     avio_printf(pb, " --> ");
@@ -82,8 +87,13 @@ static int webvtt_write_packet(AVFormatContext *ctx, AVPacket *pkt)
     settings = av_packet_get_side_data(pkt, AV_PKT_DATA_WEBVTT_SETTINGS,
                                        &settings_size);
 
-    if (settings && settings_size > 0)
-        avio_printf(pb, " %.*s", settings_size, settings);
+    if (settings && settings_size > 0) {
+#if !FF_API_BUFFER_SIZE_T
+        if (settings_size > INT_MAX)
+            return AVERROR(ERANGE);
+#endif
+        avio_printf(pb, " %.*s", (int)settings_size, settings);
+    }
 
     avio_printf(pb, "\n");
 
