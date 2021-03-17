@@ -2143,7 +2143,7 @@ static int mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, const AVPac
     mkv_track *track = &mkv->tracks[pkt->stream_index];
     ebml_master blockgroup;
     buffer_size_t id_size, settings_size;
-    int size;
+    int size = pkt->size + 2;
     const char *id, *settings;
     int64_t ts = track->write_dts ? pkt->dts : pkt->pts;
     const int flags = 0;
@@ -2151,12 +2151,17 @@ static int mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, const AVPac
     id = av_packet_get_side_data(pkt, AV_PKT_DATA_WEBVTT_IDENTIFIER,
                                  &id_size);
     id = id ? id : "";
+    if (id_size > INT_MAX - size)
+        return AVERROR(ERANGE);
+    size += id_size;
 
     settings = av_packet_get_side_data(pkt, AV_PKT_DATA_WEBVTT_SETTINGS,
                                        &settings_size);
     settings = settings ? settings : "";
+    if (settings_size > INT_MAX - size)
+        return AVERROR(ERANGE);
 
-    size = id_size + 1 + settings_size + 1 + pkt->size;
+    size += settings_size;
 
     /* The following string is identical to the one in mkv_write_block so that
      * only one copy needs to exist in binaries. */
@@ -2180,7 +2185,7 @@ static int mkv_write_vtt_blocks(AVFormatContext *s, AVIOContext *pb, const AVPac
     put_ebml_uint(pb, MATROSKA_ID_BLOCKDURATION, pkt->duration);
     end_ebml_master(pb, blockgroup);
 
-    return pkt->duration;
+    return 0;
 }
 
 static int mkv_end_cluster(AVFormatContext *s)
@@ -2351,7 +2356,9 @@ static int mkv_write_packet_internal(AVFormatContext *s, const AVPacket *pkt)
         }
     } else {
         if (par->codec_id == AV_CODEC_ID_WEBVTT) {
-            duration = mkv_write_vtt_blocks(s, pb, pkt);
+            ret = mkv_write_vtt_blocks(s, pb, pkt);
+            if (ret < 0)
+                return ret;
         } else {
             ebml_master blockgroup = start_ebml_master(pb, MATROSKA_ID_BLOCKGROUP,
                                                        mkv_blockgroup_size(pkt->size,
