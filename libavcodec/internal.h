@@ -393,6 +393,15 @@ int ff_int_from_list_or_default(void *ctx, const char * val_name, int val,
 
 void ff_dvdsub_parse_palette(uint32_t *palette, const char *p);
 
+/**
+ * Check whether the side-data of src contains a palette of
+ * size AVPALETTE_SIZE; if so, copy it to dst and return 1;
+ * else return 0.
+ * Also emit an error message upon encountering a palette
+ * with invalid size.
+ */
+int ff_copy_palette(void *dst, const AVPacket *src, void *logctx);
+
 #if defined(_WIN32) && CONFIG_SHARED && !defined(BUILDING_avcodec)
 #    define av_export_avcodec __declspec(dllimport)
 #else
