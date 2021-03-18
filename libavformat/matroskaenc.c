@@ -451,8 +451,6 @@ static void mkv_deinit(AVFormatContext *s)
 {
     MatroskaMuxContext *mkv = s->priv_data;
 
-    av_packet_free(&mkv->cur_audio_pkt);
-
     ffio_free_dyn_buf(&mkv->cluster_bc);
     ffio_free_dyn_buf(&mkv->info.bc);
     ffio_free_dyn_buf(&mkv->track.bc);
@@ -2718,9 +2716,8 @@ static int mkv_init(struct AVFormatContext *s)
     } else
         mkv->mode = MODE_MATROSKAv2;
 
-    mkv->cur_audio_pkt = av_packet_alloc();
-    if (!mkv->cur_audio_pkt)
-        return AVERROR(ENOMEM);
+    mkv->cur_audio_pkt = s->internal->parse_pkt;
+
     mkv->tracks = av_mallocz_array(s->nb_streams, sizeof(*mkv->tracks));
     if (!mkv->tracks)
         return AVERROR(ENOMEM);
