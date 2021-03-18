@@ -101,6 +101,8 @@ struct AVFormatInternal {
      * It may be used by demuxers as a replacement for
      * stack packets (unless they call one of the aforementioned
      * functions with their own AVFormatContext).
+     * Because it is not used by the generic muxing code,
+     * it can be freely used by muxers.
      * Every user has to ensure that this packet is blank
      * after using it.
      */
