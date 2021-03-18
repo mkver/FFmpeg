@@ -3498,13 +3498,9 @@ static int extract_extradata_init(AVStream *st)
     if (!ret)
         goto finish;
 
-    sti->extract_extradata.pkt = av_packet_alloc();
-    if (!sti->extract_extradata.pkt)
-        return AVERROR(ENOMEM);
-
     ret = av_bsf_alloc(f, &sti->extract_extradata.bsf);
     if (ret < 0)
-        goto fail;
+        return ret;
 
     ret = avcodec_parameters_copy(sti->extract_extradata.bsf->par_in,
                                   st->codecpar);
@@ -3523,14 +3519,12 @@ finish:
     return 0;
 fail:
     av_bsf_free(&sti->extract_extradata.bsf);
-    av_packet_free(&sti->extract_extradata.pkt);
     return ret;
 }
 
-static int extract_extradata(AVStream *st, const AVPacket *pkt)
+static int extract_extradata(AVStream *st, AVPacket *tmp, const AVPacket *pkt)
 {
     AVStreamInternal *sti = st->internal;
-    AVPacket *pkt_ref;
     int ret;
 
     if (!sti->extract_extradata.inited) {
@@ -3542,27 +3536,26 @@ static int extract_extradata(AVStream *st, const AVPacket *pkt)
     if (sti->extract_extradata.inited && !sti->extract_extradata.bsf)
         return 0;
 
-    pkt_ref = sti->extract_extradata.pkt;
-    ret = av_packet_ref(pkt_ref, pkt);
+    ret = av_packet_ref(tmp, pkt);
     if (ret < 0)
         return ret;
 
-    ret = av_bsf_send_packet(sti->extract_extradata.bsf, pkt_ref);
+    ret = av_bsf_send_packet(sti->extract_extradata.bsf, tmp);
     if (ret < 0) {
-        av_packet_unref(pkt_ref);
+        av_packet_unref(tmp);
         return ret;
     }
 
     while (ret >= 0 && !sti->avctx->extradata) {
-        ret = av_bsf_receive_packet(sti->extract_extradata.bsf, pkt_ref);
+        ret = av_bsf_receive_packet(sti->extract_extradata.bsf, tmp);
         if (ret < 0) {
             if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
                 return ret;
             continue;
         }
 
-        for (int i = 0; i < pkt_ref->side_data_elems; i++) {
-            AVPacketSideData *side_data = &pkt_ref->side_data[i];
+        for (int i = 0; i < tmp->side_data_elems; i++) {
+            AVPacketSideData *side_data = &tmp->side_data[i];
             if (side_data->type == AV_PKT_DATA_NEW_EXTRADATA) {
                 sti->avctx->extradata      = side_data->data;
                 sti->avctx->extradata_size = side_data->size;
@@ -3571,7 +3564,7 @@ static int extract_extradata(AVStream *st, const AVPacket *pkt)
                 break;
             }
         }
-        av_packet_unref(pkt_ref);
+        av_packet_unref(tmp);
     }
 
     return 0;
@@ -3923,7 +3916,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 st->internal->info->frame_delay_evidence = 1;
         }
         if (!st->internal->avctx->extradata) {
-            ret = extract_extradata(st, pkt);
+            ret = extract_extradata(st, ic->internal->parse_pkt, pkt);
             if (ret < 0)
                 goto unref_then_goto_end;
         }
@@ -4189,7 +4182,6 @@ find_stream_info_err:
         avcodec_close(ic->streams[i]->internal->avctx);
         av_freep(&ic->streams[i]->internal->info);
         av_bsf_free(&ic->streams[i]->internal->extract_extradata.bsf);
-        av_packet_free(&ic->streams[i]->internal->extract_extradata.pkt);
     }
     if (ic->pb)
         av_log(ic, AV_LOG_DEBUG, "After avformat_find_stream_info() pos: %"PRId64" bytes read:%"PRId64" seeks:%d frames:%d\n",
@@ -4391,7 +4383,6 @@ static void free_stream(AVStream **pst)
         av_freep(&st->internal->probe_data.buf);
 
         av_bsf_free(&st->internal->extract_extradata.bsf);
-        av_packet_free(&st->internal->extract_extradata.pkt);
 
         if (st->internal->info)
             av_freep(&st->internal->info->duration_error);
