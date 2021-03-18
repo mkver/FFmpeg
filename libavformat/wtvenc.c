@@ -105,7 +105,7 @@ typedef struct {
     int64_t last_pts;
     int64_t last_serial;
 
-    AVPacket thumbnail;
+    AVPacket *thumbnail; /* Not owned by us */
 } WtvContext;
 
 
@@ -381,6 +381,8 @@ static int write_header(AVFormatContext *s)
     int i, pad, ret;
     AVStream *st;
 
+    wctx->thumbnail = s->internal->parse_pkt;
+
     wctx->last_chunk_pos     = -1;
     wctx->last_timestamp_pos = -1;
 
@@ -463,9 +465,8 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
     WtvContext  *wctx = s->priv_data;
     AVStream    *st   = s->streams[pkt->stream_index];
 
-    if (st->codecpar->codec_id == AV_CODEC_ID_MJPEG && !wctx->thumbnail.size) {
-        av_packet_ref(&wctx->thumbnail, pkt);
-        return 0;
+    if (st->codecpar->codec_id == AV_CODEC_ID_MJPEG && !wctx->thumbnail->data) {
+        return av_packet_ref(wctx->thumbnail, pkt);
     } else if (st->codecpar->codec_id == AV_CODEC_ID_H264) {
         int ret = ff_check_h264_startcode(s, st, pkt);
         if (ret < 0)
@@ -678,17 +679,17 @@ static void write_table_entries_attrib(AVFormatContext *s)
     while ((tag = av_dict_get(s->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
         write_tag(pb, tag->key, tag->value);
 
-    if (wctx->thumbnail.size) {
-        AVStream *st = s->streams[wctx->thumbnail.stream_index];
+    if (wctx->thumbnail->size) {
+        AVStream *st = s->streams[wctx->thumbnail->stream_index];
         tag = av_dict_get(st->metadata, "title", NULL, 0);
-        write_metadata_header(pb, 2, "WM/Picture", attachment_value_size(&wctx->thumbnail, tag));
+        write_metadata_header(pb, 2, "WM/Picture", attachment_value_size(wctx->thumbnail, tag));
 
         avio_put_str16le(pb, "image/jpeg");
         avio_w8(pb, 0x10);
         avio_put_str16le(pb, tag ? tag->value : "");
 
-        avio_wl32(pb, wctx->thumbnail.size);
-        avio_write(pb, wctx->thumbnail.data, wctx->thumbnail.size);
+        avio_wl32(pb, wctx->thumbnail->size);
+        avio_write(pb, wctx->thumbnail->data, wctx->thumbnail->size);
 
         write_tag_int32(pb, "WM/MediaThumbType", 2);
     }
@@ -707,10 +708,10 @@ static void write_table_redirector_legacy_attrib(AVFormatContext *s)
         pos += metadata_header_size(tag->key) + strlen(tag->value)*2 + 2;
     }
 
-    if (wctx->thumbnail.size) {
-        AVStream *st = s->streams[wctx->thumbnail.stream_index];
+    if (wctx->thumbnail->size) {
+        AVStream *st = s->streams[wctx->thumbnail->stream_index];
         avio_wl64(pb, pos);
-        pos += metadata_header_size("WM/Picture") + attachment_value_size(&wctx->thumbnail, av_dict_get(st->metadata, "title", NULL, 0));
+        pos += metadata_header_size("WM/Picture") + attachment_value_size(wctx->thumbnail, av_dict_get(st->metadata, "title", NULL, 0));
 
         avio_wl64(pb, pos);
         pos += metadata_header_size("WM/MediaThumbType") + 4;
@@ -825,7 +826,6 @@ static int write_trailer(AVFormatContext *s)
 
     av_free(wctx->sp_pairs);
     av_free(wctx->st_pairs);
-    av_packet_unref(&wctx->thumbnail);
     return 0;
 }
 
