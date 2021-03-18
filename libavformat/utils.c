@@ -1427,9 +1427,7 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt,
     int size      = pkt->size;
     int ret = 0, got_output = flush;
 
-    if (size || flush) {
-        av_packet_unref(out_pkt);
-    } else if (st->parser->flags & PARSER_FLAG_COMPLETE_FRAMES) {
+    if (!size && !flush && st->parser->flags & PARSER_FLAG_COMPLETE_FRAMES) {
         // preserve 0-size sync packets
         compute_pkt_fields(s, st, st->parser, pkt, AV_NOPTS_VALUE, AV_NOPTS_VALUE);
     }
@@ -1525,6 +1523,8 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt,
     }
 
 fail:
+    out_pkt->data = NULL;
+    out_pkt->size = 0;
     av_packet_unref(pkt);
     return ret;
 }
