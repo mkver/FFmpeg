@@ -298,7 +298,7 @@ static int flac_write_audio_packet(struct AVFormatContext *s, AVPacket *pkt)
 static int flac_queue_flush(AVFormatContext *s)
 {
     FlacMuxerContext *c = s->priv_data;
-    AVPacket pkt;
+    AVPacket *pkt = s->internal->parse_pkt;
     int ret, write = 1;
 
     ret = flac_finish_header(s);
@@ -306,10 +306,10 @@ static int flac_queue_flush(AVFormatContext *s)
         write = 0;
 
     while (c->queue) {
-        avpriv_packet_list_get(&c->queue, &c->queue_end, &pkt);
-        if (write && (ret = flac_write_audio_packet(s, &pkt)) < 0)
+        avpriv_packet_list_get(&c->queue, &c->queue_end, pkt);
+        if (write && (ret = flac_write_audio_packet(s, pkt)) < 0)
             write = 0;
-        av_packet_unref(&pkt);
+        av_packet_unref(pkt);
     }
     return ret;
 }
