@@ -1054,7 +1054,21 @@ typedef struct AVStream {
      *
      * - demuxing: Filled by libavformat on stream creation. Must not be
      *             modified by the caller.
-     * - muxing: Unused
+     * - muxing: For streams of type AVMEDIA_TYPE_ATTACHMENT this packet's
+     *           data should contain the attachment. For these streams
+     *           the packet has to be refcounted with size > 0.
+     *           It needs to be filled before calling avformat_write_header()
+     *           (or avformat_init_output() if that is called first).
+     *           Ownership of this packet is transferred to libavformat and
+     *           the caller must not access it in any way after having
+     *           called any of said functions.
+     *           The caller must not touch this packet for any other type
+     *           of stream.
+     *
+     * @note When muxing a stream of type AVMEDIA_TYPE_ATTACHMENT,
+     *       the traditional way of supplying attachments via extradata
+     *       still works, but is deprecated. Data provided via this packet
+     *       takes precedence over data in extradata for such streams.
      */
     AVPacket *attachment;
 

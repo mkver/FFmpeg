@@ -236,24 +236,33 @@ AVOutputFormat ff_streamhash_muxer = {
 #endif
 
 #if CONFIG_FRAMEHASH_MUXER || CONFIG_FRAMEMD5_MUXER
-static void framehash_print_extradata(struct AVFormatContext *s)
+static void framehash_print_buffer_hash(AVFormatContext *s, const char *name,
+                                        int idx, const uint8_t *data, int size)
+{
+    if (data) {
+        struct HashContext *c = s->priv_data;
+        char buf[AV_HASH_MAX_SIZE*2+1];
+
+        avio_printf(s->pb, "#%s %d, %30d, ", name, idx, size);
+        av_hash_init(c->hashes[0]);
+        av_hash_update(c->hashes[0], data, size);
+        av_hash_final_hex(c->hashes[0], buf, sizeof(buf));
+        avio_write(s->pb, buf, strlen(buf));
+        avio_printf(s->pb, "\n");
+    }
+}
+
+static void framehash_print_extradata_attachment(struct AVFormatContext *s)
 {
     int i;
 
     for (i = 0; i < s->nb_streams; i++) {
         AVStream *st = s->streams[i];
         AVCodecParameters *par = st->codecpar;
-        if (par->extradata) {
-            struct HashContext *c = s->priv_data;
-            char buf[AV_HASH_MAX_SIZE*2+1];
-
-            avio_printf(s->pb, "#extradata %d, %31d, ", i, par->extradata_size);
-            av_hash_init(c->hashes[0]);
-            av_hash_update(c->hashes[0], par->extradata, par->extradata_size);
-            av_hash_final_hex(c->hashes[0], buf, sizeof(buf));
-            avio_write(s->pb, buf, strlen(buf));
-            avio_printf(s->pb, "\n");
-        }
+        framehash_print_buffer_hash(s, "extradata ", i,
+                                    par->extradata, par->extradata_size);
+        framehash_print_buffer_hash(s, "attachment", i,
+                                    st->attachment->data, st->attachment->size);
     }
 }
 
@@ -277,7 +286,7 @@ static int framehash_write_header(struct AVFormatContext *s)
     avio_printf(s->pb, "#format: frame checksums\n");
     avio_printf(s->pb, "#version: %d\n", c->format_version);
     avio_printf(s->pb, "#hash: %s\n", av_hash_get_name(c->hashes[0]));
-    framehash_print_extradata(s);
+    framehash_print_extradata_attachment(s);
     ff_framehash_write_header(s);
     avio_printf(s->pb, "#stream#, dts,        pts, duration,     size, hash\n");
     return 0;

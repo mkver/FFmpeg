@@ -35,10 +35,16 @@ static int framecrc_write_header(struct AVFormatContext *s)
     for (i = 0; i < s->nb_streams; i++) {
         AVStream *st = s->streams[i];
         AVCodecParameters *par = st->codecpar;
+        const AVPacket *const attachment = st->attachment;
         if (par->extradata) {
             uint32_t crc = av_adler32_update(0, par->extradata, par->extradata_size);
             avio_printf(s->pb, "#extradata %d: %8d, 0x%08"PRIx32"\n",
                         i, par->extradata_size, crc);
+        }
+        if (attachment->data) {
+            uint32_t crc = av_adler32_update(0, attachment->data, attachment->size);
+            avio_printf(s->pb, "#attachment %d: %8d, 0x%08"PRIx32"\n",
+                        i, attachment->size, crc);
         }
     }
 
