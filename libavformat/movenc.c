@@ -6006,7 +6006,7 @@ static int mov_write_packet(AVFormatContext *s, AVPacket *pkt)
     if (is_cover_image(trk->st)) {
         int ret;
 
-        if (trk->st->nb_frames >= 1) {
+        if (trk->st->nb_frames >= 1 || trk->cover_image->data) {
             if (trk->st->nb_frames == 1)
                 av_log(s, AV_LOG_WARNING, "Got more than one picture in stream %d,"
                        " ignoring.\n", pkt->stream_index);
@@ -6321,7 +6321,6 @@ static void mov_free(AVFormatContext *s)
             av_freep(&mov->tracks[i].par);
         av_freep(&mov->tracks[i].cluster);
         av_freep(&mov->tracks[i].frag_info);
-        av_packet_free(&mov->tracks[i].cover_image);
 
         if (mov->tracks[i].eac3_priv) {
             struct eac3_info *info = mov->tracks[i].eac3_priv;
@@ -6667,11 +6666,8 @@ static int mov_init(AVFormatContext *s)
                 av_log(s, AV_LOG_ERROR, "VP8 muxing is currently not supported.\n");
                 return AVERROR_PATCHWELCOME;
             }
-            if (is_cover_image(st)) {
-                track->cover_image = av_packet_alloc();
-                if (!track->cover_image)
-                    return AVERROR(ENOMEM);
-            }
+            if (is_cover_image(st))
+                track->cover_image = st->attachment;
         } else if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             track->timescale = st->codecpar->sample_rate;
             if (!st->codecpar->frame_size && !av_get_bits_per_sample(st->codecpar->codec_id)) {
