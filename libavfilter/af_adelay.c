@@ -345,7 +345,7 @@ static const AVFilterPad adelay_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_af_adelay = {
+const AVFilter ff_af_adelay = {
     .name          = "adelay",
     .description   = NULL_IF_CONFIG_SMALL("Delay one or more audio channels."),
     .query_formats = query_formats,
