@@ -27,6 +27,7 @@
 #include <float.h>
 #include <xavs.h>
 #include "avcodec.h"
+#include "encode.h"
 #include "internal.h"
 #include "packet_internal.h"
 #include "libavutil/internal.h"
@@ -150,7 +151,7 @@ static int XAVS_frame(AVCodecContext *avctx, AVPacket *pkt,
 
     if (!ret) {
         if (!frame && !(x4->end_of_stream)) {
-            if ((ret = ff_alloc_packet2(avctx, pkt, 4, 0)) < 0)
+            if ((ret = ff_get_encode_buffer(avctx, pkt, 4, 0)) < 0)
                 return ret;
 
             pkt->data[0] = 0x0;
