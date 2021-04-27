@@ -86,6 +86,7 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     return 0;
 }
 
+static const enum AVPixelFormat pix_fmt[] = { AV_PIX_FMT_GBRP10, AV_PIX_FMT_NONE };
 
 #if CONFIG_R210_ENCODER
 const AVCodec ff_r210_encoder = {
@@ -96,7 +97,7 @@ const AVCodec ff_r210_encoder = {
     .capabilities   = AV_CODEC_CAP_DR1,
     .init           = encode_init,
     .encode2        = encode_frame,
-    .pix_fmts       = (const enum AVPixelFormat[]) { AV_PIX_FMT_GBRP10, AV_PIX_FMT_NONE },
+    .pix_fmts       = pix_fmt,
 };
 #endif
 #if CONFIG_R10K_ENCODER
@@ -108,7 +109,7 @@ const AVCodec ff_r10k_encoder = {
     .capabilities   = AV_CODEC_CAP_DR1,
     .init           = encode_init,
     .encode2        = encode_frame,
-    .pix_fmts       = (const enum AVPixelFormat[]) { AV_PIX_FMT_GBRP10, AV_PIX_FMT_NONE },
+    .pix_fmts       = pix_fmt,
 };
 #endif
 #if CONFIG_AVRP_ENCODER
@@ -120,6 +121,6 @@ const AVCodec ff_avrp_encoder = {
     .capabilities   = AV_CODEC_CAP_DR1,
     .init           = encode_init,
     .encode2        = encode_frame,
-    .pix_fmts       = (const enum AVPixelFormat[]) { AV_PIX_FMT_GBRP10, AV_PIX_FMT_NONE },
+    .pix_fmts       = pix_fmt,
 };
 #endif
