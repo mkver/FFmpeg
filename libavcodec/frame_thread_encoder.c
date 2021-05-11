@@ -42,6 +42,7 @@ typedef struct{
     AVPacket *outdata;
     int       return_code;
     int       finished;
+    int       got_packet;
 } Task;
 
 typedef struct{
@@ -69,7 +70,7 @@ static void * attribute_align_arg worker(void *v){
     ThreadContext *c = avctx->internal->frame_thread_encoder;
 
     while (!atomic_load(&c->exit)) {
-        int got_packet = 0, ret;
+        int ret;
         AVPacket *pkt;
         AVFrame *frame;
         Task *task;
@@ -94,15 +95,14 @@ static void * attribute_align_arg worker(void *v){
         frame = task->indata;
         pkt   = task->outdata;
 
-        ret = avctx->codec->encode2(avctx, pkt, frame, &got_packet);
-        if(got_packet) {
-            int ret2 = av_packet_make_refcounted(pkt);
-            if (ret >= 0 && ret2 < 0)
-                ret = ret2;
-            pkt->pts = pkt->dts = frame->pts;
-        } else {
-            pkt->data = NULL;
-            pkt->size = 0;
+        task->got_packet = 0;
+
+        ret = avctx->codec->encode2(avctx, pkt, frame, &task->got_packet);
+        if (task->got_packet) {
+            if (ret < 0 || pkt->data && (ret = av_packet_make_refcounted(pkt)) < 0)
+                task->got_packet = 0;
+            else
+                pkt->pts = pkt->dts = frame->pts;
         }
         pthread_mutex_lock(&c->buffer_mutex);
         av_frame_unref(frame);
@@ -310,8 +310,7 @@ int ff_thread_video_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
      * because there is no outstanding task with this index. */
     outtask->finished = 0;
     av_packet_move_ref(pkt, outtask->outdata);
-    if(pkt->data)
-        *got_packet_ptr = 1;
+    *got_packet_ptr = outtask->got_packet;
     c->finished_task_index = (c->finished_task_index + 1) % c->max_tasks;
 
     return outtask->return_code;
