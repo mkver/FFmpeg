@@ -45,6 +45,12 @@ int ff_encode_get_frame(AVCodecContext *avctx, AVFrame *frame);
 int ff_get_encode_buffer(AVCodecContext *avctx, AVPacket *avpkt, int64_t size, int flags);
 
 /**
+ * Equivalent of av_packet_make_refcounted(), but uses the AVCodecContext's
+ * get_encode_buffer() callback to allocate the buffer.
+ */
+int ff_encode_make_refcounted(AVCodecContext *avctx, AVPacket *avpkt);
+
+/**
  * Check AVPacket size and allocate data.
  *
  * Encoders supporting AVCodec.encode2() can use this as a convenience to

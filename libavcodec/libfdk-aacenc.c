@@ -464,11 +464,12 @@ const AVCodec ff_libfdk_aac_encoder = {
     .long_name             = NULL_IF_CONFIG_SMALL("Fraunhofer FDK AAC"),
     .type                  = AVMEDIA_TYPE_AUDIO,
     .id                    = AV_CODEC_ID_AAC,
+    .capabilities          = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_DELAY |
+                             AV_CODEC_CAP_SMALL_LAST_FRAME,
     .priv_data_size        = sizeof(AACContext),
     .init                  = aac_encode_init,
     .encode2               = aac_encode_frame,
     .close                 = aac_encode_close,
-    .capabilities          = AV_CODEC_CAP_SMALL_LAST_FRAME | AV_CODEC_CAP_DELAY,
     .sample_fmts           = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_S16,
                                                             AV_SAMPLE_FMT_NONE },
     .priv_class            = &aac_enc_class,

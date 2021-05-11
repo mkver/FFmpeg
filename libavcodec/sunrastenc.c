@@ -214,6 +214,7 @@ const AVCodec ff_sunrast_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("Sun Rasterfile image"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_SUNRAST,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(SUNRASTContext),
     .init           = sunrast_encode_init,
     .encode2        = sunrast_encode_frame,

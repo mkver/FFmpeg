@@ -107,6 +107,7 @@ const AVCodec ff_alias_pix_encoder = {
     .long_name = NULL_IF_CONFIG_SMALL("Alias/Wavefront PIX image"),
     .type      = AVMEDIA_TYPE_VIDEO,
     .id        = AV_CODEC_ID_ALIAS_PIX,
+    .capabilities = AV_CODEC_CAP_DR1,
     .encode2   = encode_frame,
     .pix_fmts  = (const enum AVPixelFormat[]) {
         AV_PIX_FMT_BGR24, AV_PIX_FMT_GRAY8, AV_PIX_FMT_NONE

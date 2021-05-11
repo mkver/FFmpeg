@@ -208,6 +208,7 @@ const AVCodec ff_targa_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("Truevision Targa image"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_TARGA,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(TargaContext),
     .priv_class     = &targa_class,
     .init           = targa_encode_init,

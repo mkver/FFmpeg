@@ -562,12 +562,12 @@ const AVCodec ff_magicyuv_encoder = {
     .long_name        = NULL_IF_CONFIG_SMALL("MagicYUV video"),
     .type             = AVMEDIA_TYPE_VIDEO,
     .id               = AV_CODEC_ID_MAGICYUV,
+    .capabilities     = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_FRAME_THREADS,
     .priv_data_size   = sizeof(MagicYUVContext),
     .priv_class       = &magicyuv_class,
     .init             = magy_encode_init,
     .close            = magy_encode_close,
     .encode2          = magy_encode_frame,
-    .capabilities     = AV_CODEC_CAP_FRAME_THREADS,
     .pix_fmts         = (const enum AVPixelFormat[]) {
                           AV_PIX_FMT_GBRP, AV_PIX_FMT_GBRAP, AV_PIX_FMT_YUV422P,
                           AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV444P, AV_PIX_FMT_YUVA444P, AV_PIX_FMT_GRAY8,

@@ -557,6 +557,7 @@ const AVCodec ff_gif_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("GIF (Graphics Interchange Format)"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_GIF,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(GIFContext),
     .init           = gif_encode_init,
     .encode2        = gif_encode_frame,

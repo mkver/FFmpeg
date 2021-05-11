@@ -1839,6 +1839,7 @@ const AVCodec ff_jpeg2000_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("JPEG 2000"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_JPEG2000,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(Jpeg2000EncoderContext),
     .init           = j2kenc_init,
     .encode2        = encode_frame,

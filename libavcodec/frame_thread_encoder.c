@@ -99,7 +99,8 @@ static void * attribute_align_arg worker(void *v){
 
         ret = avctx->codec->encode2(avctx, pkt, frame, &task->got_packet);
         if (task->got_packet) {
-            if (ret < 0 || pkt->data && (ret = av_packet_make_refcounted(pkt)) < 0)
+            if (ret < 0 ||
+                pkt->data && (ret = ff_encode_make_refcounted(c->parent_avctx, pkt)) < 0)
                 task->got_packet = 0;
             else
                 pkt->pts = pkt->dts = frame->pts;

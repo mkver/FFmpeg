@@ -355,6 +355,7 @@ const AVCodec ff_hap_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("Vidvox Hap"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_HAP,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(HapContext),
     .priv_class     = &hapenc_class,
     .init           = hap_init,

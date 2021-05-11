@@ -81,6 +81,7 @@ const AVCodec ff_xbm_encoder = {
     .long_name    = NULL_IF_CONFIG_SMALL("XBM (X BitMap) image"),
     .type         = AVMEDIA_TYPE_VIDEO,
     .id           = AV_CODEC_ID_XBM,
+    .capabilities = AV_CODEC_CAP_DR1,
     .encode2      = xbm_encode_frame,
     .pix_fmts     = (const enum AVPixelFormat[]) { AV_PIX_FMT_MONOWHITE,
                                                    AV_PIX_FMT_NONE },
