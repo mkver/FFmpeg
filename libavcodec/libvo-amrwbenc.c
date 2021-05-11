@@ -146,6 +146,7 @@ const AVCodec ff_libvo_amrwbenc_encoder = {
                                            "(Adaptive Multi-Rate Wide-Band)"),
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = AV_CODEC_ID_AMR_WB,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(AMRWBContext),
     .init           = amr_wb_encode_init,
     .encode2        = amr_wb_encode_frame,

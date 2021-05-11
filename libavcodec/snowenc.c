@@ -1922,6 +1922,7 @@ const AVCodec ff_snow_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("Snow"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_SNOW,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(SnowContext),
     .init           = encode_init,
     .encode2        = encode_frame,

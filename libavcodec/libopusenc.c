@@ -585,11 +585,12 @@ const AVCodec ff_libopus_encoder = {
     .long_name       = NULL_IF_CONFIG_SMALL("libopus Opus"),
     .type            = AVMEDIA_TYPE_AUDIO,
     .id              = AV_CODEC_ID_OPUS,
+    .capabilities    = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_DELAY |
+                       AV_CODEC_CAP_SMALL_LAST_FRAME,
     .priv_data_size  = sizeof(LibopusEncContext),
     .init            = libopus_encode_init,
     .encode2         = libopus_encode,
     .close           = libopus_encode_close,
-    .capabilities    = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_SMALL_LAST_FRAME,
     .sample_fmts     = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_S16,
                                                       AV_SAMPLE_FMT_FLT,
                                                       AV_SAMPLE_FMT_NONE },

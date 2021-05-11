@@ -904,6 +904,7 @@ const AVCodec ff_libxvid_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("libxvidcore MPEG-4 part 2"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MPEG4,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(struct xvid_context),
     .init           = xvid_encode_init,
     .encode2        = xvid_encode_frame,

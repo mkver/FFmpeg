@@ -848,6 +848,7 @@ const AVCodec ff_rpza_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("QuickTime video (RPZA)"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_RPZA,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(RpzaContext),
     .priv_class     = &rpza_class,
     .init           = rpza_encode_init,

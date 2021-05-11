@@ -27,6 +27,7 @@ const AVCodec ff_mp2_encoder = {
     .long_name             = NULL_IF_CONFIG_SMALL("MP2 (MPEG audio layer 2)"),
     .type                  = AVMEDIA_TYPE_AUDIO,
     .id                    = AV_CODEC_ID_MP2,
+    .capabilities          = AV_CODEC_CAP_DR1,
     .priv_data_size        = sizeof(MpegAudioContext),
     .init                  = MPA_encode_init,
     .encode2               = MPA_encode_frame,

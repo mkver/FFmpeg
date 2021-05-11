@@ -198,6 +198,7 @@ const AVCodec ff_pcx_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("PC Paintbrush PCX image"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_PCX,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .encode2        = pcx_encode_frame,
     .pix_fmts       = (const enum AVPixelFormat[]){
         AV_PIX_FMT_RGB24,

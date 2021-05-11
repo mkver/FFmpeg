@@ -1184,6 +1184,7 @@ const AVCodec ff_cinepak_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("Cinepak"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_CINEPAK,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(CinepakEncContext),
     .init           = cinepak_encode_init,
     .encode2        = cinepak_encode_frame,

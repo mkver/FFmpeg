@@ -903,6 +903,7 @@ const AVCodec ff_flashsv2_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("Flash Screen Video Version 2"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_FLASHSV2,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(FlashSV2Context),
     .init           = flashsv2_encode_init,
     .encode2        = flashsv2_encode_frame,

@@ -404,6 +404,7 @@ const AVCodec ff_qtrle_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("QuickTime Animation (RLE) video"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_QTRLE,
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(QtrleEncContext),
     .init           = qtrle_encode_init,
     .encode2        = qtrle_encode_frame,

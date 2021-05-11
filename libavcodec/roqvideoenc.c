@@ -1125,6 +1125,7 @@ const AVCodec ff_roq_encoder = {
     .long_name            = NULL_IF_CONFIG_SMALL("id RoQ video"),
     .type                 = AVMEDIA_TYPE_VIDEO,
     .id                   = AV_CODEC_ID_ROQ,
+    .capabilities         = AV_CODEC_CAP_DR1,
     .priv_data_size       = sizeof(RoqEncContext),
     .init                 = roq_encode_init,
     .encode2              = roq_encode_frame,
