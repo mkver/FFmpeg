@@ -19,18 +19,27 @@
 #include "libavutil/avstring.h"
 #include "libavutil/common.h"
 #include "libavutil/opt.h"
-
+#define UNCHECKED_BITSTREAM_READER 1
 #include "bsf.h"
 #include "cbs.h"
 #include "cbs_bsf.h"
 #include "cbs_mpeg2.h"
+#include "get_bits.h"
 #include "mpeg12.h"
+#include "mpeg12vlc.h"
+
+#define MB_QUANT (1 << 0)
+#define MB_FOR   (1 << 1)
+#define MB_BACK  (1 << 2)
+#define MB_PAT   (1 << 3)
+#define MB_INTRA (1 << 4)
 
 enum {
     PROGRESSIVE_FRAMES   =   1 << 0,
     SWAP_TBFF            =   1 << 1,
     NO_REPEAT            =   1 << 2,
     PROGRESSIVE_SEQUENCE =   1 << 3,
+    TRIM_PADDING         =   1 << 4,
 };
 
 typedef struct MPEG2MetadataContext {
@@ -52,6 +61,352 @@ typedef struct MPEG2MetadataContext {
     int mpeg1_warned;
 } MPEG2MetadataContext;
 
+typedef struct SliceContext {
+    uint8_t mb_type;
+    uint8_t motion_vector_count;
+    uint8_t frame_mv;
+    uint8_t dmv;
+
+    uint8_t picture_coding_type;
+
+    uint8_t f_code[2][2];
+    uint8_t picture_structure;
+    uint8_t frame_pred_frame_dct;
+    uint8_t concealment_motion_vectors;
+    uint8_t intra_vlc_format;
+
+    uint8_t block_count; /* derived from chroma_format */
+} SliceContext;
+
+static const uint8_t ptype2mb_type[7] = {
+                                           MB_INTRA,
+                                  MB_PAT,
+               MB_FOR,
+               MB_FOR |           MB_PAT,
+    MB_QUANT |                             MB_INTRA,
+    MB_QUANT |                    MB_PAT,
+    MB_QUANT | MB_FOR |           MB_PAT,
+};
+
+static const uint8_t btype2mb_type[11] = {
+                                           MB_INTRA,
+                        MB_BACK,
+                        MB_BACK | MB_PAT,
+               MB_FOR,
+               MB_FOR |           MB_PAT,
+               MB_FOR | MB_BACK,
+               MB_FOR | MB_BACK | MB_PAT,
+    MB_QUANT |                             MB_INTRA,
+    MB_QUANT |          MB_BACK | MB_PAT,
+    MB_QUANT | MB_FOR |           MB_PAT,
+    MB_QUANT | MB_FOR | MB_BACK | MB_PAT
+};
+
+static int macroblock_modes(SliceContext *ctx, GetBitContext *gb)
+{
+    int mb_type;
+
+    switch (ctx->picture_coding_type) {
+    case 1: /* I */
+        if (get_bits1(gb) == 0) {
+            if (get_bits1(gb) == 0)
+                return AVERROR_INVALIDDATA;
+            mb_type = MB_QUANT | MB_INTRA;
+        } else {
+            mb_type = MB_INTRA;
+        }
+        break;
+    case 2: /* P */
+        mb_type = get_vlc2(gb, ff_mb_ptype_vlc.table, MB_PTYPE_VLC_BITS, 1);
+        if (mb_type < 0)
+            return AVERROR_INVALIDDATA;
+        mb_type = ptype2mb_type[mb_type];
+        break;
+    case 3: /* B */
+        mb_type = get_vlc2(gb, ff_mb_btype_vlc.table, MB_BTYPE_VLC_BITS, 1);
+        if (mb_type < 0)
+            return AVERROR_INVALIDDATA;
+        mb_type = btype2mb_type[mb_type];
+        break;
+    }
+    ctx->mb_type = mb_type;
+
+    /* spatial_temporal_weight_code omitted */
+
+    if (ctx->mb_type & (MB_FOR|MB_BACK)) {
+        int motion_type;
+        if (ctx->picture_structure == PICT_FRAME) {
+            if (!ctx->frame_pred_frame_dct)
+                motion_type = get_bits(gb, 2);
+            else
+                motion_type = 2;
+            ctx->motion_vector_count = 1 + (motion_type == 1);
+            ctx->frame_mv = motion_type == 2;
+        } else {
+            motion_type = get_bits(gb, 2);
+            ctx->motion_vector_count = 1 + (motion_type == 2);
+            ctx->frame_mv = 0;
+        }
+        ctx->dmv = motion_type == 3;
+    } else {
+        /* Might be used for MB_INTRA with concealment_motion_vectors */
+        ctx->dmv = 0;
+        ctx->motion_vector_count = 1;
+        ctx->frame_mv = ctx->picture_structure == PICT_FRAME;
+    }
+
+    if ((ctx->picture_structure == PICT_FRAME) &&
+        !ctx->frame_pred_frame_dct &&
+        ctx->mb_type & (MB_INTRA|MB_PAT)) {
+        skip_bits1(gb); /* dct_type */
+    }
+
+    return 0;
+}
+
+static int parse_motion_vector(SliceContext *ctx, GetBitContext *gb, int backwards)
+{
+    int motion_code;
+
+    motion_code = get_vlc2(gb, ff_mv_vlc.table, MV_VLC_BITS, 2);
+    if (motion_code < 0)
+        return AVERROR_INVALIDDATA;
+    if (motion_code) {
+        /* The motion_code read is actually missing the last bit
+         * which contains the sign of the value read. We ignore this
+         * and instead skip f_code[backwards][0] bits here instead of
+         * f_code[backwards][0] - 1 as per the spec. */
+        skip_bits(gb, ctx->f_code[backwards][0]);
+    }
+    if (ctx->dmv) {
+        if (get_bits1(gb))
+            skip_bits1(gb);
+    }
+    motion_code = get_vlc2(gb, ff_mv_vlc.table, MV_VLC_BITS, 2);
+    if (motion_code < 0)
+        return AVERROR_INVALIDDATA;
+    if (motion_code) {
+        skip_bits(gb, ctx->f_code[backwards][1]);
+    }
+    if (ctx->dmv) {
+        if (get_bits1(gb))
+            skip_bits1(gb);
+    }
+    return 0;
+}
+
+static int parse_motion_vectors(SliceContext *ctx, GetBitContext *gb, int backwards)
+{
+    int ret;
+
+    if (ctx->motion_vector_count == 1) {
+        if (!ctx->frame_mv && !ctx->dmv)
+            skip_bits1(gb); /* motion_vertical_field_select[0][backwards] */
+        ret = parse_motion_vector(ctx, gb, backwards);
+        if (ret < 0)
+            return ret;
+    } else {
+        skip_bits1(gb); /* motion_vertical_field_select[0][backwards] */
+        ret = parse_motion_vector(ctx, gb, backwards);
+        if (ret < 0)
+            return ret;
+        skip_bits1(gb); /* motion_vertical_field_select[1][backwards] */
+        ret = parse_motion_vector(ctx, gb, backwards);
+        if (ret < 0)
+            return ret;
+    }
+    return 0;
+}
+
+static int parse_dc_coeffs(SliceContext *ctx, GetBitContext *gb, const RLTable *rl)
+{
+    av_unused int level, run;
+    OPEN_READER(re, gb);
+
+    while (1) {
+        UPDATE_CACHE(re, gb);
+        GET_RL_VLC(level, run, re, gb, rl->rl_vlc[0],
+                   TEX_VLC_BITS, 2, 0);
+        if (level == 127) {
+            break;
+        } else if (!level) {
+            LAST_SKIP_BITS(re, gb, 18); /* Skip escaped */
+            continue;
+        } else if (level == MAX_LEVEL)
+            return AVERROR_INVALIDDATA;
+        LAST_SKIP_BITS(re, gb, 1);
+    };
+    CLOSE_READER(re, gb);
+
+    return 0;
+}
+
+static int parse_block(SliceContext *ctx, GetBitContext *gb, int cbp, int i)
+{
+    const RLTable *rl = &ff_rl_mpeg1;
+
+    if (ctx->mb_type & MB_INTRA) {
+        int skip = get_vlc2(gb, i < 4 ? ff_dc_lum_vlc.table
+                                      : ff_dc_chroma_vlc.table,
+                            DC_VLC_BITS, 2);
+        skip_bits(gb, skip);
+        if (ctx->intra_vlc_format)
+            rl = &ff_rl_mpeg2;
+    } else if (cbp & (1 << i)) {
+        if (show_bits1(gb) == 1)
+            skip_bits(gb, 2);
+    } else
+        return 0;
+
+    return parse_dc_coeffs(ctx, gb, rl);
+}
+
+static int parse_blocks(SliceContext *ctx, GetBitContext *gb)
+{
+    int cbp, ret;
+
+    if (ctx->mb_type & MB_PAT) {
+        cbp = get_vlc2(gb, ff_mb_pat_vlc.table, MB_PAT_VLC_BITS, 1);
+        if (cbp < 0)
+            return AVERROR_INVALIDDATA;
+        if (ctx->block_count > 6)
+            cbp |= get_bits(gb, ctx->block_count - 6) << 6;
+        /* Hint: The order of the bits will be messed up and won't
+         * correspond directly to pattern_code[i], but it doesn't matter
+         * as for MB_INTRA all bits are 1 whereas for non-intra
+         * only the number of set bits matters. */
+    } else if (!(ctx->mb_type & MB_INTRA))
+        return 0;
+
+    for (int i = 0; i < ctx->block_count; i++) {
+        ret = parse_block(ctx, gb, cbp, i);
+        if (ret < 0)
+            return ret;
+    }
+    return 0;
+}
+
+static int parse_macroblock(SliceContext *ctx, GetBitContext *gb)
+{
+    int incr, ret;
+
+    do {
+        incr = get_vlc2(gb, ff_mbincr_vlc.table, MBINCR_VLC_BITS, 2);
+        if (incr > 33U)
+            return AVERROR_INVALIDDATA;
+    } while (incr == 33);
+
+    ret = macroblock_modes(ctx, gb);
+    if (ret < 0)
+        return ret;
+
+    if (ctx->mb_type & MB_QUANT)
+        skip_bits(gb, 5); /* quantiser_scale_code */
+
+    if (ctx->mb_type & MB_FOR ||
+        (ctx->mb_type & MB_INTRA && ctx->concealment_motion_vectors)) {
+        ret = parse_motion_vectors(ctx, gb, 0);
+        if (ret < 0)
+            return ret;
+    }
+    if (ctx->mb_type & MB_BACK) {
+        ret = parse_motion_vectors(ctx, gb, 1);
+        if (ret < 0)
+            return ret;
+    }
+
+    if (ctx->mb_type & MB_INTRA && ctx->concealment_motion_vectors)
+        skip_bits1(gb); /* marker_bit (set to 1) */
+
+    ret = parse_blocks(ctx, gb);
+    if (ret < 0)
+        return ret;
+
+    return 0;
+}
+
+static int parse_slice_data(SliceContext *ctx, MPEG2RawSlice *slice, void *log)
+{
+    GetBitContext gb;
+    int ret;
+
+    init_get_bits8(&gb, slice->data, slice->data_size);
+    skip_bits(&gb, slice->data_bit_start);
+
+    do {
+        ret = parse_macroblock(ctx, &gb);
+        if (ret < 0)
+            return ret;
+    } while (get_bits_left(&gb) > 0 && show_bits(&gb, FFMIN(23, get_bits_left(&gb))) != 0);
+
+    if (get_bits_left(&gb) < 0) {
+        av_log(log, AV_LOG_ERROR, "Truncated slice\n");
+        return AVERROR_INVALIDDATA;
+    }
+
+    slice->data_size = (get_bits_count(&gb) + 7) >> 3;
+
+    return 0;
+}
+
+static void update_slices(AVBSFContext *bsf, CodedBitstreamFragment *frag)
+{
+    const MPEG2MetadataContext *const ctx = bsf->priv_data;
+    const CodedBitstreamMPEG2Context *const mpeg2 = ctx->common.input->priv_data;
+    const MPEG2RawPictureHeader *pic = NULL;
+    const MPEG2RawPictureCodingExtension *pic_ext = NULL;
+    SliceContext slice;
+    int ret;
+
+    if (!mpeg2->chroma_format)
+        return;
+
+    slice.block_count = 4 + (1 << mpeg2->chroma_format);
+    for (int i = 0; i < frag->nb_units; i++) {
+        CodedBitstreamUnit *unit = &frag->units[i];
+
+        if (MPEG2_START_IS_SLICE(unit->type)) {
+            if (!pic || !pic_ext)
+                return;
+            ret = parse_slice_data(&slice, unit->content, bsf);
+            if (ret < 0) {
+                av_log(bsf, AV_LOG_ERROR, "Error parsing slice %"PRIX32"\n",
+                       unit->type);
+                return;
+            }
+        } else if (unit->type == MPEG2_START_PICTURE) {
+            if (pic)
+                return;
+            pic = unit->content;
+            if (pic->picture_coding_type > 3)
+                return;
+            slice.picture_coding_type = pic->picture_coding_type;
+        } else if (unit->type == MPEG2_START_EXTENSION) {
+            const MPEG2RawExtensionData *ext = unit->content;
+            if (ext->extension_start_code_identifier !=
+                    MPEG2_EXTENSION_PICTURE_CODING)
+                continue;
+            if (pic_ext)
+                return;
+            pic_ext = &ext->data.picture_coding;
+
+            for (int s = 0; s < 2; s++)
+                for (int t = 0; t < 2; t++)
+                    if (pic_ext->f_code[s][t] >= 10 &&
+                        pic_ext->f_code[s][t] <= 14)
+                        return;
+            memcpy(slice.f_code, pic_ext->f_code, sizeof(slice.f_code));
+
+            if (!pic_ext->picture_structure)
+                return;
+            slice.picture_structure          = pic_ext->picture_structure;
+
+            slice.frame_pred_frame_dct       = pic_ext->frame_pred_frame_dct;
+            slice.concealment_motion_vectors = pic_ext->concealment_motion_vectors;
+            slice.intra_vlc_format           = pic_ext->intra_vlc_format;
+        }
+    }
+}
 
 static int mpeg2_metadata_update_fragment(AVBSFContext *bsf,
                                           AVPacket *pkt,
@@ -62,6 +417,9 @@ static int mpeg2_metadata_update_fragment(AVBSFContext *bsf,
     MPEG2RawSequenceExtension         *se = NULL;
     MPEG2RawSequenceDisplayExtension *sde = NULL;
     int i, se_pos;
+
+    if (ctx->flags & TRIM_PADDING)
+        update_slices(bsf, frag);
 
     for (i = 0; i < frag->nb_units; i++) {
         if (frag->units[i].type == MPEG2_START_SEQUENCE_HEADER) {
@@ -270,6 +628,9 @@ static int mpeg2_metadata_init(AVBSFContext *bsf)
     VALIDITY_CHECK(matrix_coefficients);
 #undef VALIDITY_CHECK
 
+    if (ctx->flags & TRIM_PADDING)
+        ff_mpeg12_init_vlcs();
+
     field_order = (ctx->flags & PROGRESSIVE_SEQUENCE)  ? AV_FIELD_PROGRESSIVE
                 : (bsf->par_out->field_order != AV_FIELD_PROGRESSIVE
                    && ctx->flags & PROGRESSIVE_FRAMES) ? AV_FIELD_UNKNOWN : -1;
@@ -307,6 +668,9 @@ static const AVOption mpeg2_metadata_options[] = {
         0, INT_MAX, FLAGS, "flags" },
     { "progressive_sequence", "Mark sequence and all frames as progressive",
         0, AV_OPT_TYPE_CONST, { .i64 = PROGRESSIVE_FRAMES|PROGRESSIVE_SEQUENCE },
+        0, INT_MAX, FLAGS, "flags" },
+    { "trim_padding", "Trim padding bits (slow)",
+        0, AV_OPT_TYPE_CONST, { .i64 = TRIM_PADDING },
         0, INT_MAX, FLAGS, "flags" },
 
     { "video_format", "Set video format (table 6-6)",
