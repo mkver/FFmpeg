@@ -190,6 +190,20 @@ int ff_cbs_sei_find_message(CodedBitstreamContext *ctx,
                             SEIRawMessage **message);
 
 /**
+ * Delete an SEI message from an access unit.
+ *
+ * Deletes from nal, which must be an SEI NAL unit.  If this is the
+ * last message in nal, also deletes it from au.
+ *
+ * Requires nal to be a unit in au and position to be >= 0
+ * and < the payload count of the SEI nal_unit.
+ */
+void ff_cbs_sei_delete_message(CodedBitstreamContext *ctx,
+                               CodedBitstreamFragment *au,
+                               CodedBitstreamUnit *nal,
+                               int position);
+
+/**
  * Delete all messages with the given payload type from an access unit.
  */
 void ff_cbs_sei_delete_message_type(CodedBitstreamContext *ctx,
