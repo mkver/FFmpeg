@@ -147,9 +147,10 @@ static int h264_metadata_insert_aud(AVBSFContext *bsf,
 }
 
 static int h264_metadata_update_sps(AVBSFContext *bsf,
-                                    H264RawSPS *sps)
+                                    CodedBitstreamUnit *unit)
 {
     H264MetadataContext *ctx = bsf->priv_data;
+    H264RawSPS *sps = unit->content;
     int need_vui = 0;
     int crop_unit_x, crop_unit_y;
 
@@ -332,6 +333,18 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
         }
     }
 
+    if (ctx->delete_filler & 2) {
+        int err = ff_cbs_make_unit_writable(ctx->output, unit);
+        if (err < 0)
+            return err;
+        sps = unit->content;
+
+        sps->vui.nal_hrd_parameters_present_flag = 0;
+        sps->vui.vcl_hrd_parameters_present_flag = 0;
+        sps->vui.pic_struct_present_flag         = 0;
+        sps->vui.low_delay_hrd_flag = 1 - sps->vui.fixed_frame_rate_flag;
+    }
+
     if (need_vui)
         sps->vui_parameters_present_flag = 1;
 
@@ -359,7 +372,7 @@ static int h264_metadata_update_side_data(AVBSFContext *bsf, AVPacket *pkt)
 
     for (i = 0; i < au->nb_units; i++) {
         if (au->units[i].type == H264_NAL_SPS) {
-            err = h264_metadata_update_sps(bsf, au->units[i].content);
+            err = h264_metadata_update_sps(bsf, &au->units[i]);
             if (err < 0)
                 return err;
         }
@@ -517,6 +530,7 @@ static int h264_metadata_handle_display_orientation(AVBSFContext *bsf,
 static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
 {
     H264MetadataContext *ctx = bsf->priv_data;
+    CodedBitstreamH264Context *h264_in = ctx->input->priv_data;
     CodedBitstreamFragment *au = &ctx->access_unit;
     int err, i, has_sps, seek_point;
 
@@ -555,7 +569,7 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     has_sps = 0;
     for (i = 0; i < au->nb_units; i++) {
         if (au->units[i].type == H264_NAL_SPS) {
-            err = h264_metadata_update_sps(bsf, au->units[i].content);
+            err = h264_metadata_update_sps(bsf, &au->units[i]);
             if (err < 0)
                 goto fail;
             has_sps = 1;
@@ -582,15 +596,40 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
     }
 
     if (ctx->delete_filler) {
+        int idr_access = h264_in->last_slice_nal_unit_type == H264_NAL_IDR_SLICE;
+
         for (i = au->nb_units - 1; i >= 0; i--) {
             if (au->units[i].type == H264_NAL_FILLER_DATA) {
                 ff_cbs_delete_unit(au, i);
                 continue;
             }
-        }
+            if (au->units[i].type == H264_NAL_SEI) {
+                H264RawSEI *sei = au->units[i].content;
+                SEIRawMessageList *list = &sei->message_list;
 
-        ff_cbs_sei_delete_message_type(ctx->output, au,
-                                       SEI_TYPE_FILLER_PAYLOAD);
+                for (int j = list->nb_messages - 1; j >= 0; j--) {
+                    SEIRawMessage *message = &list->messages[j];
+
+                    if (ctx->delete_filler == 1 &&
+                        message->payload_type != SEI_TYPE_FILLER_PAYLOAD)
+                        continue;
+
+                    if (message->payload_type == SEI_TYPE_RECOVERY_POINT
+                                && !idr_access)
+                        continue;
+
+                    if (message->payload_type ==
+                                SEI_TYPE_USER_DATA_UNREGISTERED) {
+                        SEIRawUserDataUnregistered *user_data = message->payload;
+                        if (user_data->data_length >= 4 &&
+                            !memcmp("x264", user_data->data, 4))
+                            continue;
+                    }
+
+                    ff_cbs_sei_delete_message(ctx->output, au, &au->units[i], j);
+                }
+            }
+        }
     }
 
     if (ctx->display_orientation != PASS) {
@@ -674,7 +713,7 @@ static int h264_metadata_init(AVBSFContext *bsf)
 
         for (i = 0; i < au->nb_units; i++) {
             if (au->units[i].type == H264_NAL_SPS) {
-                err = h264_metadata_update_sps(bsf, au->units[i].content);
+                err = h264_metadata_update_sps(bsf, &au->units[i]);
                 if (err < 0)
                     goto fail;
             }
@@ -769,8 +808,8 @@ static const AVOption h264_metadata_options[] = {
     { "sei_user_data", "Insert SEI user data (UUID+string)",
         OFFSET(sei_user_data), AV_OPT_TYPE_STRING, { .str = NULL }, .flags = FLAGS },
 
-    { "delete_filler", "Delete all filler (both NAL and SEI)",
-        OFFSET(delete_filler), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, FLAGS},
+    { "delete_filler", "Delete all filler (both NAL and SEI); if > 1, also delete SEI",
+        OFFSET(delete_filler), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 3, FLAGS},
 
     { "display_orientation", "Display orientation SEI",
         OFFSET(display_orientation), AV_OPT_TYPE_INT,
