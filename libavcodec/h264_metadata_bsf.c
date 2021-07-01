@@ -89,6 +89,8 @@ typedef struct H264MetadataContext {
     int flip;
     H264RawSEIDisplayOrientation display_orientation_payload;
 
+    int idr;
+
     int level;
 } H264MetadataContext;
 
@@ -632,6 +634,23 @@ static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
         }
     }
 
+    if (ctx->idr != 2) {
+        int idr_access = h264_in->last_slice_nal_unit_type == H264_NAL_IDR_SLICE;
+
+        for (i = 0; i < au->nb_units; i++) {
+            CodedBitstreamUnit    *unit = &au->units[i];
+            CodedBitstreamUnitType type = unit->type;
+
+            if (type == H264_NAL_IDR_SLICE ||
+                type == H264_NAL_AUXILIARY_SLICE && idr_access) {
+                H264RawSliceHeader *slice = unit->content;
+                slice->idr_pic_id = idr_access & ctx->idr; /* & same as && */
+            }
+        }
+
+        ctx->idr = idr_access & !ctx->idr; /* & same as && */
+    }
+
     if (ctx->display_orientation != PASS) {
         err = h264_metadata_handle_display_orientation(bsf, pkt, au,
                                                        seek_point);
@@ -696,6 +715,8 @@ static int h264_metadata_init(AVBSFContext *bsf)
             goto fail;
         }
     }
+
+    ctx->idr = 2 * !ctx->idr;
 
     err = ff_cbs_init(&ctx->input,  AV_CODEC_ID_H264, bsf);
     if (err < 0)
@@ -835,6 +856,9 @@ static const AVOption h264_metadata_options[] = {
     { "vertical",   "Set ver_flip",
         0, AV_OPT_TYPE_CONST,
         { .i64 = FLIP_VERTICAL },   .flags = FLAGS, .unit = "flip" },
+
+    { "idr", "Minimize idr_pic_id",
+        OFFSET(idr), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS},
 
     { "level", "Set level (table A-1)",
         OFFSET(level), AV_OPT_TYPE_INT,
