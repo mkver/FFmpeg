@@ -403,4 +403,10 @@ typedef struct CodedBitstreamH264Context {
     uint8_t last_slice_nal_unit_type;
 } CodedBitstreamH264Context;
 
+/**
+ * Get the maximum value of max_dec_frame_buffering compatible
+ * with a given SPS.
+ */
+int ff_cbs_h264_get_max_dpb_frames(const H264RawSPS *sps);
+
 #endif /* AVCODEC_CBS_H264_H */
