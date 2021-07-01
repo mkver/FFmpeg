@@ -22,12 +22,19 @@
 #include "libavutil/opt.h"
 
 #include "bsf.h"
+#include "bsf_internal.h"
 #include "cbs.h"
-#include "cbs_bsf.h"
 #include "cbs_h264.h"
 #include "h264.h"
 #include "h264_levels.h"
 #include "h264_sei.h"
+
+enum {
+    PASS,
+    INSERT,
+    REMOVE,
+    EXTRACT,
+};
 
 enum {
     FLIP_HORIZONTAL = 1,
@@ -40,7 +47,11 @@ enum {
 };
 
 typedef struct H264MetadataContext {
-    CBSBSFContext common;
+    const AVClass *class;
+
+    CodedBitstreamContext *input;
+    CodedBitstreamContext *output;
+    CodedBitstreamFragment access_unit;
 
     int done_first_au;
 
@@ -327,6 +338,49 @@ static int h264_metadata_update_sps(AVBSFContext *bsf,
     return 0;
 }
 
+static int h264_metadata_update_side_data(AVBSFContext *bsf, AVPacket *pkt)
+{
+    H264MetadataContext *ctx = bsf->priv_data;
+    CodedBitstreamFragment *au = &ctx->access_unit;
+    uint8_t *side_data;
+    size_t side_data_size;
+    int err, i;
+
+    side_data = av_packet_get_side_data(pkt, AV_PKT_DATA_NEW_EXTRADATA,
+                                        &side_data_size);
+    if (!side_data_size)
+        return 0;
+
+    err = ff_cbs_read(ctx->input, au, side_data, side_data_size);
+    if (err < 0) {
+        av_log(bsf, AV_LOG_ERROR, "Failed to read extradata from packet side data.\n");
+        return err;
+    }
+
+    for (i = 0; i < au->nb_units; i++) {
+        if (au->units[i].type == H264_NAL_SPS) {
+            err = h264_metadata_update_sps(bsf, au->units[i].content);
+            if (err < 0)
+                return err;
+        }
+    }
+
+    err = ff_cbs_write_fragment_data(ctx->output, au);
+    if (err < 0) {
+        av_log(bsf, AV_LOG_ERROR, "Failed to write extradata into packet side data.\n");
+        return err;
+    }
+
+    side_data = av_packet_new_side_data(pkt, AV_PKT_DATA_NEW_EXTRADATA, au->data_size);
+    if (!side_data)
+        return AVERROR(ENOMEM);
+    memcpy(side_data, au->data, au->data_size);
+
+    ff_cbs_fragment_reset(au);
+
+    return 0;
+}
+
 static int h264_metadata_handle_display_orientation(AVBSFContext *bsf,
                                                     AVPacket *pkt,
                                                     CodedBitstreamFragment *au,
@@ -337,7 +391,7 @@ static int h264_metadata_handle_display_orientation(AVBSFContext *bsf,
     int err;
 
     message = NULL;
-    while (ff_cbs_sei_find_message(ctx->common.output, au,
+    while (ff_cbs_sei_find_message(ctx->output, au,
                                    SEI_TYPE_DISPLAY_ORIENTATION,
                                    &message) == 0) {
         H264RawSEIDisplayOrientation *disp = message->payload;
@@ -366,13 +420,13 @@ static int h264_metadata_handle_display_orientation(AVBSFContext *bsf,
         }
     }
 
-    if (ctx->display_orientation == BSF_ELEMENT_REMOVE ||
-        ctx->display_orientation == BSF_ELEMENT_INSERT) {
-        ff_cbs_sei_delete_message_type(ctx->common.output, au,
+    if (ctx->display_orientation == REMOVE ||
+        ctx->display_orientation == INSERT) {
+        ff_cbs_sei_delete_message_type(ctx->output, au,
                                        SEI_TYPE_DISPLAY_ORIENTATION);
     }
 
-    if (ctx->display_orientation == BSF_ELEMENT_INSERT) {
+    if (ctx->display_orientation == INSERT) {
         H264RawSEIDisplayOrientation *disp =
             &ctx->display_orientation_payload;
         uint8_t *data;
@@ -446,7 +500,7 @@ static int h264_metadata_handle_display_orientation(AVBSFContext *bsf,
         if (write) {
             disp->display_orientation_repetition_period = 1;
 
-            err = ff_cbs_sei_add_message(ctx->common.output, au, 1,
+            err = ff_cbs_sei_add_message(ctx->output, au, 1,
                                          SEI_TYPE_DISPLAY_ORIENTATION,
                                          disp, NULL);
             if (err < 0) {
@@ -460,21 +514,41 @@ static int h264_metadata_handle_display_orientation(AVBSFContext *bsf,
     return 0;
 }
 
-static int h264_metadata_update_fragment(AVBSFContext *bsf, AVPacket *pkt,
-                                         CodedBitstreamFragment *au)
+static int h264_metadata_filter(AVBSFContext *bsf, AVPacket *pkt)
 {
     H264MetadataContext *ctx = bsf->priv_data;
+    CodedBitstreamFragment *au = &ctx->access_unit;
     int err, i, has_sps, seek_point;
 
+    err = ff_bsf_get_packet_ref(bsf, pkt);
+    if (err < 0)
+        return err;
+
+    err = h264_metadata_update_side_data(bsf, pkt);
+    if (err < 0)
+        goto fail;
+
+    err = ff_cbs_read_packet(ctx->input, au, pkt);
+    if (err < 0) {
+        av_log(bsf, AV_LOG_ERROR, "Failed to read packet.\n");
+        goto fail;
+    }
+
+    if (au->nb_units == 0) {
+        av_log(bsf, AV_LOG_ERROR, "No NAL units in packet.\n");
+        err = AVERROR_INVALIDDATA;
+        goto fail;
+    }
+
     // If an AUD is present, it must be the first NAL unit.
-    if (au->nb_units && au->units[0].type == H264_NAL_AUD) {
-        if (ctx->aud == BSF_ELEMENT_REMOVE)
+    if (au->units[0].type == H264_NAL_AUD) {
+        if (ctx->aud == REMOVE)
             ff_cbs_delete_unit(au, 0);
     } else {
-        if (pkt && ctx->aud == BSF_ELEMENT_INSERT) {
+        if (ctx->aud == INSERT) {
             err = h264_metadata_insert_aud(bsf, au);
             if (err < 0)
-                return err;
+                goto fail;
         }
     }
 
@@ -483,31 +557,27 @@ static int h264_metadata_update_fragment(AVBSFContext *bsf, AVPacket *pkt,
         if (au->units[i].type == H264_NAL_SPS) {
             err = h264_metadata_update_sps(bsf, au->units[i].content);
             if (err < 0)
-                return err;
+                goto fail;
             has_sps = 1;
         }
     }
 
-    if (pkt) {
-        // The current packet should be treated as a seek point for metadata
-        // insertion if any of:
-        // - It is the first packet in the stream.
-        // - It contains an SPS, indicating that a sequence might start here.
-        // - It is marked as containing a key frame.
-        seek_point = !ctx->done_first_au || has_sps ||
-            (pkt->flags & AV_PKT_FLAG_KEY);
-    } else {
-        seek_point = 0;
-    }
+    // The current packet should be treated as a seek point for metadata
+    // insertion if any of:
+    // - It is the first packet in the stream.
+    // - It contains an SPS, indicating that a sequence might start here.
+    // - It is marked as containing a key frame.
+    seek_point = !ctx->done_first_au || has_sps ||
+        (pkt->flags & AV_PKT_FLAG_KEY);
 
     if (ctx->sei_user_data && seek_point) {
-        err = ff_cbs_sei_add_message(ctx->common.output, au, 1,
+        err = ff_cbs_sei_add_message(ctx->output, au, 1,
                                      SEI_TYPE_USER_DATA_UNREGISTERED,
                                      &ctx->sei_user_data_payload, NULL);
         if (err < 0) {
             av_log(bsf, AV_LOG_ERROR, "Failed to add user data SEI "
                    "message to access unit.\n");
-            return err;
+            goto fail;
         }
     }
 
@@ -519,37 +589,44 @@ static int h264_metadata_update_fragment(AVBSFContext *bsf, AVPacket *pkt,
             }
         }
 
-        ff_cbs_sei_delete_message_type(ctx->common.output, au,
+        ff_cbs_sei_delete_message_type(ctx->output, au,
                                        SEI_TYPE_FILLER_PAYLOAD);
     }
 
-    if (pkt && ctx->display_orientation != BSF_ELEMENT_PASS) {
+    if (ctx->display_orientation != PASS) {
         err = h264_metadata_handle_display_orientation(bsf, pkt, au,
                                                        seek_point);
         if (err < 0)
-            return err;
+            goto fail;
     }
 
-    if (pkt)
-        ctx->done_first_au = 1;
+    err = ff_cbs_write_packet(ctx->output, pkt, au);
+    if (err < 0) {
+        av_log(bsf, AV_LOG_ERROR, "Failed to write packet.\n");
+        goto fail;
+    }
 
-    return 0;
+    ctx->done_first_au = 1;
+
+    err = 0;
+fail:
+    ff_cbs_fragment_reset(au);
+
+    if (err < 0)
+        av_packet_unref(pkt);
+
+    return err;
 }
-
-static const CBSBSFType h264_metadata_type = {
-    .codec_id        = AV_CODEC_ID_H264,
-    .fragment_name   = "access unit",
-    .unit_name       = "NAL unit",
-    .update_fragment = &h264_metadata_update_fragment,
-};
 
 static int h264_metadata_init(AVBSFContext *bsf)
 {
     H264MetadataContext *ctx = bsf->priv_data;
+    CodedBitstreamFragment *au = &ctx->access_unit;
+    int err, i;
 
     if (ctx->sei_user_data) {
         SEIRawUserDataUnregistered *udu = &ctx->sei_user_data_payload;
-        int i, j;
+        int j;
 
         // Parse UUID.  It must be a hex string of length 32, possibly
         // containing '-'s between hex digits (which we ignore).
@@ -576,18 +653,67 @@ static int h264_metadata_init(AVBSFContext *bsf)
         } else {
             av_log(bsf, AV_LOG_ERROR, "Invalid user data: "
                    "must be \"UUID+string\".\n");
-            return AVERROR(EINVAL);
+            err = AVERROR(EINVAL);
+            goto fail;
         }
     }
 
-    return ff_cbs_bsf_generic_init(bsf, &h264_metadata_type);
+    err = ff_cbs_init(&ctx->input,  AV_CODEC_ID_H264, bsf);
+    if (err < 0)
+        return err;
+    err = ff_cbs_init(&ctx->output, AV_CODEC_ID_H264, bsf);
+    if (err < 0)
+        return err;
+
+    if (bsf->par_in->extradata) {
+        err = ff_cbs_read_extradata(ctx->input, au, bsf->par_in);
+        if (err < 0) {
+            av_log(bsf, AV_LOG_ERROR, "Failed to read extradata.\n");
+            goto fail;
+        }
+
+        for (i = 0; i < au->nb_units; i++) {
+            if (au->units[i].type == H264_NAL_SPS) {
+                err = h264_metadata_update_sps(bsf, au->units[i].content);
+                if (err < 0)
+                    goto fail;
+            }
+        }
+
+        err = ff_cbs_write_extradata(ctx->output, bsf->par_out, au);
+        if (err < 0) {
+            av_log(bsf, AV_LOG_ERROR, "Failed to write extradata.\n");
+            goto fail;
+        }
+    }
+
+    err = 0;
+fail:
+    ff_cbs_fragment_reset(au);
+    return err;
+}
+
+static void h264_metadata_close(AVBSFContext *bsf)
+{
+    H264MetadataContext *ctx = bsf->priv_data;
+
+    ff_cbs_fragment_free(&ctx->access_unit);
+    ff_cbs_close(&ctx->input);
+    ff_cbs_close(&ctx->output);
 }
 
 #define OFFSET(x) offsetof(H264MetadataContext, x)
 #define FLAGS (AV_OPT_FLAG_VIDEO_PARAM|AV_OPT_FLAG_BSF_PARAM)
 static const AVOption h264_metadata_options[] = {
-    BSF_ELEMENT_OPTIONS_PIR("aud", "Access Unit Delimiter NAL units",
-                            aud, FLAGS),
+    { "aud", "Access Unit Delimiter NAL units",
+        OFFSET(aud), AV_OPT_TYPE_INT,
+        { .i64 = PASS }, PASS, REMOVE, FLAGS, "aud" },
+    { "pass",   NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = PASS   }, .flags = FLAGS, .unit = "aud" },
+    { "insert", NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = INSERT }, .flags = FLAGS, .unit = "aud" },
+    { "remove", NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = REMOVE }, .flags = FLAGS, .unit = "aud" },
 
     { "sample_aspect_ratio", "Set sample aspect ratio (table E-1)",
         OFFSET(sample_aspect_ratio), AV_OPT_TYPE_RATIONAL,
@@ -646,9 +772,17 @@ static const AVOption h264_metadata_options[] = {
     { "delete_filler", "Delete all filler (both NAL and SEI)",
         OFFSET(delete_filler), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, FLAGS},
 
-    BSF_ELEMENT_OPTIONS_PIRE("display_orientation",
-                             "Display orientation SEI",
-                             display_orientation, FLAGS),
+    { "display_orientation", "Display orientation SEI",
+        OFFSET(display_orientation), AV_OPT_TYPE_INT,
+        { .i64 = PASS }, PASS, EXTRACT, FLAGS, "disp_or" },
+    { "pass",    NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = PASS    }, .flags = FLAGS, .unit = "disp_or" },
+    { "insert",  NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = INSERT  }, .flags = FLAGS, .unit = "disp_or" },
+    { "remove",  NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = REMOVE  }, .flags = FLAGS, .unit = "disp_or" },
+    { "extract", NULL, 0, AV_OPT_TYPE_CONST,
+        { .i64 = EXTRACT }, .flags = FLAGS, .unit = "disp_or" },
 
     { "rotate", "Set rotation in display orientation SEI (anticlockwise angle in degrees)",
         OFFSET(rotate), AV_OPT_TYPE_DOUBLE,
@@ -712,7 +846,7 @@ const AVBitStreamFilter ff_h264_metadata_bsf = {
     .priv_data_size = sizeof(H264MetadataContext),
     .priv_class     = &h264_metadata_class,
     .init           = &h264_metadata_init,
-    .close          = &ff_cbs_bsf_generic_close,
-    .filter         = &ff_cbs_bsf_generic_filter,
+    .close          = &h264_metadata_close,
+    .filter         = &h264_metadata_filter,
     .codec_ids      = h264_metadata_codec_ids,
 };
