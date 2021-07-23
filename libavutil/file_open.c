@@ -17,6 +17,7 @@
  */
 
 #include "config.h"
+#include "avutil.h"
 #include "internal.h"
 #include "mem.h"
 #include <stdarg.h>

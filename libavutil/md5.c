@@ -31,6 +31,7 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 
 #include "bswap.h"
 #include "intreadwrite.h"

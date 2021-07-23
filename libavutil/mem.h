@@ -27,11 +27,10 @@
 #ifndef AVUTIL_MEM_H
 #define AVUTIL_MEM_H
 
-#include <limits.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "attributes.h"
-#include "avutil.h"
 #include "version.h"
 
 /**
@@ -109,6 +108,7 @@
     #define DECLARE_ASM_ALIGNED(n,t,v)  t __attribute__ ((aligned (n))) v
     #define DECLARE_ASM_CONST(n,t,v)    const t __attribute__ ((aligned (n))) v
 #elif defined(__DJGPP__)
+#include "macros.h"
     #define DECLARE_ALIGNED(n,t,v)      t __attribute__ ((aligned (FFMIN(n, 16)))) v
     #define DECLARE_ASM_ALIGNED(n,t,v)  t av_used __attribute__ ((aligned (FFMIN(n, 16)))) v
     #define DECLARE_ASM_CONST(n,t,v)    static const t av_used __attribute__ ((aligned (FFMIN(n, 16)))) v
