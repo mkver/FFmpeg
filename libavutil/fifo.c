@@ -20,9 +20,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <string.h>
 #include "avassert.h"
-#include "common.h"
+#include "error.h"
 #include "fifo.h"
+#include "macros.h"
+#include "mem.h"
 
 static AVFifoBuffer *fifo_alloc_common(void *buffer, size_t size)
 {
