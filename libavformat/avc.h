@@ -23,6 +23,7 @@
 #define AVFORMAT_AVC_H
 
 #include <stdint.h>
+#include "libavutil/rational.h"
 #include "avio.h"
 
 int ff_avc_parse_nal_units(AVIOContext *s, const uint8_t *buf, int size);
