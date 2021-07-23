@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <string.h>
 #include "tx_priv.h"
 
 int ff_tx_type_is_mdct(enum AVTXType type)
