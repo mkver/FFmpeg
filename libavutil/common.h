@@ -40,6 +40,7 @@
 #include <string.h>
 
 #include "attributes.h"
+#include "error.h"
 #include "macros.h"
 #include "version.h"
 
