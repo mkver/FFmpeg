@@ -19,6 +19,7 @@
 #ifndef AVUTIL_TX_PRIV_H
 #define AVUTIL_TX_PRIV_H
 
+#include "common.h"
 #include "tx.h"
 #include "thread.h"
 #include "mem_internal.h"

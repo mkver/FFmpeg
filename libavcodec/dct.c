@@ -30,6 +30,7 @@
 #include <math.h>
 #include <string.h>
 
+#include "libavutil/error.h"
 #include "libavutil/mathematics.h"
 #include "dct.h"
 #include "dct32.h"

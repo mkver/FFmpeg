@@ -16,11 +16,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <cassert>
 #include <pthread.h>
 
 extern "C" {
+#include "libavutil/error.h"
 #include "libavutil/mem.h"
-#include "libavutil/avassert.h"
 }
 
 #include <glslang/Include/ResourceLimits.h>
