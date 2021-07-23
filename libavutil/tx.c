@@ -17,6 +17,7 @@
  */
 
 #include <string.h>
+#include "avassert.h"
 #include "tx_priv.h"
 
 int ff_tx_type_is_mdct(enum AVTXType type)
