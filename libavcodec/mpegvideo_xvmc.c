@@ -31,7 +31,6 @@
 
 #include "xvmc.h"
 #include "xvmc_internal.h"
-#include "version.h"
 
 /**
  * Initialize the block field of the MpegEncContext pointer passed as
