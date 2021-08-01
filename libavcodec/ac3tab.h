@@ -24,7 +24,6 @@
 
 #include <stdint.h>
 
-#include "libavutil/internal.h"
 #include "ac3.h"
 #include "internal.h"
 

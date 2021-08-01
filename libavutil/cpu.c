@@ -20,12 +20,11 @@
 #include <stdint.h>
 #include <stdatomic.h>
 
-#include "attributes.h"
 #include "cpu.h"
 #include "cpu_internal.h"
 #include "config.h"
+#include "log.h"
 #include "opt.h"
-#include "common.h"
 
 #if HAVE_SCHED_GETAFFINITY
 #ifndef _GNU_SOURCE

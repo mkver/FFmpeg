@@ -21,15 +21,13 @@
 #ifndef AVFILTER_AFIR_H
 #define AVFILTER_AFIR_H
 
-#include "libavutil/common.h"
+#include <stddef.h>
+#include <stdint.h>
 #include "libavutil/float_dsp.h"
-#include "libavutil/opt.h"
+#include "libavutil/frame.h"
+#include "libavutil/log.h"
+#include "libavutil/rational.h"
 #include "libavcodec/avfft.h"
-
-#include "audio.h"
-#include "avfilter.h"
-#include "formats.h"
-#include "internal.h"
 
 typedef struct AudioFIRSegment {
     int nb_partitions;

@@ -23,7 +23,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "libavutil/avutil.h"
 #include "libavutil/bswap.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/mathematics.h"
