@@ -22,7 +22,6 @@
 #define SWSCALE_SWSCALE_INTERNAL_H
 
 #include "config.h"
-#include "version.h"
 
 #include "libavutil/avassert.h"
 #include "libavutil/avutil.h"
