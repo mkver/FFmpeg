@@ -16,12 +16,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "common.h"
 #include "samplefmt.h"
 
+#include <limits.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+
+#include "error.h"
+#include "macros.h"
+#include "mem.h"
 
 typedef struct SampleFmtInfo {
     char name[8];

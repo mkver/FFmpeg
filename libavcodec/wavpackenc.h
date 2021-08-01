@@ -21,6 +21,7 @@
 #ifndef AVCODEC_WAVPACKENC_H
 #define AVCODEC_WAVPACKENC_H
 
+#include "libavutil/macros.h"
 #include "wavpack.h"
 
 typedef struct WavPackDecorrSpec {

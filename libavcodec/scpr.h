@@ -23,9 +23,10 @@
 #ifndef AVCODEC_SCPR_H
 #define AVCODEC_SCPR_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <stdint.h>
+
+#include "libavutil/error.h"
+#include "libavutil/frame.h"
 
 #include "avcodec.h"
 #include "bytestream.h"

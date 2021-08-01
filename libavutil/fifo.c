@@ -21,6 +21,7 @@
  */
 
 #include <string.h>
+
 #include "avassert.h"
 #include "error.h"
 #include "fifo.h"
