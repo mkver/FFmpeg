@@ -29,7 +29,7 @@
 
 #include <stdint.h>
 
-#include "libavutil/avutil.h"
+#include "libavutil/attributes.h"
 #include "libavutil/log.h"
 #include "libavutil/pixfmt.h"
 #include "version.h"
