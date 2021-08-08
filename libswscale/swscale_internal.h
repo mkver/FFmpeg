@@ -21,12 +21,16 @@
 #ifndef SWSCALE_SWSCALE_INTERNAL_H
 #define SWSCALE_SWSCALE_INTERNAL_H
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "config.h"
 
+#include "libavutil/attributes.h"
 #include "libavutil/avassert.h"
-#include "libavutil/common.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/log.h"
+#include "libavutil/macros.h"
 #include "libavutil/mem_internal.h"
 #include "libavutil/pixfmt.h"
 #include "libavutil/pixdesc.h"

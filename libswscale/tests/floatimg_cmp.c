@@ -17,17 +17,16 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <inttypes.h>
+#include <stdint.h>
 #include <float.h>
 
-#include "libavutil/avutil.h"
 #include "libavutil/imgutils.h"
 #include "libavutil/intfloat.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/lfg.h"
+#include "libavutil/macros.h"
 #include "libavutil/mem.h"
 #include "libavutil/parseutils.h"
 #include "libavutil/pixdesc.h"

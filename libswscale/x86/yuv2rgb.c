@@ -24,13 +24,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <stdio.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <inttypes.h>
 
 #include "config.h"
+#include "libavutil/common.h"
 #include "libswscale/rgb2rgb.h"
-#include "libswscale/swscale.h"
 #include "libswscale/swscale_internal.h"
 #include "libavutil/attributes.h"
 #include "libavutil/x86/asm.h"

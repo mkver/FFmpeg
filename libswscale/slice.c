@@ -18,6 +18,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <string.h>
+
+#include "libavutil/error.h"
+#include "libavutil/mem.h"
 #include "swscale_internal.h"
 
 static void free_lines(SwsSlice *s)

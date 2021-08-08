@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "libavutil/common.h"
 #include "swscale_internal.h"
 
 int ff_sws_alphablendaway(SwsContext *c, const uint8_t *src[],
