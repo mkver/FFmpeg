@@ -1119,7 +1119,6 @@ static const AVFilterPad paletteuse_inputs[] = {
         .type           = AVMEDIA_TYPE_VIDEO,
         .config_props   = config_input_palette,
     },
-    { NULL }
 };
 
 static const AVFilterPad paletteuse_outputs[] = {
@@ -1128,7 +1127,6 @@ static const AVFilterPad paletteuse_outputs[] = {
         .type          = AVMEDIA_TYPE_VIDEO,
         .config_props  = config_output,
     },
-    { NULL }
 };
 
 const AVFilter ff_vf_paletteuse = {
@@ -1139,7 +1137,7 @@ const AVFilter ff_vf_paletteuse = {
     .init          = init,
     .uninit        = uninit,
     .activate      = activate,
-    .inputs        = paletteuse_inputs,
-    .outputs       = paletteuse_outputs,
+    FILTER_INPUTS(paletteuse_inputs),
+    FILTER_OUTPUTS(paletteuse_outputs),
     .priv_class    = &paletteuse_class,
 };

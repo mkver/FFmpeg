@@ -165,7 +165,6 @@ static const AVFilterPad avfilter_af_channelsplit_inputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
     },
-    { NULL }
 };
 
 const AVFilter ff_af_channelsplit = {
@@ -175,7 +174,7 @@ const AVFilter ff_af_channelsplit = {
     .priv_class     = &channelsplit_class,
     .init           = init,
     .query_formats  = query_formats,
-    .inputs         = avfilter_af_channelsplit_inputs,
+    FILTER_INPUTS(avfilter_af_channelsplit_inputs),
     .outputs        = NULL,
     .flags          = AVFILTER_FLAG_DYNAMIC_OUTPUTS,
 };
