@@ -244,10 +244,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpic)
     int ch = AV_CEIL_RSHIFT(inlink->h, s->vsub);
 
     outpic = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!outpic) {
-        av_frame_free(&inpic);
+    if (!outpic)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(outpic, inpic);
 
     blur(outpic->data[0], outpic->linesize[0],
@@ -266,7 +264,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpic)
              s->chroma.filter_context);
     }
 
-    av_frame_free(&inpic);
     return ff_filter_frame(outlink, outpic);
 }
 
@@ -274,6 +271,7 @@ static const AVFilterPad smartblur_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
         .config_props = config_props,
     },
