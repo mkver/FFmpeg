@@ -425,10 +425,8 @@ static int filter_frame(AVFilterLink *link, AVFrame *in)
     ThreadData td = {0};
 
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(out, in);
 
     if (color->source == COLOR_MODE_NONE) {
@@ -446,7 +444,6 @@ static int filter_frame(AVFilterLink *link, AVFrame *in)
         default :
             av_log(ctx, AV_LOG_ERROR, "Input frame does not specify a supported colorspace, and none has been specified as source either\n");
             av_frame_free(&out);
-            av_frame_free(&in);
             return AVERROR(EINVAL);
         }
         color->mode = source * 5 + color->dest;
@@ -483,7 +480,6 @@ static int filter_frame(AVFilterLink *link, AVFrame *in)
         ff_filter_execute(ctx, process_slice_uyvy422, &td, NULL,
                           FFMIN(in->height, ff_filter_get_nb_threads(ctx)));
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -491,6 +487,7 @@ static const AVFilterPad colormatrix_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .config_props = config_input,
         .filter_frame = filter_frame,
     },
