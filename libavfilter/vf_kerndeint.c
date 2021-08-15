@@ -141,10 +141,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpic)
     const int is_packed_rgb = kerndeint->is_packed_rgb;
 
     outpic = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!outpic) {
-        av_frame_free(&inpic);
+    if (!outpic)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(outpic, inpic);
     outpic->interlaced_frame = 0;
 
@@ -281,7 +279,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpic)
         av_image_copy_plane(dstp, psrc_linesize, srcp, src_linesize, bwidth, h);
     }
 
-    av_frame_free(&inpic);
     return ff_filter_frame(outlink, outpic);
 }
 
@@ -289,6 +286,7 @@ static const AVFilterPad kerndeint_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
         .config_props = config_props,
     },
