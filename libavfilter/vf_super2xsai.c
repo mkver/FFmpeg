@@ -322,10 +322,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     AVFilterLink *outlink = ctx->outputs[0];
     ThreadData td;
     AVFrame *out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(out, in);
     out->width  = outlink->w;
     out->height = outlink->h;
@@ -334,7 +332,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     ff_filter_execute(ctx, super2xsai, &td, NULL,
                       FFMIN(in->height, ff_filter_get_nb_threads(ctx)));
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -342,6 +339,7 @@ static const AVFilterPad super2xsai_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .config_props = config_input,
         .filter_frame = filter_frame,
     },
