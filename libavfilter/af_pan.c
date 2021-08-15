@@ -398,19 +398,15 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *insamples)
     AVFrame *outsamples = ff_get_audio_buffer(outlink, n);
     PanContext *pan = inlink->dst->priv;
 
-    if (!outsamples) {
-        av_frame_free(&insamples);
+    if (!outsamples)
         return AVERROR(ENOMEM);
-    }
     swr_convert(pan->swr, outsamples->extended_data, n,
                 (void *)insamples->extended_data, n);
     av_frame_copy_props(outsamples, insamples);
     outsamples->channel_layout = outlink->channel_layout;
     outsamples->channels = outlink->channels;
 
-    ret = ff_filter_frame(outlink, outsamples);
-    av_frame_free(&insamples);
-    return ret;
+    return ff_filter_frame(outlink, outsamples);
 }
 
 static av_cold void uninit(AVFilterContext *ctx)
@@ -434,6 +430,7 @@ static const AVFilterPad pan_inputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .config_props = config_props,
         .filter_frame = filter_frame,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
