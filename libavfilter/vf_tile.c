@@ -201,10 +201,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *picref)
 
     if (!tile->out_ref) {
         tile->out_ref = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-        if (!tile->out_ref) {
-            av_frame_free(&picref);
+        if (!tile->out_ref)
             return AVERROR(ENOMEM);
-        }
         av_frame_copy_props(tile->out_ref, picref);
         tile->out_ref->width  = outlink->w;
         tile->out_ref->height = outlink->h;
@@ -238,7 +236,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *picref)
                        picref->data, picref->linesize,
                        x0, y0, 0, 0, inlink->w, inlink->h);
 
-    av_frame_free(&picref);
     if (++tile->current == tile->nb_frames)
         return end_last_frame(ctx);
 
@@ -270,6 +267,7 @@ static const AVFilterPad tile_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
     },
 };
