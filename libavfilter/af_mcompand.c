@@ -575,10 +575,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     int ch, band, i;
 
     out = ff_get_audio_buffer(outlink, in->nb_samples);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
 
     if (s->band_samples < in->nb_samples) {
         av_frame_free(&s->band_buf1);
@@ -618,7 +616,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     }
 
     out->pts = in->pts;
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -637,6 +634,7 @@ static const AVFilterPad mcompand_inputs[] = {
         .name           = "default",
         .type           = AVMEDIA_TYPE_AUDIO,
         .filter_frame   = filter_frame,
+        .flags          = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
