@@ -271,10 +271,8 @@ static int chromaber_vulkan_filter_frame(AVFilterLink *link, AVFrame *in)
     AVFilterLink *outlink = ctx->outputs[0];
 
     AVFrame *out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        err = AVERROR(ENOMEM);
-        goto fail;
-    }
+    if (!out)
+        return AVERROR(ENOMEM);
 
     if (!s->initialized)
         RET(init_filter(ctx, in));
@@ -285,12 +283,9 @@ static int chromaber_vulkan_filter_frame(AVFilterLink *link, AVFrame *in)
     if (err < 0)
         goto fail;
 
-    av_frame_free(&in);
-
     return ff_filter_frame(outlink, out);
 
 fail:
-    av_frame_free(&in);
     av_frame_free(&out);
     return err;
 }
@@ -320,6 +315,7 @@ static const AVFilterPad chromaber_vulkan_inputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .filter_frame = &chromaber_vulkan_filter_frame,
         .config_props = &ff_vk_filter_config_input,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
