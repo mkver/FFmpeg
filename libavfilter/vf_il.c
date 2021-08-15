@@ -150,10 +150,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpicref)
     int comp;
 
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        av_frame_free(&inpicref);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(out, inpicref);
 
     interleave(out->data[0], inpicref->data[0],
@@ -176,7 +174,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpicref)
                    s->alpha_mode, s->alpha_swap);
     }
 
-    av_frame_free(&inpicref);
     return ff_filter_frame(outlink, out);
 }
 
@@ -184,6 +181,7 @@ static const AVFilterPad inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
