@@ -805,13 +805,11 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
             av_log(ctx, AV_LOG_WARNING, "Sync failed.\n");
 
         filter_ret = s->filter_frame(outlink, tmp->frame);
-        if (filter_ret < 0) {
-            av_frame_free(&tmp->frame);
+        tmp->frame = NULL;
+        if (filter_ret < 0)
             return filter_ret;
-        }
         tmp->queued--;
         s->got_frame = 1;
-        tmp->frame = NULL;
     };
 
     if (!picref)
@@ -861,14 +859,12 @@ int ff_qsvvpp_filter_frame(QSVVPPContext *s, AVFilterLink *inlink, AVFrame *picr
             } while (ret == MFX_WRN_IN_EXECUTION);
 
             filter_ret = s->filter_frame(outlink, tmp->frame);
-            if (filter_ret < 0) {
-                av_frame_free(&tmp->frame);
+            tmp->frame = NULL;
+            if (filter_ret < 0)
                 return filter_ret;
-            }
 
             tmp->queued--;
             s->got_frame = 1;
-            tmp->frame = NULL;
         }
     } while(ret == MFX_ERR_MORE_SURFACE);
 
