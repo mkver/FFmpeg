@@ -139,10 +139,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpic)
     uint8_t *src, *dst;
 
     outpic = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!outpic) {
-        av_frame_free(&inpic);
+    if (!outpic)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(outpic, inpic);
 
     /* Seed random generator for antibanding. */
@@ -245,7 +243,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpic)
         ff_dlog(ctx, "out[%d]: %u\n", x, histeq->out_histogram[x]);
 #endif
 
-    av_frame_free(&inpic);
     return ff_filter_frame(outlink, outpic);
 }
 
@@ -253,6 +250,7 @@ static const AVFilterPad histeq_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .config_props = config_input,
         .filter_frame = filter_frame,
     },
