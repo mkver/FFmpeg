@@ -181,10 +181,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpicref)
     if (!s->pattern[s->pattern_pos])
         s->pattern_pos = 0;
 
-    if (!len) { // do not output any field from this frame
-        av_frame_free(&inpicref);
+    if (!len) // do not output any field from this frame
         return 0;
-    }
 
     if (s->occupied) {
         av_frame_make_writable(s->frame[nout]);
@@ -240,10 +238,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpicref)
         int interlaced = frame ? frame->interlaced_frame : 0;
         int tff        = frame ? frame->top_field_first  : 0;
 
-        if (!frame) {
-            av_frame_free(&inpicref);
+        if (!frame)
             return AVERROR(ENOMEM);
-        }
 
         av_frame_copy_props(frame, inpicref);
         frame->interlaced_frame = interlaced;
@@ -253,7 +249,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpicref)
                                 s->ts_unit.den);
         ret = ff_filter_frame(outlink, frame);
     }
-    av_frame_free(&inpicref);
 
     return ret;
 }
@@ -272,6 +267,7 @@ static const AVFilterPad telecine_inputs[] = {
     {
         .name          = "default",
         .type          = AVMEDIA_TYPE_VIDEO,
+        .flags         = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame  = filter_frame,
         .config_props  = config_input,
     },
