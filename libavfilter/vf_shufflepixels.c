@@ -374,15 +374,13 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     ThreadData td;
     int ret;
 
-    if (!out) {
-        ret = AVERROR(ENOMEM);
-        goto fail;
-    }
+    if (!out)
+        return AVERROR(ENOMEM);
 
     ret = av_frame_copy_props(out, in);
     if (ret < 0) {
         av_frame_free(&out);
-        goto fail;
+        return ret;
     }
 
     td.out = out;
@@ -390,11 +388,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     ff_filter_execute(ctx, s->shuffle_pixels, &td, NULL,
                       FFMIN(s->planeheight[1], ff_filter_get_nb_threads(ctx)));
 
-    av_frame_free(&in);
     return ff_filter_frame(ctx->outputs[0], out);
-fail:
-    av_frame_free(&in);
-    return ret;
 }
 
 static av_cold void uninit(AVFilterContext *ctx)
@@ -432,6 +426,7 @@ static const AVFilterPad shufflepixels_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
     },
 };
