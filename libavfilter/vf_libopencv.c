@@ -381,18 +381,14 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     IplImage inimg, outimg;
 
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(out, in);
 
     fill_iplimage_from_frame(&inimg , in , inlink->format);
     fill_iplimage_from_frame(&outimg, out, inlink->format);
     s->end_frame_filter(ctx, &inimg, &outimg);
     fill_frame_from_iplimage(out, &outimg, inlink->format);
-
-    av_frame_free(&in);
 
     return ff_filter_frame(outlink, out);
 }
@@ -411,6 +407,7 @@ static const AVFilterPad avfilter_vf_ocv_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
     },
 };
