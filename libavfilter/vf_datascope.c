@@ -318,10 +318,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     AVFrame *out;
 
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     out->pts = in->pts;
 
     ff_fill_rectangle(&s->draw, &s->black, out->data, out->linesize,
@@ -373,7 +371,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     ff_filter_execute(ctx, s->filter, &td, NULL,
                       FFMIN(ff_filter_get_nb_threads(ctx), FFMAX(outlink->w / 20, 1)));
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -435,6 +432,7 @@ static const AVFilterPad inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
@@ -576,10 +574,8 @@ static int pixscope_filter_frame(AVFilterLink *inlink, AVFrame *in)
     int x, y, X, Y, i, w, h;
     char text[128];
 
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(out, in);
     av_frame_copy(out, in);
 
@@ -703,7 +699,6 @@ static int pixscope_filter_frame(AVFilterLink *inlink, AVFrame *in)
         draw_text(&s->draw, out, s->colors[i], X + 28, Y + s->ww + 15 * (i + 6), text, 0);
     }
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -723,6 +718,7 @@ static const AVFilterPad pixscope_inputs[] = {
     {
         .name           = "default",
         .type           = AVMEDIA_TYPE_VIDEO,
+        .flags          = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame   = pixscope_filter_frame,
         .config_props   = pixscope_config_input,
     },
