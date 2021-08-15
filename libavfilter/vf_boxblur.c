@@ -239,10 +239,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     const int pixsize = (depth+7)/8;
 
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(out, in);
 
     for (plane = 0; plane < 4 && in->data[plane] && in->linesize[plane]; plane++)
@@ -256,8 +254,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
               out->data[plane], out->linesize[plane],
               w[plane], h[plane], s->radius[plane], s->power[plane],
               s->temp, pixsize);
-
-    av_frame_free(&in);
 
     return ff_filter_frame(outlink, out);
 }
@@ -292,6 +288,7 @@ static const AVFilterPad avfilter_vf_boxblur_inputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .config_props = config_input,
         .filter_frame = filter_frame,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
