@@ -775,13 +775,10 @@ static int filter_frame(AVFilterLink *link, AVFrame *in)
     unsigned rgb_sz = rgb_stride * in->height;
     ThreadData td;
 
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     res = av_frame_copy_props(out, in);
     if (res < 0) {
-        av_frame_free(&in);
         av_frame_free(&out);
         return res;
     }
@@ -850,7 +847,6 @@ static int filter_frame(AVFilterLink *link, AVFrame *in)
     }
     res = create_filtergraph(ctx, in, out);
     if (res < 0) {
-        av_frame_free(&in);
         av_frame_free(&out);
         return res;
     }
@@ -868,7 +864,6 @@ static int filter_frame(AVFilterLink *link, AVFrame *in)
     if (s->yuv2yuv_passthrough) {
         res = av_frame_copy(out, in);
         if (res < 0) {
-            av_frame_free(&in);
             av_frame_free(&out);
             return res;
         }
@@ -876,7 +871,6 @@ static int filter_frame(AVFilterLink *link, AVFrame *in)
         ff_filter_execute(ctx, convert, &td, NULL,
                           FFMIN((in->height + 1) >> 1, ff_filter_get_nb_threads(ctx)));
     }
-    av_frame_free(&in);
 
     return ff_filter_frame(outlink, out);
 }
@@ -1055,6 +1049,7 @@ static const AVFilterPad inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
     },
 };
