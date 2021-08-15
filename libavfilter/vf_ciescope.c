@@ -1365,16 +1365,13 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     int ret, x, y;
 
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     out->pts = in->pts;
 
     if (!s->background) {
         ret = draw_background(ctx);
         if (ret < 0) {
-            av_frame_free(&in);
             av_frame_free(&out);
             return ret;
         }
@@ -1442,7 +1439,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
                 outlink->w, outlink->h,
                 s->cie, s->gamuts);
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -1490,6 +1486,7 @@ static const AVFilterPad inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
