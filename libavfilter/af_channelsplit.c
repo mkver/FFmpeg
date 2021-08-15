@@ -155,7 +155,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *buf)
         if (ret < 0)
             break;
     }
-    av_frame_free(&buf);
     return ret;
 }
 
@@ -164,6 +163,7 @@ static const AVFilterPad avfilter_af_channelsplit_inputs[] = {
         .name         = "default",
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
