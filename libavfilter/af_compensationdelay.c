@@ -119,10 +119,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     int n, ch;
 
     out = ff_get_audio_buffer(ctx->outputs[0], in->nb_samples);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(out, in);
 
     for (ch = 0; ch < inlink->channels; ch++) {
@@ -144,7 +142,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     }
     s->w_ptr = w_ptr;
 
-    av_frame_free(&in);
     return ff_filter_frame(ctx->outputs[0], out);
 }
 
@@ -161,6 +158,7 @@ static const AVFilterPad compensationdelay_inputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .config_props = config_input,
         .filter_frame = filter_frame,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
