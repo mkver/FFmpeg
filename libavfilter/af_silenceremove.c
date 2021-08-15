@@ -660,10 +660,8 @@ silence_trim_flush:
             break;
 
         out = ff_get_audio_buffer(outlink, nbs + s->start_silence_end);
-        if (!out) {
-            av_frame_free(&in);
+        if (!out)
             return AVERROR(ENOMEM);
-        }
 
         if (s->start_silence_end > 0) {
             if (s->start_silence_offset < s->start_silence_end) {
@@ -712,10 +710,8 @@ silence_copy:
             break;
 
         out = ff_get_audio_buffer(outlink, nbs);
-        if (!out) {
-            av_frame_free(&in);
+        if (!out)
             return AVERROR(ENOMEM);
-        }
 
         if (s->stop_periods) {
             for (i = 0; i < nbs; i++) {
@@ -817,10 +813,8 @@ silence_copy_flush:
             break;
 
         out = ff_get_audio_buffer(outlink, nbs);
-        if (!out) {
-            av_frame_free(&in);
+        if (!out)
             return AVERROR(ENOMEM);
-        }
 
         av_samples_copy(out->extended_data, s->stop_holdoff->extended_data, 0,
                         s->stop_holdoff_offset, nbs,
@@ -848,8 +842,6 @@ silence_copy_flush:
 silence_stop:
         break;
     }
-
-    av_frame_free(&in);
 
     return ret;
 }
@@ -922,6 +914,7 @@ static const AVFilterPad silenceremove_inputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .config_props = config_input,
         .filter_frame = filter_frame,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
