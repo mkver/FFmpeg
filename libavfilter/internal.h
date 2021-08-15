@@ -69,6 +69,14 @@ struct AVFilterPad {
 #define AVFILTERPAD_FLAG_NEEDS_WRITABLE                  (1 << 0)
 
     /**
+     * AVFilterPad.filter_frame does not free its input frame at all
+     * and expects its caller to do so all the time.
+     *
+     * input pads only.
+     */
+#define AVFILTERPAD_FLAG_GENERIC_FREE                    (1 << 1)
+
+    /**
      * A combination of AVFILTERPAD_FLAG_* flags.
      */
     int flags;
@@ -97,7 +105,8 @@ struct AVFilterPad {
      *
      * @return >= 0 on success, a negative AVERROR on error. This function
      * must ensure that frame is properly unreferenced on error if it
-     * hasn't been passed on to another filter.
+     * hasn't been passed on to another filter unless the
+     * AVFILTERPAD_FLAG_GENERIC_FREE flag is set.
      */
     int (*filter_frame)(AVFilterLink *link, AVFrame *frame);
 

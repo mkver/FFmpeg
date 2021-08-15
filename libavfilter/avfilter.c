@@ -958,7 +958,7 @@ static int ff_filter_frame_framed(AVFilterLink *link, AVFrame *frame)
     int (*filter_frame)(AVFilterLink *, AVFrame *);
     AVFilterContext *dstctx = link->dst;
     AVFilterPad *dst = link->dstpad;
-    int ret;
+    int ret, needs_free = dst->flags & AVFILTERPAD_FLAG_GENERIC_FREE;
 
     if (!(filter_frame = dst->filter_frame))
         filter_frame = default_filter_frame;
@@ -973,9 +973,13 @@ static int ff_filter_frame_framed(AVFilterLink *link, AVFrame *frame)
     dstctx->is_disabled = !ff_inlink_evaluate_timeline_at_frame(link, frame);
 
     if (dstctx->is_disabled &&
-        (dstctx->filter->flags & AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC))
+        (dstctx->filter->flags & AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC)) {
         filter_frame = default_filter_frame;
+        needs_free   = 0;
+    }
     ret = filter_frame(link, frame);
+    if (needs_free)
+        av_frame_free(&frame);
     link->frame_count_out++;
     return ret;
 
