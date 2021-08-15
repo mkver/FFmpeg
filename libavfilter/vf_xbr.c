@@ -357,10 +357,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     ThreadData td;
 
     AVFrame *out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
 
     av_frame_copy_props(out, in);
 
@@ -373,7 +371,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     out->width  = outlink->w;
     out->height = outlink->h;
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -408,6 +405,7 @@ static const AVFilterPad xbr_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
     },
 };
