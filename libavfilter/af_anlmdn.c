@@ -292,7 +292,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 
     ret = av_audio_fifo_write(s->fifo, (void **)in->extended_data,
                               in->nb_samples);
-    av_frame_free(&in);
 
     s->offset = 0;
     available = av_audio_fifo_size(s->fifo);
@@ -387,6 +386,7 @@ static const AVFilterPad inputs[] = {
         .name         = "default",
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
