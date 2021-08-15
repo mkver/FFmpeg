@@ -84,16 +84,13 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
         if (ff_outlink_get_status(ctx->outputs[i]))
             continue;
         buf_out = av_frame_clone(frame);
-        if (!buf_out) {
-            ret = AVERROR(ENOMEM);
-            break;
-        }
+        if (!buf_out)
+            return AVERROR(ENOMEM);
 
         ret = ff_filter_frame(ctx->outputs[i], buf_out);
         if (ret < 0)
-            break;
+            return ret;
     }
-    av_frame_free(&frame);
     return ret;
 }
 
@@ -115,6 +112,7 @@ static const AVFilterPad avfilter_vf_split_inputs[] = {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
         .filter_frame = filter_frame,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
@@ -135,6 +133,7 @@ static const AVFilterPad avfilter_af_asplit_inputs[] = {
         .name         = "default",
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
