@@ -530,7 +530,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 fail:
     for (i = 0; i < ctx->nb_outputs; i++)
         av_frame_free(&frames[i]);
-    av_frame_free(&in);
     s->input_frame = NULL;
 
     return ret;
@@ -554,6 +553,7 @@ static const AVFilterPad inputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
         .config_props = config_input,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
