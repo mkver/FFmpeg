@@ -942,7 +942,7 @@ static const AVFilterPad firequalizer_inputs[] = {
         .config_props   = config_input,
         .filter_frame   = filter_frame,
         .type           = AVMEDIA_TYPE_AUDIO,
-        .needs_writable = 1,
+        .flags          = AVFILTERPAD_FLAG_NEEDS_WRITABLE,
     },
 };
 

@@ -132,7 +132,7 @@ static const AVFilterPad despill_inputs[] = {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
         .filter_frame = filter_frame,
-        .needs_writable = 1,
+        .flags        = AVFILTERPAD_FLAG_NEEDS_WRITABLE,
     },
 };
 

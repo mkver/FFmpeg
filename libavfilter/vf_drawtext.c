@@ -1617,7 +1617,7 @@ static const AVFilterPad avfilter_vf_drawtext_inputs[] = {
         .type           = AVMEDIA_TYPE_VIDEO,
         .filter_frame   = filter_frame,
         .config_props   = config_input,
-        .needs_writable = 1,
+        .flags          = AVFILTERPAD_FLAG_NEEDS_WRITABLE,
     },
 };
 

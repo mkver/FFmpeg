@@ -386,7 +386,7 @@ static const AVFilterPad drawbox_inputs[] = {
         .type           = AVMEDIA_TYPE_VIDEO,
         .config_props   = config_input,
         .filter_frame   = filter_frame,
-        .needs_writable = 1,
+        .flags          = AVFILTERPAD_FLAG_NEEDS_WRITABLE,
     },
 };
 
@@ -468,7 +468,7 @@ static const AVFilterPad drawgrid_inputs[] = {
         .type           = AVMEDIA_TYPE_VIDEO,
         .config_props   = config_input,
         .filter_frame   = drawgrid_filter_frame,
-        .needs_writable = 1,
+        .flags          = AVFILTERPAD_FLAG_NEEDS_WRITABLE,
     },
 };
 
