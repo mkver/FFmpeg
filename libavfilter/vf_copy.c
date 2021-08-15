@@ -56,10 +56,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     ret = av_frame_copy(out, in);
     if (ret < 0)
         goto fail;
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 fail:
-    av_frame_free(&in);
     av_frame_free(&out);
     return ret;
 }
@@ -68,6 +66,7 @@ static const AVFilterPad avfilter_vf_copy_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
     },
 };
