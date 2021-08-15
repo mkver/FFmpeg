@@ -307,10 +307,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     AVFrame *out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
     ThreadData td;
 
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
 
     av_frame_copy_props(out, in);
 
@@ -318,7 +316,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     ff_filter_execute(ctx, filter_slice, &td, NULL,
                       FFMIN(rect->planeheight[1], ff_filter_get_nb_threads(ctx)));
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -341,6 +338,7 @@ static const AVFilterPad lenscorrection_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
     },
 };
