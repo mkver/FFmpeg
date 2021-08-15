@@ -711,10 +711,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
         pullup_pack_frame(s, f);
 
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        ret = AVERROR(ENOMEM);
-        goto end;
-    }
+    if (!out)
+        return AVERROR(ENOMEM);
     av_frame_copy_props(out, in);
 
     av_image_copy(out->data, out->linesize,
@@ -724,7 +722,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     ret = ff_filter_frame(outlink, out);
     pullup_release_frame(f);
 end:
-    av_frame_free(&in);
     return ret;
 }
 
@@ -747,6 +744,7 @@ static const AVFilterPad pullup_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
