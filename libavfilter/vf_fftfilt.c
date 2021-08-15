@@ -336,10 +336,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     int i, j, plane;
 
     out = ff_get_video_buffer(outlink, inlink->w, inlink->h);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
 
     av_frame_copy_props(out, in);
 
@@ -365,7 +363,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
         s->irdft_horizontal(s, out, w, h, plane);
     }
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -411,6 +408,7 @@ static const AVFilterPad fftfilt_inputs[] = {
     {
         .name = "default",
         .type = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .config_props = config_props,
         .filter_frame = filter_frame,
     },
