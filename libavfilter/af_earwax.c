@@ -180,17 +180,14 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
             av_frame_free(&s->frame[ch]);
             s->frame[ch] = ff_get_audio_buffer(outlink, in->nb_samples);
             if (!s->frame[ch]) {
-                av_frame_free(&in);
                 av_frame_free(&out);
                 return AVERROR(ENOMEM);
             }
         }
     }
 
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(out, in);
 
     convolve(ctx, in, 0, 0, 0, 0);
@@ -201,7 +198,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     mix(ctx, out, 0, 0, 1, 1, 0);
     mix(ctx, out, 1, 0, 1, 0, 1);
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -219,6 +215,7 @@ static const AVFilterPad earwax_inputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
         .config_props = config_input,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
