@@ -22,7 +22,6 @@
 
 static int filter_frame(AVFilterLink *link, AVFrame *frame)
 {
-    av_frame_free(&frame);
     return 0;
 }
 
@@ -30,6 +29,7 @@ static const AVFilterPad avfilter_vsink_nullsink_inputs[] = {
     {
         .name        = "default",
         .type        = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
     },
 };
