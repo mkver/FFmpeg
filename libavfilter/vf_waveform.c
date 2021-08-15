@@ -3371,10 +3371,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     int i, j, k;
 
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     out->pts = in->pts;
     out->color_range = AVCOL_RANGE_JPEG;
 
@@ -3460,7 +3458,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     }
     s->graticulef(s, out);
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -3475,6 +3472,7 @@ static const AVFilterPad inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
