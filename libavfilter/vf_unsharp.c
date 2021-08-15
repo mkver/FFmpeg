@@ -296,16 +296,11 @@ static int filter_frame(AVFilterLink *link, AVFrame *in)
     int ret = 0;
 
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(out, in);
 
     ret = s->apply_unsharp(link->dst, in, out);
-
-    av_frame_free(&in);
-
     if (ret < 0) {
         av_frame_free(&out);
         return ret;
@@ -340,6 +335,7 @@ static const AVFilterPad avfilter_vf_unsharp_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
