@@ -179,10 +179,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpic)
     int x, y, i, ret, got_frame = 0;
 
     outpic = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!outpic) {
-        av_frame_free(&inpic);
+    if (!outpic)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(outpic, inpic);
     inpic->quality = mcdeint->qp * FF_QP2LAMBDA;
 
@@ -275,7 +273,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpic)
 
 end:
     av_packet_unref(pkt);
-    av_frame_free(&inpic);
     if (ret < 0) {
         av_frame_free(&outpic);
         return ret;
@@ -287,6 +284,7 @@ static const AVFilterPad mcdeint_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
         .config_props = config_props,
     },
