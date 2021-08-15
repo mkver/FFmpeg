@@ -128,16 +128,13 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     AVFilterLink *outlink = ctx->outputs[0];
     AVFrame *out = ff_get_audio_buffer(outlink, in->nb_samples);
 
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(out, in);
 
     if (!s->prev) {
         s->prev = ff_get_audio_buffer(inlink, 1);
         if (!s->prev) {
-            av_frame_free(&in);
             return AVERROR(ENOMEM);
         }
     }
@@ -145,7 +142,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     s->filter((void **)out->extended_data, (void **)s->prev->extended_data, (const void **)in->extended_data,
               in->nb_samples, in->channels);
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -162,6 +158,7 @@ static const AVFilterPad aderivative_inputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
         .config_props = config_input,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
