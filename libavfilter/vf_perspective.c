@@ -452,16 +452,13 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
     int ret;
 
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-    if (!out) {
-        av_frame_free(&frame);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     av_frame_copy_props(out, frame);
 
     if (s->eval_mode == EVAL_MODE_FRAME) {
         if ((ret = calc_persp_luts(ctx, inlink)) < 0) {
             av_frame_free(&out);
-            av_frame_free(&frame);
             return ret;
         }
     }
@@ -481,7 +478,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
                           FFMIN(td.h, ff_filter_get_nb_threads(ctx)));
     }
 
-    av_frame_free(&frame);
     return ff_filter_frame(outlink, out);
 }
 
@@ -496,6 +492,7 @@ static const AVFilterPad perspective_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
