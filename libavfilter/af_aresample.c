@@ -195,10 +195,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *insamplesref)
 
     outsamplesref = ff_get_audio_buffer(outlink, n_out);
 
-    if(!outsamplesref) {
-        av_frame_free(&insamplesref);
+    if (!outsamplesref)
         return AVERROR(ENOMEM);
-    }
 
     av_frame_copy_props(outsamplesref, insamplesref);
     outsamplesref->format                = outlink->format;
@@ -218,7 +216,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *insamplesref)
                                  (void *)insamplesref->extended_data, n_in);
     if (n_out <= 0) {
         av_frame_free(&outsamplesref);
-        av_frame_free(&insamplesref);
         return 0;
     }
 
@@ -227,7 +224,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *insamplesref)
     outsamplesref->nb_samples  = n_out;
 
     ret = ff_filter_frame(outlink, outsamplesref);
-    av_frame_free(&insamplesref);
     return ret;
 }
 
@@ -327,6 +323,7 @@ static const AVFilterPad aresample_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_AUDIO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
     },
 };
