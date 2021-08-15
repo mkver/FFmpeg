@@ -841,14 +841,12 @@ static int showwavespic_filter_frame(AVFilterLink *inlink, AVFrame *insamples)
 
         ret = alloc_out_frame(showwaves, p, inlink, outlink, insamples);
         if (ret < 0)
-            goto end;
+            return ret;
 
         /* queue the audio frame */
         f = av_malloc(sizeof(*f));
-        if (!f) {
-            ret = AVERROR(ENOMEM);
-            goto end;
-        }
+        if (!f)
+            return AVERROR(ENOMEM);
         f->frame = insamples;
         f->next = NULL;
         if (!showwaves->last_frame) {
@@ -863,9 +861,7 @@ static int showwavespic_filter_frame(AVFilterLink *inlink, AVFrame *insamples)
         return 0;
     }
 
-end:
-    av_frame_free(&insamples);
-    return ret;
+    return 0;
 }
 
 static const AVFilterPad showwavespic_inputs[] = {
@@ -874,6 +870,7 @@ static const AVFilterPad showwavespic_inputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .config_props = showwavespic_config_input,
         .filter_frame = showwavespic_filter_frame,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
