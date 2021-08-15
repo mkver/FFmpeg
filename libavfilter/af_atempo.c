@@ -1078,10 +1078,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *src_buffer)
     while (src < src_end) {
         if (!atempo->dst_buffer) {
             atempo->dst_buffer = ff_get_audio_buffer(outlink, n_out);
-            if (!atempo->dst_buffer) {
-                av_frame_free(&src_buffer);
+            if (!atempo->dst_buffer)
                 return AVERROR(ENOMEM);
-            }
             av_frame_copy_props(atempo->dst_buffer, src_buffer);
 
             atempo->dst = atempo->dst_buffer->data[0];
@@ -1101,7 +1099,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *src_buffer)
 
     atempo->nsamples_in += n_in;
 end:
-    av_frame_free(&src_buffer);
     return ret;
 }
 
@@ -1172,6 +1169,7 @@ static const AVFilterPad atempo_inputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
         .config_props = config_props,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
