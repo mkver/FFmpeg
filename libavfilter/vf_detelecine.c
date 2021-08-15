@@ -203,7 +203,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpicref)
 
     if (s->nskip_fields >= 2) {
         s->nskip_fields -= 2;
-        av_frame_free(&inpicref);
         return 0;
     } else if (s->nskip_fields >= 1) {
         for (i = 0; i < s->nb_planes; i++) {
@@ -214,7 +213,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpicref)
         }
         s->occupied = 1;
         s->nskip_fields--;
-        av_frame_free(&inpicref);
         return 0;
     }
 
@@ -229,10 +227,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpicref)
         if (!s->pattern[s->pattern_pos])
             s->pattern_pos = 0;
 
-        if(!len) { // do not output any field as the entire pattern is zero
-            av_frame_free(&inpicref);
+        if (!len) // do not output any field as the entire pattern is zero
             return 0;
-        }
 
         if (len == 1 && s->occupied) {
             s->occupied = 0;
@@ -327,10 +323,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpicref)
     for (i = 0; i < out; ++i) {
         AVFrame *frame = av_frame_clone(s->frame[i]);
 
-        if (!frame) {
-            av_frame_free(&inpicref);
+        if (!frame)
             return AVERROR(ENOMEM);
-        }
 
         av_frame_copy_props(frame, inpicref);
         frame->pts = ((s->start_time == AV_NOPTS_VALUE) ? 0 : s->start_time) +
@@ -338,8 +332,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *inpicref)
                                 s->ts_unit.den);
         ret = ff_filter_frame(outlink, frame);
     }
-
-    av_frame_free(&inpicref);
 
     return ret;
 }
@@ -357,6 +349,7 @@ static const AVFilterPad detelecine_inputs[] = {
     {
         .name          = "default",
         .type          = AVMEDIA_TYPE_VIDEO,
+        .flags         = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame  = filter_frame,
         .config_props  = config_input,
     },
