@@ -127,7 +127,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 
     if (!out){
         av_log(context, AV_LOG_ERROR, "could not allocate memory for output frame\n");
-        av_frame_free(&in);
         return AVERROR(ENOMEM);
     }
     av_frame_copy_props(out, in);
@@ -143,7 +142,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 
     if (dnn_result != DNN_SUCCESS){
         av_log(ctx, AV_LOG_ERROR, "failed to execute loaded model\n");
-        av_frame_free(&in);
         av_frame_free(&out);
         return AVERROR(EIO);
     }
@@ -155,7 +153,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
                   0, ctx->sws_uv_height, out->data + 2, out->linesize + 2);
     }
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -172,6 +169,7 @@ static const AVFilterPad sr_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
     },
 };
