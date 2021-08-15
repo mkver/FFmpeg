@@ -77,7 +77,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
     if (!out) {
         av_log(ctx, AV_LOG_ERROR, "could not allocate memory for output frame\n");
-        av_frame_free(&in);
         return AVERROR(ENOMEM);
     }
     av_frame_copy_props(out, in);
@@ -85,11 +84,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     dnn_result = ff_dnn_execute_model(&dr_context->dnnctx, in, out);
     if (dnn_result != DNN_SUCCESS){
         av_log(ctx, AV_LOG_ERROR, "failed to execute model\n");
-        av_frame_free(&in);
         return AVERROR(EIO);
     }
-
-    av_frame_free(&in);
 
     return ff_filter_frame(outlink, out);
 }
@@ -110,6 +106,7 @@ static const AVFilterPad derain_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
     },
 };
