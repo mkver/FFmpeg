@@ -1519,10 +1519,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *insamples)
                 s->fft_data[j+m].im = audio_data[2*(i+m)+1];
             }
             ret = plot_cqt(ctx, &out);
-            if (ret < 0) {
-                av_frame_free(&insamples);
+            if (ret < 0)
                 return ret;
-            }
             remaining -= s->remaining_fill;
             if (out) {
                 int64_t pts = av_rescale_q(insamples->pts, inlink->time_base, av_make_q(1, inlink->sample_rate));
@@ -1536,10 +1534,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *insamples)
                     s->next_pts = pts + PTS_STEP;
                 }
                 ret = ff_filter_frame(outlink, out);
-                if (ret < 0) {
-                    av_frame_free(&insamples);
+                if (ret < 0)
                     return ret;
-                }
                 out = NULL;
             }
             step = s->step + (s->step_frac.num + s->remaining_frac) / s->step_frac.den;
@@ -1556,7 +1552,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *insamples)
             remaining = 0;
         }
     }
-    av_frame_free(&insamples);
     return 0;
 }
 
@@ -1576,6 +1571,7 @@ static const AVFilterPad showcqt_inputs[] = {
         .name         = "default",
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
