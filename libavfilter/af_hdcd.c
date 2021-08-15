@@ -1538,14 +1538,11 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     int a = 32 - s->bits_per_sample;
 
     out = ff_get_audio_buffer(outlink, in->nb_samples);
-    if (!out) {
-        av_frame_free(&in);
+    if (!out)
         return AVERROR(ENOMEM);
-    }
     result = av_frame_copy_props(out, in);
     if (result) {
         av_frame_free(&out);
-        av_frame_free(&in);
         return result;
     }
     out->format = outlink->format; // is this needed?
@@ -1596,7 +1593,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 
     s->sample_count += in->nb_samples * in->channels;
 
-    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -1760,6 +1756,7 @@ static const AVFilterPad avfilter_af_hdcd_inputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
         .config_props = config_input,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
