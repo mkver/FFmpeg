@@ -288,10 +288,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 
     if (!s->thistogram || !out) {
         out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-        if (!out) {
-            av_frame_free(&in);
+        if (!out)
             return AVERROR(ENOMEM);
-        }
         s->out = out;
 
         for (k = 0; k < 4 && out->data[k]; k++) {
@@ -458,7 +456,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     }
 
     out->pts = in->pts;
-    av_frame_free(&in);
     s->x_pos++;
     if (s->x_pos >= s->width) {
         s->x_pos = 0;
@@ -485,6 +482,7 @@ static const AVFilterPad inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
