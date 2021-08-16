@@ -1364,19 +1364,18 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     AVFrame *out;
     int ret, x, y;
 
+    if (!s->background) {
+        ret = draw_background(ctx);
+        if (ret < 0)
+            return ret;
+        s->background = 1;
+    }
+
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
     if (!out)
         return AVERROR(ENOMEM);
     out->pts = in->pts;
 
-    if (!s->background) {
-        ret = draw_background(ctx);
-        if (ret < 0) {
-            av_frame_free(&out);
-            return ret;
-        }
-        s->background = 1;
-    }
     for (y = 0; y < outlink->h; y++) {
         memset(out->data[0] + y * out->linesize[0], 0, outlink->w * 8);
     }
