@@ -1374,6 +1374,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     if (!s->background) {
         ret = draw_background(ctx);
         if (ret < 0) {
+            av_frame_free(&in);
             av_frame_free(&out);
             return ret;
         }
