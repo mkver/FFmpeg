@@ -446,6 +446,7 @@ static int filter_frame(AVFilterLink *link, AVFrame *in)
         default :
             av_log(ctx, AV_LOG_ERROR, "Input frame does not specify a supported colorspace, and none has been specified as source either\n");
             av_frame_free(&out);
+            av_frame_free(&in);
             return AVERROR(EINVAL);
         }
         color->mode = source * 5 + color->dest;
