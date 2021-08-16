@@ -197,10 +197,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
             av_frame_free(&s->out);
             s->out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
             out = s->out;
-            if (!s->out) {
-                av_frame_free(&in);
+            if (!s->out)
                 return AVERROR(ENOMEM);
-            }
 
             clear_image(s, out, outlink);
         }
@@ -316,8 +314,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     s->x++;
 
     in_pts = in->pts;
-
-    av_frame_free(&in);
 
     if (s->slide == 4)
         return 0;
@@ -457,6 +453,7 @@ static const AVFilterPad drawgraph_inputs[] = {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
         .filter_frame = filter_frame,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
@@ -493,6 +490,7 @@ static const AVFilterPad adrawgraph_inputs[] = {
         .name         = "default",
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
+        .flags        = AVFILTERPAD_FLAG_GENERIC_FREE,
     },
 };
 
