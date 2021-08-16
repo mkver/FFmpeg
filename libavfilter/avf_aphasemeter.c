@@ -327,8 +327,10 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 
         s->out->pts = in->pts;
         clone = av_frame_clone(s->out);
-        if (!clone)
+        if (!clone) {
+            av_frame_free(&in);
             return AVERROR(ENOMEM);
+        }
         ff_filter_frame(outlink, clone);
     }
     return ff_filter_frame(aoutlink, in);
