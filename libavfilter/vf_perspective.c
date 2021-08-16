@@ -461,6 +461,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
     if (s->eval_mode == EVAL_MODE_FRAME) {
         if ((ret = calc_persp_luts(ctx, inlink)) < 0) {
             av_frame_free(&out);
+            av_frame_free(&frame);
             return ret;
         }
     }
