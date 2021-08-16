@@ -392,7 +392,6 @@ static int config_props(AVFilterLink *link)
 
 static int filter_frame(AVFilterLink *inlink, AVFrame *insamples)
 {
-    int ret;
     int n = insamples->nb_samples;
     AVFilterLink *const outlink = inlink->dst->outputs[0];
     AVFrame *outsamples = ff_get_audio_buffer(outlink, n);
