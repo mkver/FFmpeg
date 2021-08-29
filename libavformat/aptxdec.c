@@ -24,6 +24,7 @@
 
 #include "libavutil/opt.h"
 #include "avformat.h"
+#include "pcm.h"
 
 #define APTX_BLOCK_SIZE   4
 #define APTX_PACKET_SIZE  (256*APTX_BLOCK_SIZE)
@@ -72,16 +73,6 @@ static int aptx_hd_read_header(AVFormatContext *s)
     return 0;
 }
 
-static int aptx_read_packet(AVFormatContext *s, AVPacket *pkt)
-{
-    return av_get_packet(s->pb, pkt, APTX_PACKET_SIZE);
-}
-
-static int aptx_hd_read_packet(AVFormatContext *s, AVPacket *pkt)
-{
-    return av_get_packet(s->pb, pkt, APTX_HD_PACKET_SIZE);
-}
-
 static const AVOption aptx_options[] = {
     { "sample_rate", "", offsetof(AptXDemuxerContext, sample_rate), AV_OPT_TYPE_INT, {.i64 = 48000}, 0, INT_MAX, AV_OPT_FLAG_DECODING_PARAM },
     { NULL },
@@ -101,7 +92,7 @@ const AVInputFormat ff_aptx_demuxer = {
     .extensions     = "aptx",
     .priv_data_size = sizeof(AptXDemuxerContext),
     .read_header    = aptx_read_header,
-    .read_packet    = aptx_read_packet,
+    .read_packet    = ff_pcm_read_packet,
     .flags          = AVFMT_GENERIC_INDEX,
     .priv_class     = &aptx_demuxer_class,
 };
@@ -114,7 +105,7 @@ const AVInputFormat ff_aptx_hd_demuxer = {
     .extensions     = "aptxhd",
     .priv_data_size = sizeof(AptXDemuxerContext),
     .read_header    = aptx_hd_read_header,
-    .read_packet    = aptx_hd_read_packet,
+    .read_packet    = ff_pcm_read_packet,
     .flags          = AVFMT_GENERIC_INDEX,
     .priv_class     = &aptx_demuxer_class,
 };
