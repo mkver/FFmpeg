@@ -825,6 +825,9 @@ static int process_options(AVFilterContext *ctx, AVDictionary **options,
         const char *shorthand = NULL;
         int flags = AV_DICT_DONT_STRDUP_VAL;
 
+        /* Besides ensuring that shorthand options after long options
+         * are rejected checking for priv also ensures that we don't call
+         * av_opt_next when ctx->priv is not AVOpt-enabled. */
         if (priv && (o = av_opt_next(ctx->priv, o))) {
             if (o->type == AV_OPT_TYPE_CONST || o->offset == offset)
                 continue;
@@ -922,12 +925,6 @@ int avfilter_init_str(AVFilterContext *filter, const char *args)
     int ret = 0;
 
     if (args && *args) {
-        if (!filter->filter->priv_class) {
-            av_log(filter, AV_LOG_ERROR, "This filter does not take any "
-                   "options, but options were provided: %s.\n", args);
-            return AVERROR(EINVAL);
-        }
-
         ret = process_options(filter, &options, args);
         if (ret < 0)
             goto fail;
