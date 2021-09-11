@@ -28,7 +28,6 @@
 #include <float.h>
 
 #include "libavutil/avstring.h"
-#include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
 #include "avfilter.h"
 #include "framesync.h"
@@ -40,7 +39,6 @@
 #define NUM_DATA_BUFS 13
 
 typedef struct VIFContext {
-    const AVClass *class;
     FFFrameSync fs;
     const AVPixFmtDescriptor *desc;
     int width;
@@ -56,14 +54,6 @@ typedef struct VIFContext {
     double vif_max[4];
     uint64_t nb_frames;
 } VIFContext;
-
-#define OFFSET(x) offsetof(VIFContext, x)
-
-static const AVOption vif_options[] = {
-    { NULL }
-};
-
-AVFILTER_DEFINE_CLASS(vif);
 
 static const uint8_t vif_filter1d_width1[4] = { 17, 9, 5, 3 };
 
@@ -643,7 +633,6 @@ const AVFilter ff_vf_vif = {
     .uninit        = uninit,
     .query_formats = query_formats,
     .priv_size     = sizeof(VIFContext),
-    .priv_class    = &vif_class,
     .activate      = activate,
     FILTER_INPUTS(vif_inputs),
     FILTER_OUTPUTS(vif_outputs),
