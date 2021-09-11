@@ -213,12 +213,18 @@ typedef struct FFFrameSync {
  */
 const AVClass *ff_framesync_get_class(void);
 
+extern const AVClass ff_framesync_class;
+
 /**
  * Pre-initialize a frame sync structure.
  *
  * It sets the class pointer and inits the options to their default values.
  * The entire structure is expected to be already set to 0.
  * This step is optional, but necessary to use the options.
+ *
+ * @note Filters without options of their own can also just use
+ *       ff_framesync_class as their private class provided the
+ *       FFFrameSync structure is at the start of their private context.
  */
 void ff_framesync_preinit(FFFrameSync *fs);
 

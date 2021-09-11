@@ -326,7 +326,7 @@ the new value.
 @c man begin OPTIONS FOR FILTERS WITH SEVERAL INPUTS
 
 Some filters with several inputs support a common set of options.
-These options can only be set by name, not with the short notation.
+These options should only be set by name, not with the short notation.
 
 @table @option
 @item eof_action

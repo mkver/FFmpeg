@@ -44,7 +44,7 @@ static const AVOption framesync_options[] = {
     { "repeatlast", "extend last frame of secondary streams beyond EOF", OFFSET(opt_repeatlast), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, FLAGS },
     { NULL }
 };
-static const AVClass framesync_class = {
+const AVClass ff_framesync_class = {
     .version                   = LIBAVUTIL_VERSION_INT,
     .class_name                = "framesync",
     .item_name                 = framesync_name,
@@ -55,7 +55,7 @@ static const AVClass framesync_class = {
 
 const AVClass *ff_framesync_child_class_iterate(void **iter)
 {
-    const AVClass *c = *iter ? NULL : &framesync_class;
+    const AVClass *c = *iter ? NULL : &ff_framesync_class;
     *iter = (void *)(uintptr_t)c;
     return c;
 }
@@ -70,14 +70,14 @@ static int consume_from_fifos(FFFrameSync *fs);
 
 const AVClass *ff_framesync_get_class(void)
 {
-    return &framesync_class;
+    return &ff_framesync_class;
 }
 
 void ff_framesync_preinit(FFFrameSync *fs)
 {
     if (fs->class)
         return;
-    fs->class  = &framesync_class;
+    fs->class  = &ff_framesync_class;
     av_opt_set_defaults(fs);
 }
 
