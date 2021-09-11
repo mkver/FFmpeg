@@ -814,6 +814,7 @@ static int process_options(AVFilterContext *ctx, AVDictionary **options,
     const AVOption *o = NULL;
     int ret;
     char *av_uninit(parsed_key), *av_uninit(value);
+    const AVClass *priv = ctx->filter->priv_class;
     const char *key;
     int offset= -1;
 
@@ -824,8 +825,7 @@ static int process_options(AVFilterContext *ctx, AVDictionary **options,
         const char *shorthand = NULL;
         int flags = AV_DICT_DONT_STRDUP_VAL;
 
-        o = av_opt_next(ctx->priv, o);
-        if (o) {
+        if (priv && (o = av_opt_next(ctx->priv, o))) {
             if (o->type == AV_OPT_TYPE_CONST || o->offset == offset)
                 continue;
             offset = o->offset;
@@ -848,7 +848,7 @@ static int process_options(AVFilterContext *ctx, AVDictionary **options,
         if (parsed_key) {
             key = parsed_key;
             flags |= AV_DICT_DONT_STRDUP_KEY;
-            while ((o = av_opt_next(ctx->priv, o))); /* discard all remaining shorthand */
+            priv = NULL; /* reject all remaining shorthand */
         } else {
             key = shorthand;
         }
