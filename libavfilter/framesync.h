@@ -208,11 +208,6 @@ typedef struct FFFrameSync {
 
 } FFFrameSync;
 
-/**
- * Get the class for the framesync object.
- */
-const AVClass *ff_framesync_get_class(void);
-
 extern const AVClass ff_framesync_class;
 
 /**
@@ -316,6 +311,9 @@ static const AVClass name##_class = { \
     .child_next       = func_prefix##_child_next, \
 }
 
+/* A filter that uses the *_child_next-function from this macro
+ * is required to initialize the FFFrameSync structure in AVFilter.preinit
+ * via the *_framesync_preinit function defined alongside it. */
 #define FRAMESYNC_AUXILIARY_FUNCS(func_prefix, context, field) \
 static int func_prefix##_framesync_preinit(AVFilterContext *ctx) { \
     context *s = ctx->priv; \
@@ -324,7 +322,6 @@ static int func_prefix##_framesync_preinit(AVFilterContext *ctx) { \
 } \
 static void *func_prefix##_child_next(void *obj, void *prev) { \
     context *s = obj; \
-    s->fs.class = ff_framesync_get_class(); /* FIXME */ \
     return prev ? NULL : &s->field; \
 }
 
