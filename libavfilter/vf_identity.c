@@ -24,7 +24,6 @@
  */
 
 #include "libavutil/avstring.h"
-#include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
 #include "avfilter.h"
 #include "drawutils.h"
@@ -35,7 +34,6 @@
 #include "scene_sad.h"
 
 typedef struct IdentityContext {
-    const AVClass *class;
     FFFrameSync fs;
     double score, min_score, max_score, score_comp[4];
     uint64_t nb_frames;
@@ -54,9 +52,6 @@ typedef struct IdentityContext {
                         int jobnr, int nb_jobs);
     ff_scene_sad_fn sad;
 } IdentityContext;
-
-#define OFFSET(x) offsetof(IdentityContext, x)
-#define FLAGS AV_OPT_FLAG_FILTERING_PARAM|AV_OPT_FLAG_VIDEO_PARAM
 
 static unsigned identity_line_8bit(const uint8_t *main_line,  const uint8_t *ref_line, int outw)
 {
@@ -400,25 +395,17 @@ static const AVFilterPad identity_outputs[] = {
     },
 };
 
-static const AVOption options[] = {
-    { NULL }
-};
-
 #if CONFIG_IDENTITY_FILTER
-
-#define identity_options options
-FRAMESYNC_DEFINE_CLASS(identity, IdentityContext, fs);
 
 const AVFilter ff_vf_identity = {
     .name          = "identity",
     .description   = NULL_IF_CONFIG_SMALL("Calculate the Identity between two video streams."),
-    .preinit       = identity_framesync_preinit,
+    .priv_class    = &ff_framesync_class,
     .init          = init,
     .uninit        = uninit,
     .query_formats = query_formats,
     .activate      = activate,
     .priv_size     = sizeof(IdentityContext),
-    .priv_class    = &identity_class,
     FILTER_INPUTS(identity_inputs),
     FILTER_OUTPUTS(identity_outputs),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS,
@@ -428,19 +415,15 @@ const AVFilter ff_vf_identity = {
 
 #if CONFIG_MSAD_FILTER
 
-#define msad_options options
-FRAMESYNC_DEFINE_CLASS(msad, IdentityContext, fs);
-
 const AVFilter ff_vf_msad = {
     .name          = "msad",
     .description   = NULL_IF_CONFIG_SMALL("Calculate the MSAD between two video streams."),
-    .preinit       = msad_framesync_preinit,
+    .priv_class    = &ff_framesync_class,
     .init          = init,
     .uninit        = uninit,
     .query_formats = query_formats,
     .activate      = activate,
     .priv_size     = sizeof(IdentityContext),
-    .priv_class    = &msad_class,
     FILTER_INPUTS(identity_inputs),
     FILTER_OUTPUTS(identity_outputs),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS,
