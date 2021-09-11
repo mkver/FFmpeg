@@ -822,6 +822,7 @@ static int process_options(AVFilterContext *ctx, AVDictionary **options,
 
     while (*args) {
         const char *shorthand = NULL;
+        int flags = AV_DICT_DONT_STRDUP_VAL;
 
         o = av_opt_next(ctx->priv, o);
         if (o) {
@@ -846,6 +847,7 @@ static int process_options(AVFilterContext *ctx, AVDictionary **options,
             args++;
         if (parsed_key) {
             key = parsed_key;
+            flags |= AV_DICT_DONT_STRDUP_KEY;
             while ((o = av_opt_next(ctx->priv, o))); /* discard all remaining shorthand */
         } else {
             key = shorthand;
@@ -853,10 +855,7 @@ static int process_options(AVFilterContext *ctx, AVDictionary **options,
 
         av_log(ctx, AV_LOG_DEBUG, "Setting '%s' to value '%s'\n", key, value);
 
-            av_dict_set(options, key, value, 0);
-
-        av_free(value);
-        av_free(parsed_key);
+        av_dict_set(options, key, value, flags);
     }
 
     return 0;
