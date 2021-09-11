@@ -26,7 +26,6 @@
   */
 
 #include "libavutil/imgutils.h"
-#include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
 
 #include "avfilter.h"
@@ -42,19 +41,10 @@ typedef struct ThreadData {
 } ThreadData;
 
 typedef struct GrayWorldContext {
-    const AVClass *class;
     float *tmpplab;
     int *line_count_pels;
     float *line_sum;
 } GrayWorldContext;
-
-#define OFFSET(x) offsetof(GrayWorldContext, x)
-#define FLAGS AV_OPT_FLAG_FILTERING_PARAM | AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_RUNTIME_PARAM
-static const AVOption grayworld_options[] = {
-    { NULL }
-};
-
-AVFILTER_DEFINE_CLASS(grayworld);
 
 static int query_formats(AVFilterContext *ctx)
 {
@@ -328,7 +318,6 @@ const AVFilter ff_vf_grayworld = {
     .name          = "grayworld",
     .description   = NULL_IF_CONFIG_SMALL("Adjust white balance using LAB gray world algorithm"),
     .priv_size     = sizeof(GrayWorldContext),
-    .priv_class    = &grayworld_class,
     .query_formats = query_formats,
     FILTER_INPUTS(grayworld_inputs),
     FILTER_OUTPUTS(grayworld_outputs),
