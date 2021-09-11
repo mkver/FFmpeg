@@ -26,7 +26,6 @@
 #include <string.h>
 
 #include "libavutil/imgutils.h"
-#include "libavutil/opt.h"
 #include "libavutil/pixfmt.h"
 #include "avfilter.h"
 #include "drawutils.h"
@@ -39,12 +38,11 @@
 enum { Y, U, V, A };
 
 typedef struct AlphaMergeContext {
-    const AVClass *class;
+    FFFrameSync fs;
 
     int is_packed_rgb;
     uint8_t rgba_map[4];
 
-    FFFrameSync fs;
 } AlphaMergeContext;
 
 static int do_alphamerge(FFFrameSync *fs)
@@ -180,19 +178,12 @@ static const AVFilterPad alphamerge_outputs[] = {
     },
 };
 
-static const AVOption alphamerge_options[] = {
-    { NULL }
-};
-
-FRAMESYNC_DEFINE_CLASS(alphamerge, AlphaMergeContext, fs);
-
 const AVFilter ff_vf_alphamerge = {
     .name           = "alphamerge",
     .description    = NULL_IF_CONFIG_SMALL("Copy the luma value of the second "
                       "input into the alpha channel of the first input."),
-    .preinit        = alphamerge_framesync_preinit,
+    .priv_class     = &ff_framesync_class,
     .priv_size      = sizeof(AlphaMergeContext),
-    .priv_class     = &alphamerge_class,
     .init           = init,
     .query_formats  = query_formats,
     FILTER_INPUTS(alphamerge_inputs),
