@@ -269,6 +269,8 @@ revert:
 
 static av_cold int init_dict(AVFilterContext *ctx, AVDictionary **opts)
 {
+    const AVClass *class = sws_get_class();
+    const AVDictionaryEntry *entry = NULL;
     ScaleContext *scale = ctx->priv;
     int ret;
 
@@ -312,15 +314,23 @@ static av_cold int init_dict(AVFilterContext *ctx, AVDictionary **opts)
     scale->flags = 0;
 
     if (scale->flags_str && *scale->flags_str) {
-        const AVClass *class = sws_get_class();
         const AVOption    *o = av_opt_find(&class, "sws_flags", NULL, 0,
                                            AV_OPT_SEARCH_FAKE_OBJ);
         int ret = av_opt_eval_flags(&class, o, scale->flags_str, &scale->flags);
         if (ret < 0)
             return ret;
     }
-    scale->opts = *opts;
-    *opts = NULL;
+    FFSWAP(AVDictionary *, *opts, scale->opts);
+    /* Now move all the unrecognized options back to opts. */
+    while (entry = av_dict_get(scale->opts, "", entry, AV_DICT_IGNORE_SUFFIX)) {
+        if (!av_opt_find(&class, entry->key, NULL, 0, AV_OPT_SEARCH_FAKE_OBJ)) {
+            if ((ret = av_dict_set(opts, entry->key, entry->value, 0)) < 0 ||
+                (ret = av_dict_set(&scale->opts, entry->key, NULL, 0)) < 0)
+                return ret;
+            /* Removing the entry from scale->opts invalidated entry. */
+            entry = NULL;
+        }
+    }
 
     return 0;
 }
