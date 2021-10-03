@@ -88,7 +88,8 @@ int ff_dolby_e_convert_input(DBEContext *s, int nb_words, int key)
             AV_WB24(dst, AV_RB24(src) ^ key);
         break;
     default:
-        av_assert0(0);
+        AV_UNREACHABLE;
+        break;
     }
 
     return init_get_bits(&s->gb, s->buffer, nb_words * s->word_bits);
