@@ -1212,6 +1212,9 @@ static av_cold int svq3_decode_init(AVCodecContext *avctx)
             w = get_bits(&gb, 12);
             h = get_bits(&gb, 12);
             break;
+        default:
+            AV_UNREACHABLE;
+            break;
         }
         ret = ff_set_dimensions(avctx, w, h);
         if (ret < 0)
