@@ -24,6 +24,7 @@
  * AMR wideband decoder
  */
 
+#include "libavutil/avassert.h"
 #include "libavutil/channel_layout.h"
 #include "libavutil/common.h"
 #include "libavutil/float_dsp.h"
@@ -551,6 +552,10 @@ static void decode_fixed_vector(float *fixed_vector, const uint16_t *pulse_hi,
             decode_6p_track(sig_pos[i], (int) pulse_lo[i] +
                            ((int) pulse_hi[i] << 11), 4, 1);
         break;
+    default:
+        /* Everything >= MODE_SIM is impossible: MODE_SIM is patchwelcome,
+         * > MODE_SIM is invalid. */
+        AV_UNREACHABLE;
     }
 
     memset(fixed_vector, 0, sizeof(float) * AMRWB_SFR_SIZE);
