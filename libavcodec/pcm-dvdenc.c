@@ -47,6 +47,10 @@ static av_cold int pcm_dvd_encode_init(AVCodecContext *avctx)
     case 96000:
         freq = 1;
         break;
+    default:
+        /* Already checked via AVCodec.supported_samplerates. */
+        AV_UNREACHABLE;
+        break;
     }
 
     switch (avctx->sample_fmt) {
@@ -57,6 +61,10 @@ static av_cold int pcm_dvd_encode_init(AVCodecContext *avctx)
     case AV_SAMPLE_FMT_S32:
         avctx->bits_per_coded_sample = 24;
         quant = 2;
+        break;
+    default:
+        /* Already checked via AVCodec.sample_fmts. */
+        AV_UNREACHABLE;
         break;
     }
 
