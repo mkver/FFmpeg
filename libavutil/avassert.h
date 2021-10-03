@@ -28,6 +28,7 @@
 #define AVUTIL_AVASSERT_H
 
 #include <stdlib.h>
+#include "attributes.h"
 #include "log.h"
 #include "macros.h"
 
@@ -63,6 +64,16 @@
 #else
 #define av_assert2(cond) ((void)0)
 #define av_assert2_fpu() ((void)0)
+#endif
+
+#if defined(ASSERT_LEVEL) && ASSERT_LEVEL > 0 || !defined(ASSERT_LEVEL) && !defined(NDEBUG)
+#define AV_UNREACHABLE av_assert0(0)
+#elif AV_GCC_VERSION_AT_LEAST(4, 5) || defined(__clang_major__) && __clang_major__ >= 3 || AV_HAS_BUILTIN(__builtin_unreachable)
+#define AV_UNREACHABLE __builtin_unreachable()
+#elif  defined(_MSC_VER)
+#define AV_UNREACHABLE __assume(0)
+#else
+#define AV_UNREACHABLE
 #endif
 
 /**
