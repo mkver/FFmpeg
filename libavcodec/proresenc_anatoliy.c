@@ -841,18 +841,25 @@ static av_cold int prores_encode_init(AVCodecContext *avctx)
     }
 
     if (avctx->profile == FF_PROFILE_UNKNOWN) {
-        if (avctx->pix_fmt == AV_PIX_FMT_YUV422P10) {
+        switch (avctx->pix_fmt) {
+        case AV_PIX_FMT_YUV422P10:
             avctx->profile = FF_PROFILE_PRORES_STANDARD;
             av_log(avctx, AV_LOG_INFO,
                 "encoding with ProRes standard (apcn) profile\n");
-        } else if (avctx->pix_fmt == AV_PIX_FMT_YUV444P10) {
+            break;
+        case AV_PIX_FMT_YUV444P10:
             avctx->profile = FF_PROFILE_PRORES_4444;
             av_log(avctx, AV_LOG_INFO,
                    "encoding with ProRes 4444 (ap4h) profile\n");
-        } else if (avctx->pix_fmt == AV_PIX_FMT_YUVA444P10) {
+            break;
+        case AV_PIX_FMT_YUVA444P10:
             avctx->profile = FF_PROFILE_PRORES_4444;
             av_log(avctx, AV_LOG_INFO,
                    "encoding with ProRes 4444+ (ap4h) profile\n");
+            break;
+        default:
+            /* Already checked via AVCodec.pix_fmts. */
+            AV_UNREACHABLE;
         }
     } else if (avctx->profile < FF_PROFILE_PRORES_PROXY
             || avctx->profile > FF_PROFILE_PRORES_XQ) {
