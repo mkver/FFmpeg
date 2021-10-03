@@ -127,9 +127,9 @@ static av_cold int utvideo_encode_init(AVCodecContext *avctx)
         original_format  = UTVIDEO_444;
         break;
     default:
-        av_log(avctx, AV_LOG_ERROR, "Unknown pixel format: %d\n",
-               avctx->pix_fmt);
-        return AVERROR_INVALIDDATA;
+        /* Already checked via AVCodec.pix_fmts. */
+        AV_UNREACHABLE;
+        break;
     }
 
     ff_bswapdsp_init(&c->bdsp);
