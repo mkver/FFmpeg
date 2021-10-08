@@ -456,7 +456,8 @@ const AVFilter ff_vf_datascope = {
     FILTER_INPUTS(inputs),
     FILTER_OUTPUTS(outputs),
     FILTER_QUERY_FUNC(query_formats),
-    .flags         = AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };
 
@@ -743,7 +744,8 @@ const AVFilter ff_vf_pixscope = {
     FILTER_INPUTS(pixscope_inputs),
     FILTER_OUTPUTS(pixscope_outputs),
     FILTER_QUERY_FUNC(query_formats),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = pixscope_process_command,
 };
 
@@ -1148,6 +1150,7 @@ const AVFilter ff_vf_oscilloscope = {
     FILTER_INPUTS(oscilloscope_inputs),
     FILTER_OUTPUTS(oscilloscope_outputs),
     FILTER_QUERY_FUNC(query_formats),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = oscilloscope_process_command,
 };

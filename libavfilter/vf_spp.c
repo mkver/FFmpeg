@@ -501,5 +501,6 @@ const AVFilter ff_vf_spp = {
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .process_command = process_command,
     .priv_class      = &spp_class,
-    .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL,
+    .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL |
+                       AVFILTER_FLAG_SUPPORT_COMMANDS,
 };

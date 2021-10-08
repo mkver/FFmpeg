@@ -465,6 +465,8 @@ static const AVFilterPad avfilter_af_volume_outputs[] = {
 const AVFilter ff_af_volume = {
     .name           = "volume",
     .description    = NULL_IF_CONFIG_SMALL("Change input volume."),
+    .flags          = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
+                      AVFILTER_FLAG_SUPPORT_COMMANDS,
     .priv_size      = sizeof(VolumeContext),
     .priv_class     = &volume_class,
     .init           = init,
@@ -472,6 +474,5 @@ const AVFilter ff_af_volume = {
     FILTER_INPUTS(avfilter_af_volume_inputs),
     FILTER_OUTPUTS(avfilter_af_volume_outputs),
     FILTER_QUERY_FUNC(query_formats),
-    .flags          = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
     .process_command = process_command,
 };

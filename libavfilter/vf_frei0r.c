@@ -422,7 +422,8 @@ const AVFilter ff_vf_frei0r = {
     FILTER_OUTPUTS(avfilter_vf_frei0r_outputs),
     FILTER_QUERY_FUNC(query_formats),
     .process_command = process_command,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
 };
 
 static av_cold int source_init(AVFilterContext *ctx)

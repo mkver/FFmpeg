@@ -121,6 +121,7 @@ const AVFilter ff_vf_exposure = {
     FILTER_INPUTS(exposure_inputs),
     FILTER_OUTPUTS(exposure_outputs),
     FILTER_PIXFMTS(AV_PIX_FMT_GBRPF32, AV_PIX_FMT_GBRAPF32),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = ff_filter_process_command,
 };

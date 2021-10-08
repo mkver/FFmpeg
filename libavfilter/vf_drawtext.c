@@ -1639,5 +1639,6 @@ const AVFilter ff_vf_drawtext = {
     FILTER_OUTPUTS(avfilter_vf_drawtext_outputs),
     FILTER_QUERY_FUNC(query_formats),
     .process_command = command,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
 };

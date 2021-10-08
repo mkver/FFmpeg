@@ -120,6 +120,17 @@ enum AVMediaType avfilter_pad_get_type(const AVFilterPad *pads, int pad_idx);
  */
 #define AVFILTER_FLAG_SLICE_THREADS         (1 << 2)
 /**
+ * The filter accepts filter-specific commands via avfilter_process_command(),
+ * avfilter_graph_send_command() and avfilter_graph_queue_command();
+ * support for generic commands like enable-expressions is independent of
+ * this flag.
+ *
+ * Most of these commands are AVOptions with the AV_OPT_FLAG_RUNTIME_PARAM flag.
+ * Some commands are different and cannot be queried via the API. They are
+ * documented alongside the rest of the filter.
+ */
+#define AVFILTER_FLAG_SUPPORT_COMMANDS      (1 << 3)
+/**
  * Some filters support a generic "enable" expression option that can be used
  * to enable or disable a filter in the timeline. Filters supporting this
  * option have this flag set. When the enable expression is false, the default

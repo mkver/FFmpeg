@@ -269,6 +269,7 @@ const AVFilter ff_vsrc_color = {
     .name            = "color",
     .description     = NULL_IF_CONFIG_SMALL("Provide an uniformly colored input."),
     .priv_class      = &color_class,
+    .flags           = AVFILTER_FLAG_SUPPORT_COMMANDS,
     .priv_size       = sizeof(TestSourceContext),
     .init            = color_init,
     .uninit          = uninit,

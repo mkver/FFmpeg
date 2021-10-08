@@ -195,11 +195,13 @@ AVFILTER_DEFINE_CLASS(lumakey);
 const AVFilter ff_vf_lumakey = {
     .name          = "lumakey",
     .description   = NULL_IF_CONFIG_SMALL("Turns a certain luma into transparency."),
+    .flags         = AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS |
+                     AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
     .priv_size     = sizeof(LumakeyContext),
     .priv_class    = &lumakey_class,
     FILTER_INPUTS(lumakey_inputs),
     FILTER_OUTPUTS(lumakey_outputs),
     FILTER_PIXFMTS_ARRAY(pixel_fmts),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
     .process_command = process_command,
 };

@@ -207,7 +207,8 @@ const AVFilter ff_vf_colorkey = {
     FILTER_INPUTS(colorkey_inputs),
     FILTER_OUTPUTS(colorkey_outputs),
     FILTER_PIXFMTS_ARRAY(pixel_fmts),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = ff_filter_process_command,
 };
 
@@ -232,7 +233,8 @@ const AVFilter ff_vf_colorhold = {
     FILTER_INPUTS(colorkey_inputs),
     FILTER_OUTPUTS(colorkey_outputs),
     FILTER_PIXFMTS_ARRAY(pixel_fmts),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = ff_filter_process_command,
 };
 

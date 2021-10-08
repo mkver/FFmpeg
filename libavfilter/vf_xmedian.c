@@ -398,7 +398,8 @@ const AVFilter ff_vf_xmedian = {
     .uninit        = uninit,
     .activate      = activate,
     .flags         = AVFILTER_FLAG_DYNAMIC_INPUTS | AVFILTER_FLAG_SLICE_THREADS |
-                     AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL,
+                     AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };
 
@@ -472,6 +473,9 @@ AVFILTER_DEFINE_CLASS(tmedian);
 const AVFilter ff_vf_tmedian = {
     .name          = "tmedian",
     .description   = NULL_IF_CONFIG_SMALL("Pick median pixels from successive frames."),
+    .flags         = AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS |
+                     AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL,
     .priv_size     = sizeof(XMedianContext),
     .priv_class    = &tmedian_class,
     FILTER_INPUTS(tmedian_inputs),
@@ -479,7 +483,6 @@ const AVFilter ff_vf_tmedian = {
     FILTER_PIXFMTS_ARRAY(pixel_fmts),
     .init          = init,
     .uninit        = uninit,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS,
     .process_command = process_command,
 };
 

@@ -399,6 +399,7 @@ const AVFilter ff_vf_hqdn3d = {
     FILTER_INPUTS(avfilter_vf_hqdn3d_inputs),
     FILTER_OUTPUTS(avfilter_vf_hqdn3d_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };

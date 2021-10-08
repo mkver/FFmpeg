@@ -316,6 +316,7 @@ const AVFilter ff_vf_shear = {
     FILTER_OUTPUTS(outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .priv_class      = &shear_class,
-    .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                       AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };

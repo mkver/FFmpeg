@@ -490,6 +490,7 @@ const AVFilter ff_vf_guided = {
     FILTER_OUTPUTS(guided_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .flags           = AVFILTER_FLAG_DYNAMIC_INPUTS | AVFILTER_FLAG_SLICE_THREADS |
-                       AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
+                       AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
+                       AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };

@@ -1364,7 +1364,8 @@ const AVFilter ff_vf_lut3d = {
     FILTER_OUTPUTS(lut3d_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .priv_class    = &lut3d_class,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };
 #endif
@@ -1628,7 +1629,8 @@ const AVFilter ff_vf_haldclut = {
     FILTER_OUTPUTS(haldclut_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .priv_class    = &haldclut_class,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };
 #endif
@@ -2291,7 +2293,8 @@ const AVFilter ff_vf_lut1d = {
     FILTER_OUTPUTS(lut1d_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .priv_class    = &lut1d_class,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = lut1d_process_command,
 };
 #endif

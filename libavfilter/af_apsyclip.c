@@ -654,7 +654,8 @@ const AVFilter ff_af_apsyclip = {
     FILTER_OUTPUTS(outputs),
     FILTER_SINGLE_SAMPLEFMT(AV_SAMPLE_FMT_FLTP),
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL |
-                       AVFILTER_FLAG_SLICE_THREADS,
+                       AVFILTER_FLAG_SLICE_THREADS |
+                       AVFILTER_FLAG_SUPPORT_COMMANDS,
     .activate        = activate,
     .process_command = ff_filter_process_command,
 };

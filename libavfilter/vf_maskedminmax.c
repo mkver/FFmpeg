@@ -326,7 +326,8 @@ const AVFilter ff_vf_maskedmin = {
     FILTER_INPUTS(maskedminmax_inputs),
     FILTER_OUTPUTS(maskedminmax_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = ff_filter_process_command,
 };
 
@@ -340,6 +341,7 @@ const AVFilter ff_vf_maskedmax = {
     FILTER_INPUTS(maskedminmax_inputs),
     FILTER_OUTPUTS(maskedminmax_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = ff_filter_process_command,
 };

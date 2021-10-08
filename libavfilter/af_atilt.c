@@ -264,5 +264,6 @@ const AVFilter ff_af_atilt = {
     FILTER_SAMPLEFMTS(AV_SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_DBLP),
     .process_command = process_command,
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
-                       AVFILTER_FLAG_SLICE_THREADS,
+                       AVFILTER_FLAG_SLICE_THREADS |
+                       AVFILTER_FLAG_SUPPORT_COMMANDS,
 };

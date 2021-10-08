@@ -5018,6 +5018,7 @@ const AVFilter ff_vf_v360 = {
     FILTER_OUTPUTS(outputs),
     FILTER_QUERY_FUNC(query_formats),
     .priv_class    = &v360_class,
-    .flags         = AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };

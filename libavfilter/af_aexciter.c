@@ -281,5 +281,6 @@ const AVFilter ff_af_aexciter = {
     FILTER_OUTPUTS(avfilter_af_aexciter_outputs),
     FILTER_SINGLE_SAMPLEFMT(AV_SAMPLE_FMT_DBL),
     .process_command = process_command,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
 };

@@ -379,5 +379,6 @@ const AVFilter ff_vf_eq = {
     .process_command = process_command,
     .init            = initialize,
     .uninit          = uninit,
-    .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
+    .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
+                       AVFILTER_FLAG_SUPPORT_COMMANDS,
 };

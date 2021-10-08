@@ -307,7 +307,8 @@ const AVFilter ff_vf_hsvkey = {
     FILTER_INPUTS(hsvkey_inputs),
     FILTER_OUTPUTS(hsvkey_outputs),
     FILTER_PIXFMTS_ARRAY(key_pixel_fmts),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = ff_filter_process_command,
 };
 
@@ -367,6 +368,7 @@ const AVFilter ff_vf_hsvhold = {
     FILTER_INPUTS(hsvhold_inputs),
     FILTER_OUTPUTS(hsvhold_outputs),
     FILTER_PIXFMTS_ARRAY(hold_pixel_fmts),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = ff_filter_process_command,
 };

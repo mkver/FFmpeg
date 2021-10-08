@@ -1174,6 +1174,7 @@ static const AVFilterPad atempo_outputs[] = {
 const AVFilter ff_af_atempo = {
     .name            = "atempo",
     .description     = NULL_IF_CONFIG_SMALL("Adjust audio tempo."),
+    .flags           = AVFILTER_FLAG_SUPPORT_COMMANDS,
     .init            = init,
     .uninit          = uninit,
     .process_command = process_command,

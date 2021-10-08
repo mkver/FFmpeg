@@ -601,5 +601,6 @@ const AVFilter ff_vf_rotate = {
     FILTER_OUTPUTS(rotate_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .priv_class    = &rotate_class,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
 };

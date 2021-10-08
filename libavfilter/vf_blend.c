@@ -584,7 +584,8 @@ const AVFilter ff_vf_blend = {
     FILTER_OUTPUTS(blend_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .priv_class    = &blend_class,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };
 
@@ -641,7 +642,8 @@ const AVFilter ff_vf_tblend = {
     FILTER_INPUTS(tblend_inputs),
     FILTER_OUTPUTS(tblend_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };
 

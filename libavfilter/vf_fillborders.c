@@ -722,6 +722,7 @@ const AVFilter ff_vf_fillborders = {
     FILTER_INPUTS(fillborders_inputs),
     FILTER_OUTPUTS(fillborders_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };

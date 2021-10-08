@@ -810,6 +810,7 @@ const AVFilter ff_vf_curves = {
                    AV_PIX_FMT_GBRP14,
                    AV_PIX_FMT_GBRP16, AV_PIX_FMT_GBRAP16),
     .priv_class    = &curves_class,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };

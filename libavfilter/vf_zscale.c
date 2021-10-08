@@ -938,6 +938,7 @@ static const AVFilterPad avfilter_vf_zscale_outputs[] = {
 const AVFilter ff_vf_zscale = {
     .name            = "zscale",
     .description     = NULL_IF_CONFIG_SMALL("Apply resizing, colorspace and bit depth conversion."),
+    .flags           = AVFILTER_FLAG_SUPPORT_COMMANDS,
     .init            = init,
     .priv_size       = sizeof(ZScaleContext),
     .priv_class      = &zscale_class,

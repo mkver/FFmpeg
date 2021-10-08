@@ -379,6 +379,7 @@ const AVFilter ff_vf_colorlevels = {
                    AV_PIX_FMT_RGB48,  AV_PIX_FMT_BGR48,
                    AV_PIX_FMT_RGBA64, AV_PIX_FMT_BGRA64,
                    AV_PIX_FMT_RGBA,   AV_PIX_FMT_BGRA),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = ff_filter_process_command,
 };

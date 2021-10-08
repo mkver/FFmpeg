@@ -351,7 +351,8 @@ const AVFilter ff_af_asupercut = {
     FILTER_SAMPLEFMTS_ARRAY(sample_fmts),
     .process_command = process_command,
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
-                       AVFILTER_FLAG_SLICE_THREADS,
+                       AVFILTER_FLAG_SLICE_THREADS |
+                       AVFILTER_FLAG_SUPPORT_COMMANDS,
 };
 
 static const AVOption asubcut_options[] = {
@@ -374,7 +375,8 @@ const AVFilter ff_af_asubcut = {
     FILTER_SAMPLEFMTS_ARRAY(sample_fmts),
     .process_command = process_command,
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
-                       AVFILTER_FLAG_SLICE_THREADS,
+                       AVFILTER_FLAG_SLICE_THREADS |
+                       AVFILTER_FLAG_SUPPORT_COMMANDS,
 };
 
 static const AVOption asuperpass_asuperstop_options[] = {
@@ -399,7 +401,8 @@ const AVFilter ff_af_asuperpass = {
     FILTER_SAMPLEFMTS_ARRAY(sample_fmts),
     .process_command = process_command,
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
-                       AVFILTER_FLAG_SLICE_THREADS,
+                       AVFILTER_FLAG_SLICE_THREADS |
+                       AVFILTER_FLAG_SUPPORT_COMMANDS,
 };
 
 const AVFilter ff_af_asuperstop = {
@@ -413,5 +416,6 @@ const AVFilter ff_af_asuperstop = {
     FILTER_SAMPLEFMTS_ARRAY(sample_fmts),
     .process_command = process_command,
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
-                       AVFILTER_FLAG_SLICE_THREADS,
+                       AVFILTER_FLAG_SLICE_THREADS |
+                       AVFILTER_FLAG_SUPPORT_COMMANDS,
 };

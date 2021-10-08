@@ -782,5 +782,6 @@ const AVFilter ff_af_ladspa = {
     .inputs        = 0,
     FILTER_OUTPUTS(ladspa_outputs),
     FILTER_QUERY_FUNC(query_formats),
-    .flags         = AVFILTER_FLAG_DYNAMIC_INPUTS,
+    .flags         = AVFILTER_FLAG_DYNAMIC_INPUTS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
 };

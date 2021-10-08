@@ -940,6 +940,7 @@ static const AVFilterPad firequalizer_outputs[] = {
 const AVFilter ff_af_firequalizer = {
     .name               = "firequalizer",
     .description        = NULL_IF_CONFIG_SMALL("Finite Impulse Response Equalizer."),
+    .flags              = AVFILTER_FLAG_SUPPORT_COMMANDS,
     .uninit             = uninit,
     .process_command    = process_command,
     .priv_size          = sizeof(FIREqualizerContext),

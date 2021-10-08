@@ -444,6 +444,8 @@ static const AVFilterPad audiovectorscope_outputs[] = {
 const AVFilter ff_avf_avectorscope = {
     .name          = "avectorscope",
     .description   = NULL_IF_CONFIG_SMALL("Convert input audio to vectorscope video output."),
+    .flags         = AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .uninit        = uninit,
     .priv_size     = sizeof(AudioVectorScopeContext),
     .activate      = activate,
@@ -451,6 +453,5 @@ const AVFilter ff_avf_avectorscope = {
     FILTER_OUTPUTS(audiovectorscope_outputs),
     FILTER_QUERY_FUNC(query_formats),
     .priv_class    = &avectorscope_class,
-    .flags         = AVFILTER_FLAG_SLICE_THREADS,
     .process_command = ff_filter_process_command,
 };

@@ -454,7 +454,8 @@ const AVFilter ff_avf_concat = {
     .inputs        = NULL,
     .outputs       = NULL,
     .priv_class    = &concat_class,
-    .flags         = AVFILTER_FLAG_DYNAMIC_INPUTS | AVFILTER_FLAG_DYNAMIC_OUTPUTS,
+    .flags         = AVFILTER_FLAG_DYNAMIC_INPUTS | AVFILTER_FLAG_DYNAMIC_OUTPUTS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     FILTER_QUERY_FUNC(query_formats),
     .process_command = process_command,
 };

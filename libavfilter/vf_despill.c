@@ -167,5 +167,6 @@ const AVFilter ff_vf_despill = {
     FILTER_OUTPUTS(despill_outputs),
     FILTER_PIXFMTS_ARRAY(pixel_fmts),
     .process_command = ff_filter_process_command,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
 };

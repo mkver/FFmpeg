@@ -198,6 +198,7 @@ const AVFilter ff_vf_il = {
     FILTER_OUTPUTS(outputs),
     FILTER_QUERY_FUNC(query_formats),
     .priv_class    = &il_class,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = ff_filter_process_command,
 };

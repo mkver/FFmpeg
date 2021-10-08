@@ -645,7 +645,8 @@ const AVFilter ff_avsrc_movie = {
 
     .inputs    = NULL,
     .outputs   = NULL,
-    .flags     = AVFILTER_FLAG_DYNAMIC_OUTPUTS,
+    .flags     = AVFILTER_FLAG_DYNAMIC_OUTPUTS |
+                 AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command
 };
 
@@ -664,7 +665,8 @@ const AVFilter ff_avsrc_amovie = {
 
     .inputs     = NULL,
     .outputs    = NULL,
-    .flags      = AVFILTER_FLAG_DYNAMIC_OUTPUTS,
+    .flags      = AVFILTER_FLAG_DYNAMIC_OUTPUTS |
+                  AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };
 

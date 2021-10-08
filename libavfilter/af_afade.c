@@ -348,7 +348,8 @@ const AVFilter ff_af_afade = {
     FILTER_SAMPLEFMTS_ARRAY(sample_fmts),
     .priv_class    = &afade_class,
     .process_command = process_command,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
 };
 
 #endif /* CONFIG_AFADE_FILTER */

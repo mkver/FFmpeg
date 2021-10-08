@@ -315,6 +315,7 @@ const AVFilter ff_vf_amplify = {
     FILTER_PIXFMTS_ARRAY(pixel_fmts),
     .init          = init,
     .uninit        = uninit,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = ff_filter_process_command,
 };

@@ -857,6 +857,8 @@ static const AVFilterPad avfilter_af_dynaudnorm_outputs[] = {
 const AVFilter ff_af_dynaudnorm = {
     .name          = "dynaudnorm",
     .description   = NULL_IF_CONFIG_SMALL("Dynamic Audio Normalizer."),
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .priv_size     = sizeof(DynamicAudioNormalizerContext),
     .init          = init,
     .uninit        = uninit,
@@ -865,6 +867,5 @@ const AVFilter ff_af_dynaudnorm = {
     FILTER_OUTPUTS(avfilter_af_dynaudnorm_outputs),
     FILTER_SINGLE_SAMPLEFMT(AV_SAMPLE_FMT_DBLP),
     .priv_class    = &dynaudnorm_class,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL,
     .process_command = process_command,
 };

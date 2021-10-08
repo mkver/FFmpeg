@@ -382,7 +382,8 @@ const AVFilter ff_af_afreqshift = {
     FILTER_SAMPLEFMTS_ARRAY(sample_fmts),
     .process_command = ff_filter_process_command,
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
-                       AVFILTER_FLAG_SLICE_THREADS,
+                       AVFILTER_FLAG_SLICE_THREADS |
+                       AVFILTER_FLAG_SUPPORT_COMMANDS,
 };
 
 static const AVOption aphaseshift_options[] = {
@@ -405,5 +406,6 @@ const AVFilter ff_af_aphaseshift = {
     FILTER_SAMPLEFMTS_ARRAY(sample_fmts),
     .process_command = ff_filter_process_command,
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
-                       AVFILTER_FLAG_SLICE_THREADS,
+                       AVFILTER_FLAG_SLICE_THREADS |
+                       AVFILTER_FLAG_SUPPORT_COMMANDS,
 };

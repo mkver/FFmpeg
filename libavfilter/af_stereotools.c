@@ -375,6 +375,8 @@ static const AVFilterPad outputs[] = {
 const AVFilter ff_af_stereotools = {
     .name           = "stereotools",
     .description    = NULL_IF_CONFIG_SMALL("Apply various stereo tools."),
+    .flags          = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL |
+                      AVFILTER_FLAG_SUPPORT_COMMANDS,
     .priv_size      = sizeof(StereoToolsContext),
     .priv_class     = &stereotools_class,
     .uninit         = uninit,
@@ -382,5 +384,4 @@ const AVFilter ff_af_stereotools = {
     FILTER_OUTPUTS(outputs),
     FILTER_QUERY_FUNC(query_formats),
     .process_command = process_command,
-    .flags          = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL,
 };

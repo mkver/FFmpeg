@@ -865,6 +865,9 @@ const AVFilter ff_af_##name_ = {                               \
     .name          = #name_,                             \
     .description   = NULL_IF_CONFIG_SMALL(description_), \
     .priv_class    = &priv_class_##_class,               \
+    .flags         = AVFILTER_FLAG_SLICE_THREADS |       \
+                     AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | \
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,     \
     .priv_size     = sizeof(BiquadsContext),             \
     .init          = name_##_init,                       \
     .uninit        = uninit,                             \
@@ -872,7 +875,6 @@ const AVFilter ff_af_##name_ = {                               \
     FILTER_OUTPUTS(outputs),                             \
     FILTER_QUERY_FUNC(query_formats),                    \
     .process_command = process_command,                  \
-    .flags         = AVFILTER_FLAG_SLICE_THREADS | AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL, \
 }
 
 #define DEFINE_BIQUAD_FILTER(name, description)                         \

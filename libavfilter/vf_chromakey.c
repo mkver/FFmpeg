@@ -375,7 +375,8 @@ const AVFilter ff_vf_chromakey = {
     FILTER_INPUTS(chromakey_inputs),
     FILTER_OUTPUTS(chromakey_outputs),
     FILTER_PIXFMTS_ARRAY(chromakey_fmts),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };
 
@@ -434,6 +435,7 @@ const AVFilter ff_vf_chromahold = {
     FILTER_INPUTS(chromahold_inputs),
     FILTER_OUTPUTS(chromahold_outputs),
     FILTER_PIXFMTS_ARRAY(hold_pixel_fmts),
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };

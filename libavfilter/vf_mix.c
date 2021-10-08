@@ -359,7 +359,8 @@ const AVFilter ff_vf_mix = {
     .uninit        = uninit,
     .activate      = activate,
     .flags         = AVFILTER_FLAG_DYNAMIC_INPUTS | AVFILTER_FLAG_SLICE_THREADS |
-                     AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL,
+                     AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
 };
 
@@ -428,6 +429,9 @@ AVFILTER_DEFINE_CLASS(tmix);
 const AVFilter ff_vf_tmix = {
     .name          = "tmix",
     .description   = NULL_IF_CONFIG_SMALL("Mix successive video frames."),
+    .flags         = AVFILTER_FLAG_SLICE_THREADS |
+                     AVFILTER_FLAG_SUPPORT_COMMANDS |
+                     AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL,
     .priv_size     = sizeof(MixContext),
     .priv_class    = &tmix_class,
     FILTER_OUTPUTS(outputs),
@@ -435,7 +439,6 @@ const AVFilter ff_vf_tmix = {
     FILTER_QUERY_FUNC(query_formats),
     .init          = init,
     .uninit        = uninit,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS,
     .process_command = process_command,
 };
 
