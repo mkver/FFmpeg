@@ -1721,7 +1721,7 @@ int show_filters(void *optctx, const char *opt, const char *arg)
         printf(" %c%c%c %-17s %-10s %s\n",
                filter->flags & AVFILTER_FLAG_SUPPORT_TIMELINE ? 'T' : '.',
                filter->flags & AVFILTER_FLAG_SLICE_THREADS    ? 'S' : '.',
-               filter->process_command                        ? 'C' : '.',
+               filter->flags & AVFILTER_FLAG_SUPPORT_COMMANDS ? 'C' : '.',
                filter->name, descr, filter->description);
     }
 #else
