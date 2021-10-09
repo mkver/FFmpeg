@@ -647,7 +647,8 @@ const AVFilter ff_avsrc_movie = {
     .outputs   = NULL,
     .flags     = AVFILTER_FLAG_DYNAMIC_OUTPUTS |
                  AVFILTER_FLAG_SUPPORT_COMMANDS,
-    .process_command = process_command
+    .process_command = process_command,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };
 
 #endif  /* CONFIG_MOVIE_FILTER */
@@ -668,6 +669,7 @@ const AVFilter ff_avsrc_amovie = {
     .flags      = AVFILTER_FLAG_DYNAMIC_OUTPUTS |
                   AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };
 
 #endif /* CONFIG_AMOVIE_FILTER */

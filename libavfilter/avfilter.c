@@ -551,6 +551,8 @@ void ff_update_link_current_pts(AVFilterLink *link, int64_t pts)
 
 int avfilter_process_command(AVFilterContext *filter, const char *cmd, const char *arg, char *res, int res_len, int flags)
 {
+    int ret;
+
     if(!strcmp(cmd, "ping")){
         char local_res[256] = {0};
 
@@ -564,8 +566,18 @@ int avfilter_process_command(AVFilterContext *filter, const char *cmd, const cha
         return 0;
     }else if(!strcmp(cmd, "enable")) {
         return set_enable_expr(filter, arg);
-    }else if(filter->filter->process_command) {
-        return filter->filter->process_command(filter, cmd, arg, res, res_len, flags);
+    } else if (filter->filter->flags & AVFILTER_FLAG_SUPPORT_COMMANDS) {
+        const AVFilter *const f = filter->filter;
+
+        if (!(f->flags_internal & FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING)) {
+            ret = ff_filter_process_command(filter, cmd, arg, res, res_len, flags);
+            if (ret < 0)
+                return ret;
+        }
+        if (!f->process_command)
+            return 0;
+
+        return f->process_command(filter, cmd, arg, res, res_len, flags);
     }
     return AVERROR(ENOSYS);
 }

@@ -369,6 +369,16 @@ void ff_filter_graph_remove_filter(AVFilterGraph *graph, AVFilterContext *filter
  * should not be automatically propagated through it.
  */
 #define FF_FILTER_FLAG_HWFRAME_AWARE (1 << 0)
+/**
+ * Filters supporting commands (i.e. with AVFILTER_FLAG_SUPPORT_COMMANDS set)
+ * with this flag unset want ff_filter_process_command() to be called before
+ * their own process_command callback (if any) is called; if this flag is set,
+ * the process_command callback will be called immediately.
+ *
+ * This flag must only be set for filters supporting commands; filters with
+ * this flag set must have a process_command callback.
+ */
+#define FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING (1 << 1)
 
 /**
  * Run one round of processing on a filter graph.

@@ -603,4 +603,5 @@ const AVFilter ff_vf_rotate = {
     .priv_class    = &rotate_class,
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
                      AVFILTER_FLAG_SUPPORT_COMMANDS,
+    .flags_internal = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };

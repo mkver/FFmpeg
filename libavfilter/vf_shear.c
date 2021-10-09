@@ -279,10 +279,6 @@ static int process_command(AVFilterContext *ctx,
     ShearContext *s = ctx->priv;
     int ret;
 
-    ret = ff_filter_process_command(ctx, cmd, arg, res, res_len, flags);
-    if (ret < 0)
-        return ret;
-
     ret = init(ctx);
     if (ret < 0)
         return ret;

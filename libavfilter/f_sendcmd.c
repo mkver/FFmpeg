@@ -141,6 +141,8 @@ static int parse_command(Command *cmd, int cmd_count, int interval_count,
     memset(cmd, 0, sizeof(Command));
     cmd->index = cmd_count;
 
+    av_log(NULL, AV_LOG_WARNING, "arg: '%s'\n", *buf);
+
     /* format: [FLAGS] target command arg */
     *buf += strspn(*buf, SPACES);
 
@@ -207,6 +209,7 @@ static int parse_command(Command *cmd, int cmd_count, int interval_count,
     }
 
     *buf += strspn(*buf, SPACES);
+    av_log(NULL, AV_LOG_WARNING, "arg before getting token: '%s'\n", *buf);
     cmd->arg = av_get_token(buf, COMMAND_DELIMS);
 
     return 1;

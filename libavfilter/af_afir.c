@@ -951,4 +951,5 @@ const AVFilter ff_af_afir = {
                      AVFILTER_FLAG_DYNAMIC_OUTPUTS |
                      AVFILTER_FLAG_SLICE_THREADS |
                      AVFILTER_FLAG_SUPPORT_COMMANDS,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };

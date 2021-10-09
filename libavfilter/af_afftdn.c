@@ -1406,4 +1406,5 @@ const AVFilter ff_af_afftdn = {
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL |
                        AVFILTER_FLAG_SLICE_THREADS |
                        AVFILTER_FLAG_SUPPORT_COMMANDS,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };

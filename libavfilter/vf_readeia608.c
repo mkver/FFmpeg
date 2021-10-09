@@ -558,4 +558,5 @@ const AVFilter ff_vf_readeia608 = {
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
                      AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };

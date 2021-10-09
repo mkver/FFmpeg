@@ -405,6 +405,7 @@ const AVFilter ff_vf_drawbox = {
     .process_command = process_command,
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
                      AVFILTER_FLAG_SUPPORT_COMMANDS,
+    .flags_internal = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };
 #endif /* CONFIG_DRAWBOX_FILTER */
 
@@ -488,6 +489,7 @@ const AVFilter ff_vf_drawgrid = {
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
                      AVFILTER_FLAG_SUPPORT_COMMANDS,
     .process_command = process_command,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };
 
 #endif  /* CONFIG_DRAWGRID_FILTER */

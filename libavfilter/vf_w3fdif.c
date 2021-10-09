@@ -616,5 +616,4 @@ const AVFilter ff_vf_w3fdif = {
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS |
                      AVFILTER_FLAG_SUPPORT_COMMANDS,
-    .process_command = ff_filter_process_command,
 };

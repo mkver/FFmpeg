@@ -316,5 +316,4 @@ const AVFilter ff_vf_maskedclamp = {
     .priv_class    = &maskedclamp_class,
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL | AVFILTER_FLAG_SLICE_THREADS |
                      AVFILTER_FLAG_SUPPORT_COMMANDS,
-    .process_command = ff_filter_process_command,
 };

@@ -241,7 +241,6 @@ const AVFilter ff_af_agate = {
     FILTER_INPUTS(inputs),
     FILTER_OUTPUTS(outputs),
     FILTER_SINGLE_SAMPLEFMT(AV_SAMPLE_FMT_DBL),
-    .process_command = ff_filter_process_command,
     .flags          = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
                       AVFILTER_FLAG_SUPPORT_COMMANDS,
 };
@@ -392,7 +391,6 @@ const AVFilter ff_af_sidechaingate = {
     FILTER_INPUTS(sidechaingate_inputs),
     FILTER_OUTPUTS(sidechaingate_outputs),
     FILTER_QUERY_FUNC(scquery_formats),
-    .process_command = ff_filter_process_command,
     .flags          = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL |
                       AVFILTER_FLAG_SUPPORT_COMMANDS,
 };

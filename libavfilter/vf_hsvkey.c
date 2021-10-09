@@ -309,7 +309,6 @@ const AVFilter ff_vf_hsvkey = {
     FILTER_PIXFMTS_ARRAY(key_pixel_fmts),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
                      AVFILTER_FLAG_SUPPORT_COMMANDS,
-    .process_command = ff_filter_process_command,
 };
 
 static const enum AVPixelFormat hold_pixel_fmts[] = {
@@ -370,5 +369,4 @@ const AVFilter ff_vf_hsvhold = {
     FILTER_PIXFMTS_ARRAY(hold_pixel_fmts),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS |
                      AVFILTER_FLAG_SUPPORT_COMMANDS,
-    .process_command = ff_filter_process_command,
 };

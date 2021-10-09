@@ -326,11 +326,6 @@ static int process_command(AVFilterContext *ctx, const char *cmd, const char *ar
                            char *res, int res_len, int flags)
 {
     XMedianContext *s = ctx->priv;
-    int ret;
-
-    ret = ff_filter_process_command(ctx, cmd, args, res, res_len, flags);
-    if (ret < 0)
-        return ret;
 
     if (s->nb_inputs & 1)
         s->index = s->radius * 2.f * s->percentile;

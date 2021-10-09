@@ -455,21 +455,6 @@ static av_cold void uninit(AVFilterContext *ctx)
     return;
 }
 
-static int process_command(AVFilterContext *ctx,
-                           const char *cmd,
-                           const char *arg,
-                           char *res,
-                           int res_len,
-                           int flags)
-{
-    int ret = ff_filter_process_command(ctx, cmd, arg, res, res_len, flags);
-
-    if (ret < 0)
-        return ret;
-
-    return 0;
-}
-
 static const AVFilterPad guided_outputs[] = {
     {
         .name = "default",
@@ -492,5 +477,4 @@ const AVFilter ff_vf_guided = {
     .flags           = AVFILTER_FLAG_DYNAMIC_INPUTS | AVFILTER_FLAG_SLICE_THREADS |
                        AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
                        AVFILTER_FLAG_SUPPORT_COMMANDS,
-    .process_command = process_command,
 };

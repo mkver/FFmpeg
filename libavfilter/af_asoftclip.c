@@ -489,7 +489,6 @@ const AVFilter ff_af_asoftclip = {
     FILTER_OUTPUTS(outputs),
     FILTER_SAMPLEFMTS(AV_SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_DBLP),
     .uninit         = uninit,
-    .process_command = ff_filter_process_command,
     .flags          = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
                       AVFILTER_FLAG_SLICE_THREADS |
                       AVFILTER_FLAG_SUPPORT_COMMANDS,

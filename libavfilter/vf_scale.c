@@ -1003,6 +1003,7 @@ const AVFilter ff_vf_scale = {
     FILTER_OUTPUTS(avfilter_vf_scale_outputs),
     FILTER_QUERY_FUNC(query_formats),
     .process_command = process_command,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };
 
 static const AVFilterPad avfilter_vf_scale2ref_inputs[] = {
@@ -1045,4 +1046,5 @@ const AVFilter ff_vf_scale2ref = {
     FILTER_OUTPUTS(avfilter_vf_scale2ref_outputs),
     FILTER_QUERY_FUNC(query_formats),
     .process_command = process_command,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };

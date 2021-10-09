@@ -947,4 +947,5 @@ const AVFilter ff_vf_zscale = {
     FILTER_OUTPUTS(avfilter_vf_zscale_outputs),
     FILTER_QUERY_FUNC(query_formats),
     .process_command = process_command,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };

@@ -784,4 +784,5 @@ const AVFilter ff_af_ladspa = {
     FILTER_QUERY_FUNC(query_formats),
     .flags         = AVFILTER_FLAG_DYNAMIC_INPUTS |
                      AVFILTER_FLAG_SUPPORT_COMMANDS,
+    .flags_internal = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };

@@ -453,5 +453,4 @@ const AVFilter ff_avf_avectorscope = {
     FILTER_OUTPUTS(audiovectorscope_outputs),
     FILTER_QUERY_FUNC(query_formats),
     .priv_class    = &avectorscope_class,
-    .process_command = ff_filter_process_command,
 };

@@ -868,4 +868,5 @@ const AVFilter ff_af_dynaudnorm = {
     FILTER_SINGLE_SAMPLEFMT(AV_SAMPLE_FMT_DBLP),
     .priv_class    = &dynaudnorm_class,
     .process_command = process_command,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };

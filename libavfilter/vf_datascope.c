@@ -422,12 +422,6 @@ static int config_output(AVFilterLink *outlink)
 static int process_command(AVFilterContext *ctx, const char *cmd, const char *args,
                            char *res, int res_len, int flags)
 {
-    int ret;
-
-    ret = ff_filter_process_command(ctx, cmd, args, res, res_len, flags);
-    if (ret < 0)
-        return ret;
-
     return config_input(ctx->inputs[0]);
 }
 
@@ -711,12 +705,6 @@ static int pixscope_filter_frame(AVFilterLink *inlink, AVFrame *in)
 static int pixscope_process_command(AVFilterContext *ctx, const char *cmd, const char *args,
                                     char *res, int res_len, int flags)
 {
-    int ret;
-
-    ret = ff_filter_process_command(ctx, cmd, args, res, res_len, flags);
-    if (ret < 0)
-        return ret;
-
     return pixscope_config_input(ctx->inputs[0]);
 }
 
@@ -1113,12 +1101,6 @@ static int oscilloscope_filter_frame(AVFilterLink *inlink, AVFrame *frame)
 static int oscilloscope_process_command(AVFilterContext *ctx, const char *cmd, const char *args,
                                         char *res, int res_len, int flags)
 {
-    int ret;
-
-    ret = ff_filter_process_command(ctx, cmd, args, res, res_len, flags);
-    if (ret < 0)
-        return ret;
-
     update_oscilloscope(ctx);
 
     return 0;

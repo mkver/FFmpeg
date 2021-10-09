@@ -817,11 +817,6 @@ static int process_command(AVFilterContext *ctx, const char *cmd, const char *ar
                            char *res, int res_len, int flags)
 {
     AVFilterLink *outlink = ctx->outputs[0];
-    int ret;
-
-    ret = ff_filter_process_command(ctx, cmd, args, res, res_len, flags);
-    if (ret < 0)
-        return ret;
 
     return config_filter(outlink, 0);
 }

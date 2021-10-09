@@ -298,11 +298,6 @@ static int process_command(AVFilterContext *ctx, const char *cmd, const char *ar
 {
     AverageBlurContext *s = ctx->priv;
     const int area = s->area;
-    int ret;
-
-    ret = ff_filter_process_command(ctx, cmd, args, res, res_len, flags);
-    if (ret < 0)
-        return ret;
 
     if (s->radiusV <= 0)
         s->radiusV = s->radius;

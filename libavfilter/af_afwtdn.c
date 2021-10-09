@@ -1278,11 +1278,6 @@ static int process_command(AVFilterContext *ctx, const char *cmd, const char *ar
                            char *res, int res_len, int flags)
 {
     AudioFWTDNContext *s = ctx->priv;
-    int ret;
-
-    ret = ff_filter_process_command(ctx, cmd, args, res, res_len, flags);
-    if (ret < 0)
-        return ret;
 
     if (!strcmp(cmd, "profile") && s->need_profile)
         s->got_profile = 0;

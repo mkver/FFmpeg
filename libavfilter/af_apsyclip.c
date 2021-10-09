@@ -657,5 +657,4 @@ const AVFilter ff_af_apsyclip = {
                        AVFILTER_FLAG_SLICE_THREADS |
                        AVFILTER_FLAG_SUPPORT_COMMANDS,
     .activate        = activate,
-    .process_command = ff_filter_process_command,
 };

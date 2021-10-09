@@ -361,7 +361,6 @@ const AVFilter ff_vf_##name_ = {                                   \
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC| \
                      AVFILTER_FLAG_SLICE_THREADS |           \
                      AVFILTER_FLAG_SUPPORT_COMMANDS,         \
-    .process_command = ff_filter_process_command,            \
 }
 
 /* The following options are shared between all filters here;

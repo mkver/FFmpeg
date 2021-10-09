@@ -948,4 +948,5 @@ const AVFilter ff_af_firequalizer = {
     FILTER_OUTPUTS(firequalizer_outputs),
     FILTER_SINGLE_SAMPLEFMT(AV_SAMPLE_FMT_FLTP),
     .priv_class         = &firequalizer_class,
+    .flags_internal     = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };

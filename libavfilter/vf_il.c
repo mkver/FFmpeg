@@ -200,5 +200,4 @@ const AVFilter ff_vf_il = {
     .priv_class    = &il_class,
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
                      AVFILTER_FLAG_SUPPORT_COMMANDS,
-    .process_command = ff_filter_process_command,
 };

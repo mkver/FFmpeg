@@ -246,11 +246,6 @@ static int color_process_command(AVFilterContext *ctx, const char *cmd, const ch
                                  char *res, int res_len, int flags)
 {
     TestSourceContext *test = ctx->priv;
-    int ret;
-
-    ret = ff_filter_process_command(ctx, cmd, args, res, res_len, flags);
-    if (ret < 0)
-        return ret;
 
     ff_draw_color(&test->draw, &test->color, test->color_rgba);
     test->draw_once_reset = 1;

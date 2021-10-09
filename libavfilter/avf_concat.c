@@ -458,4 +458,5 @@ const AVFilter ff_avf_concat = {
                      AVFILTER_FLAG_SUPPORT_COMMANDS,
     FILTER_QUERY_FUNC(query_formats),
     .process_command = process_command,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };

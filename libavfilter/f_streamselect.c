@@ -326,6 +326,7 @@ const AVFilter ff_vf_streamselect = {
     .priv_class      = &streamselect_class,
     .flags           = AVFILTER_FLAG_DYNAMIC_INPUTS | AVFILTER_FLAG_DYNAMIC_OUTPUTS |
                        AVFILTER_FLAG_SUPPORT_COMMANDS,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };
 
 const AVFilter ff_af_astreamselect = {
@@ -340,4 +341,5 @@ const AVFilter ff_af_astreamselect = {
     .priv_size       = sizeof(StreamSelectContext),
     .flags           = AVFILTER_FLAG_DYNAMIC_INPUTS | AVFILTER_FLAG_DYNAMIC_OUTPUTS |
                        AVFILTER_FLAG_SUPPORT_COMMANDS,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };

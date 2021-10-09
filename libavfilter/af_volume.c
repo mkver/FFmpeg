@@ -475,4 +475,5 @@ const AVFilter ff_af_volume = {
     FILTER_OUTPUTS(avfilter_af_volume_outputs),
     FILTER_QUERY_FUNC(query_formats),
     .process_command = process_command,
+    .flags_internal  = FF_FILTER_FLAG_NO_GENERIC_COMMANDS_PROCESSING,
 };
