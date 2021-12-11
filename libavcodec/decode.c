@@ -871,7 +871,7 @@ int avcodec_decode_subtitle2(AVCodecContext *avctx, AVSubtitle *sub,
             avctx->frame_number++;
     }
 
-    return ret;
+    return avpkt->size;
 }
 
 enum AVPixelFormat avcodec_default_get_format(struct AVCodecContext *avctx,
