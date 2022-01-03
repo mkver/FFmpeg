@@ -483,16 +483,8 @@ static void avpacket_queue_init(AVFormatContext *avctx, AVPacketQueue *q)
 
 static void avpacket_queue_flush(AVPacketQueue *q)
 {
-    PacketListEntry *pkt, *pkt1;
-
     pthread_mutex_lock(&q->mutex);
-    for (pkt = q->pkt_list.head; pkt != NULL; pkt = pkt1) {
-        pkt1 = pkt->next;
-        av_packet_unref(&pkt->pkt);
-        av_freep(&pkt);
-    }
-    q->pkt_list.head = NULL;
-    q->pkt_list.tail = NULL;
+    avpriv_packet_list_free(&q->pkt_list);
     q->nb_packets = 0;
     q->size       = 0;
     pthread_mutex_unlock(&q->mutex);
@@ -563,16 +555,10 @@ static int avpacket_queue_get(AVPacketQueue *q, AVPacket *pkt, int block)
     pthread_mutex_lock(&q->mutex);
 
     for (;; ) {
-        PacketListEntry *pkt1 = q->pkt_list.head;
-        if (pkt1) {
-            q->pkt_list.head = pkt1->next;
-            if (!q->pkt_list.head) {
-                q->pkt_list.tail = NULL;
-            }
+        if (q->pkt_list.head) {
+            avpriv_packet_list_get(&q->pkt_list, pkt);
             q->nb_packets--;
-            q->size -= pkt1->pkt.size + sizeof(*pkt1);
-            *pkt     = pkt1->pkt;
-            av_free(pkt1);
+            q->size -= pkt->size + sizeof(PacketListEntry);
             ret = 1;
             break;
         } else if (!block) {
