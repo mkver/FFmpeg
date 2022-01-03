@@ -21,13 +21,18 @@
 
 #include <stdint.h>
 
-#include "libavutil/mem.h"
 #include "packet.h"
 
-typedef struct PacketListEntry {
-    struct PacketListEntry *next;
-    AVPacket pkt;
-} PacketListEntry;
+/**
+ * This packet-list API reserves for itself the AVPacket's opaque
+ * field as next-pointer. No other fields are reserved.
+ *
+ * Users that just want a packet FIFO can use avpriv_packet_list_put()
+ * and avpriv_packet_list_get(); users desiring more fine-grained
+ * control about the order of entries can use the below accessors
+ * and functions to manipulate the lists more directly.
+ */
+typedef struct AVPacket PacketListEntry;
 
 typedef struct PacketList {
     PacketListEntry *head, *tail;
@@ -35,21 +40,20 @@ typedef struct PacketList {
 
 /* Get a pointer to the packet contained in a PacketListEntry.
  * Should be used instead of accessing the packet directly. */
-#define GET_PKT(entry)     (&(entry)->pkt)
+#define GET_PKT(entry)     (entry)
 /* Get a pointer to the pointer to the next entry.
  * Can be used to set the current entry's next pointer. */
-#define NEXT_ENTRYP(entry) (&(entry)->next)
+#define NEXT_ENTRYP(entry) ((PacketListEntry**)&(entry)->opaque)
 #define NEXT_ENTRY(entry)  (*NEXT_ENTRYP(entry))
 
 static inline PacketListEntry *ff_packet_list_entry_alloc(void)
 {
-    return (PacketListEntry*)av_mallocz(sizeof(PacketListEntry));
+    return av_packet_alloc();
 }
 
 static inline void ff_packet_list_entry_free(PacketListEntry **entry)
 {
-    av_packet_unref(GET_PKT(*entry));
-    av_freep(entry);
+    av_packet_free(entry);
 }
 
 static inline void ff_packet_list_entry_set_next(PacketListEntry *entry,

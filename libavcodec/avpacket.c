@@ -572,10 +572,12 @@ int avpriv_packet_list_get(PacketList *pkt_buffer,
     PacketListEntry *pktl = pkt_buffer->head;
     if (!pktl)
         return AVERROR(EAGAIN);
-    *pkt = *GET_PKT(pktl);
     pkt_buffer->head = NEXT_ENTRY(pktl);
     if (!pkt_buffer->head)
         pkt_buffer->tail = NULL;
+    /* Ensure pkt->opaque is blank. */
+    ff_packet_list_entry_set_next(pktl, NULL);
+    av_packet_move_ref(pkt, GET_PKT(pktl));
     av_freep(&pktl);
     return 0;
 }
