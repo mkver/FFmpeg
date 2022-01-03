@@ -45,7 +45,7 @@ struct vfw_ctx {
     HWND hwnd;
     HANDLE mutex;
     HANDLE event;
-    PacketListEntry *pktl;
+    PacketList pktl;
     unsigned int curbufsize;
     unsigned int frame_num;
     char *video_size;       /**< A string describing video size, set by a private option. */
@@ -179,7 +179,7 @@ static LRESULT CALLBACK videostream_cb(HWND hwnd, LPVIDEOHDR vdhdr)
 {
     AVFormatContext *s;
     struct vfw_ctx *ctx;
-    PacketListEntry **ppktl, *pktl_next;
+    PacketListEntry *pktl_next;
 
     s = (AVFormatContext *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
     ctx = s->priv_data;
@@ -203,8 +203,7 @@ static LRESULT CALLBACK videostream_cb(HWND hwnd, LPVIDEOHDR vdhdr)
     pktl_next->pkt.pts = vdhdr->dwTimeCaptured;
     memcpy(pktl_next->pkt.data, vdhdr->lpData, vdhdr->dwBytesUsed);
 
-    for(ppktl = &ctx->pktl ; *ppktl ; ppktl = &(*ppktl)->next);
-    *ppktl = pktl_next;
+    ff_packet_list_append_entry(&ctx->pktl, pktl_next);
 
     ctx->curbufsize += vdhdr->dwBytesUsed;
 
@@ -220,7 +219,6 @@ fail:
 static int vfw_read_close(AVFormatContext *s)
 {
     struct vfw_ctx *ctx = s->priv_data;
-    PacketListEntry *pktl;
 
     if(ctx->hwnd) {
         SendMessage(ctx->hwnd, WM_CAP_SET_CALLBACK_VIDEOSTREAM, 0, 0);
@@ -232,13 +230,7 @@ static int vfw_read_close(AVFormatContext *s)
     if(ctx->event)
         CloseHandle(ctx->event);
 
-    pktl = ctx->pktl;
-    while (pktl) {
-        PacketListEntry *next = pktl->next;
-        av_packet_unref(&pktl->pkt);
-        av_free(pktl);
-        pktl = next;
-    }
+    avpriv_packet_list_free(&ctx->pktl);
 
     return 0;
 }
@@ -440,19 +432,14 @@ fail:
 static int vfw_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     struct vfw_ctx *ctx = s->priv_data;
-    PacketListEntry *pktl = NULL;
+    int got_packet = 0;
 
-    while(!pktl) {
+    while (!got_packet) {
         WaitForSingleObject(ctx->mutex, INFINITE);
-        pktl = ctx->pktl;
-        if(ctx->pktl) {
-            *pkt = ctx->pktl->pkt;
-            ctx->pktl = ctx->pktl->next;
-            av_free(pktl);
-        }
+        got_packet = !avpriv_packet_list_get(&ctx->pktl, pkt);
         ResetEvent(ctx->event);
         ReleaseMutex(ctx->mutex);
-        if(!pktl) {
+        if (!got_packet) {
             if(s->flags & AVFMT_FLAG_NONBLOCK) {
                 return AVERROR(EAGAIN);
             } else {
