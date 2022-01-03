@@ -33,6 +33,20 @@ typedef struct PacketList {
 } PacketList;
 
 /**
+ * Append an already existing PacketListEntry to the list.
+ */
+static inline void ff_packet_list_append_entry(PacketList *list,
+                                               PacketListEntry *entry)
+{
+    if (list->tail)
+        list->tail->next = entry;
+    else
+        list->head = entry;
+    list->tail  = entry;
+    entry->next = NULL;
+}
+
+/**
  * Append an AVPacket to the list.
  *
  * @param list  A PacketList

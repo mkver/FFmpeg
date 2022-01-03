@@ -322,7 +322,7 @@ struct dshow_ctx {
     HANDLE mutex;
     HANDLE event[2]; /* event[0] is set by DirectShow
                       * event[1] is set by callback() */
-    PacketListEntry *pktl;
+    PacketList pktl;
 
     int eof;
 

@@ -238,7 +238,6 @@ static int
 dshow_read_close(AVFormatContext *s)
 {
     struct dshow_ctx *ctx = s->priv_data;
-    PacketListEntry *pktl;
 
     if (ctx->control) {
         IMediaControl_Stop(ctx->control);
@@ -296,13 +295,7 @@ dshow_read_close(AVFormatContext *s)
     if(ctx->event[1])
         CloseHandle(ctx->event[1]);
 
-    pktl = ctx->pktl;
-    while (pktl) {
-        PacketListEntry *next = pktl->next;
-        av_packet_unref(&pktl->pkt);
-        av_free(pktl);
-        pktl = next;
-    }
+    avpriv_packet_list_free(&ctx->pktl);
 
     CoUninitialize();
 
@@ -342,7 +335,7 @@ callback(void *priv_data, int index, uint8_t *buf, int buf_size, int64_t time, e
 {
     AVFormatContext *s = priv_data;
     struct dshow_ctx *ctx = s->priv_data;
-    PacketListEntry **ppktl, *pktl_next;
+    PacketListEntry *pktl_next;
 
 //    dump_videohdr(s, vdhdr);
 
@@ -364,8 +357,7 @@ callback(void *priv_data, int index, uint8_t *buf, int buf_size, int64_t time, e
     pktl_next->pkt.pts = time;
     memcpy(pktl_next->pkt.data, buf, buf_size);
 
-    for(ppktl = &ctx->pktl ; *ppktl ; ppktl = &(*ppktl)->next);
-    *ppktl = pktl_next;
+    ff_packet_list_append_entry(&ctx->pktl, pktl_next);
     ctx->curbufsize[index] += buf_size;
 
     SetEvent(ctx->event[1]);
@@ -1847,20 +1839,18 @@ static int dshow_check_event_queue(IMediaEvent *media_event)
 static int dshow_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     struct dshow_ctx *ctx = s->priv_data;
-    PacketListEntry *pktl = NULL;
+    int got_packet = 0;
 
-    while (!ctx->eof && !pktl) {
+    while (!ctx->eof && !got_packet) {
         WaitForSingleObject(ctx->mutex, INFINITE);
-        pktl = ctx->pktl;
-        if (pktl) {
-            *pkt = pktl->pkt;
-            ctx->pktl = ctx->pktl->next;
-            av_free(pktl);
+        if (ctx->pktl.head) {
+            avpriv_packet_list_get(&ctx->pktl, pkt);
             ctx->curbufsize[pkt->stream_index] -= pkt->size;
+            got_packet = 1;
         }
         ResetEvent(ctx->event[1]);
         ReleaseMutex(ctx->mutex);
-        if (!pktl) {
+        if (!got_packet) {
             if (dshow_check_event_queue(ctx->media_event) < 0) {
                 ctx->eof = 1;
             } else if (s->flags & AVFMT_FLAG_NONBLOCK) {
