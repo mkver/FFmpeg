@@ -191,17 +191,17 @@ static LRESULT CALLBACK videostream_cb(HWND hwnd, LPVIDEOHDR vdhdr)
 
     WaitForSingleObject(ctx->mutex, INFINITE);
 
-    pktl_next = av_mallocz(sizeof(*pktl_next));
+    pktl_next = ff_packet_list_entry_alloc();
     if(!pktl_next)
         goto fail;
 
-    if(av_new_packet(&pktl_next->pkt, vdhdr->dwBytesUsed) < 0) {
-        av_free(pktl_next);
+    if (av_new_packet(GET_PKT(pktl_next), vdhdr->dwBytesUsed) < 0) {
+        ff_packet_list_entry_free(&pktl_next);
         goto fail;
     }
 
-    pktl_next->pkt.pts = vdhdr->dwTimeCaptured;
-    memcpy(pktl_next->pkt.data, vdhdr->lpData, vdhdr->dwBytesUsed);
+    GET_PKT(pktl_next)->pts = vdhdr->dwTimeCaptured;
+    memcpy(GET_PKT(pktl_next)->data, vdhdr->lpData, vdhdr->dwBytesUsed);
 
     ff_packet_list_append_entry(&ctx->pktl, pktl_next);
 

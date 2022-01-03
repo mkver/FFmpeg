@@ -3978,7 +3978,7 @@ static int webm_clusters_start_with_keyframe(AVFormatContext *s)
             !matroska->queue.head) {
             break;
         }
-        pkt = &matroska->queue.head->pkt;
+        pkt = GET_PKT(matroska->queue.head);
         // 4 + read is the length of the cluster id and the cluster length field.
         cluster_pos += 4 + read + cluster_length;
         if (!(pkt->flags & AV_PKT_FLAG_KEY)) {

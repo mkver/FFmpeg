@@ -3102,24 +3102,24 @@ static int mxf_interleave_get_packet(AVFormatContext *s, AVPacket *out, int flus
             PacketListEntry *last = NULL;
             // find last packet in edit unit
             while (pktl) {
-                if (!stream_count || pktl->pkt.stream_index == 0)
+                const AVPacket *const pkt = GET_PKT(pktl);
+                if (!stream_count || pkt->stream_index == 0)
                     break;
                 // update last packet in packet buffer
-                if (ffstream(s->streams[pktl->pkt.stream_index])->last_in_packet_buffer != pktl)
-                    ffstream(s->streams[pktl->pkt.stream_index])->last_in_packet_buffer = pktl;
+                if (ffstream(s->streams[pkt->stream_index])->last_in_packet_buffer != pktl)
+                    ffstream(s->streams[pkt->stream_index])->last_in_packet_buffer = pktl;
                 last = pktl;
-                pktl = pktl->next;
+                pktl = NEXT_ENTRY(pktl);
                 stream_count--;
             }
             // purge packet queue
             while (pktl) {
-                PacketListEntry *next = pktl->next;
-                av_packet_unref(&pktl->pkt);
-                av_freep(&pktl);
+                PacketListEntry *next = NEXT_ENTRY(pktl);
+                ff_packet_list_entry_free(&pktl);
                 pktl = next;
             }
             if (last)
-                last->next = NULL;
+                ff_packet_list_entry_set_next(last, NULL);
             else {
                 si->packet_buffer.head = NULL;
                 si->packet_buffer.tail = NULL;
@@ -3128,8 +3128,8 @@ static int mxf_interleave_get_packet(AVFormatContext *s, AVPacket *out, int flus
             pktl = si->packet_buffer.head;
         }
 
-        if (ffstream(s->streams[pktl->pkt.stream_index])->last_in_packet_buffer == pktl)
-            ffstream(s->streams[pktl->pkt.stream_index])->last_in_packet_buffer = NULL;
+        if (ffstream(s->streams[GET_PKT(pktl)->stream_index])->last_in_packet_buffer == pktl)
+            ffstream(s->streams[GET_PKT(pktl)->stream_index])->last_in_packet_buffer = NULL;
         avpriv_packet_list_get(&si->packet_buffer, out);
         av_log(s, AV_LOG_TRACE, "out st:%d dts:%"PRId64"\n", out->stream_index, out->dts);
         return 1;

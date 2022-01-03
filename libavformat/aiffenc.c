@@ -60,9 +60,9 @@ static int put_id3v2_tags(AVFormatContext *s, AIFFOutputContext *aiff)
     ff_id3v2_start(&id3v2, pb, aiff->id3v2_version, ID3v2_DEFAULT_MAGIC);
     ff_id3v2_write_metadata(s, &id3v2);
     while (list_entry) {
-        if ((ret = ff_id3v2_write_apic(s, &id3v2, &list_entry->pkt)) < 0)
+        if ((ret = ff_id3v2_write_apic(s, &id3v2, GET_PKT(list_entry))) < 0)
             return ret;
-        list_entry = list_entry->next;
+        list_entry = NEXT_ENTRY(list_entry);
     }
     ff_id3v2_finish(&id3v2, pb, s->metadata_header_padding);
 

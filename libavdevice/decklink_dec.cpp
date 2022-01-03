@@ -522,25 +522,18 @@ static int avpacket_queue_put(AVPacketQueue *q, AVPacket *pkt)
         return -1;
     }
 
-    pkt1 = (PacketListEntry *)av_malloc(sizeof(*pkt1));
+    pkt1 = ff_packet_list_entry_alloc();
     if (!pkt1) {
         av_packet_unref(pkt);
         return -1;
     }
-    av_packet_move_ref(&pkt1->pkt, pkt);
-    pkt1->next = NULL;
+    av_packet_move_ref(GET_PKT(pkt1), pkt);
 
     pthread_mutex_lock(&q->mutex);
 
-    if (!q->pkt_list.tail) {
-        q->pkt_list.head = pkt1;
-    } else {
-        q->pkt_list.tail->next = pkt1;
-    }
-
-    q->pkt_list.tail = pkt1;
+    ff_packet_list_append_entry(&q->pkt_list, pkt1);
     q->nb_packets++;
-    q->size += pkt1->pkt.size + sizeof(*pkt1);
+    q->size += GET_PKT(pkt1)->size + sizeof(*pkt1);
 
     pthread_cond_signal(&q->cond);
 

@@ -344,18 +344,18 @@ callback(void *priv_data, int index, uint8_t *buf, int buf_size, int64_t time, e
     if(shall_we_drop(s, index, devtype))
         goto fail;
 
-    pktl_next = av_mallocz(sizeof(*pktl_next));
+    pktl_next = ff_packet_list_entry_alloc();
     if(!pktl_next)
         goto fail;
 
-    if(av_new_packet(&pktl_next->pkt, buf_size) < 0) {
-        av_free(pktl_next);
+    if (av_new_packet(GET_PKT(pktl_next), buf_size) < 0) {
+        ff_packet_list_entry_free(&pktl_next);
         goto fail;
     }
 
-    pktl_next->pkt.stream_index = index;
-    pktl_next->pkt.pts = time;
-    memcpy(pktl_next->pkt.data, buf, buf_size);
+    GET_PKT(pktl_next)->stream_index = index;
+    GET_PKT(pktl_next)->pts = time;
+    memcpy(GET_PKT(pktl_next)->data, buf, buf_size);
 
     ff_packet_list_append_entry(&ctx->pktl, pktl_next);
     ctx->curbufsize[index] += buf_size;

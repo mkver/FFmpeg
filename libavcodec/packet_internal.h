@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 
+#include "libavutil/mem.h"
 #include "packet.h"
 
 typedef struct PacketListEntry {
@@ -32,6 +33,31 @@ typedef struct PacketList {
     PacketListEntry *head, *tail;
 } PacketList;
 
+/* Get a pointer to the packet contained in a PacketListEntry.
+ * Should be used instead of accessing the packet directly. */
+#define GET_PKT(entry)     (&(entry)->pkt)
+/* Get a pointer to the pointer to the next entry.
+ * Can be used to set the current entry's next pointer. */
+#define NEXT_ENTRYP(entry) (&(entry)->next)
+#define NEXT_ENTRY(entry)  (*NEXT_ENTRYP(entry))
+
+static inline PacketListEntry *ff_packet_list_entry_alloc(void)
+{
+    return (PacketListEntry*)av_mallocz(sizeof(PacketListEntry));
+}
+
+static inline void ff_packet_list_entry_free(PacketListEntry **entry)
+{
+    av_packet_unref(GET_PKT(*entry));
+    av_freep(entry);
+}
+
+static inline void ff_packet_list_entry_set_next(PacketListEntry *entry,
+                                                 PacketListEntry *next)
+{
+    *NEXT_ENTRYP(entry) = next;
+}
+
 /**
  * Append an already existing PacketListEntry to the list.
  */
@@ -39,11 +65,11 @@ static inline void ff_packet_list_append_entry(PacketList *list,
                                                PacketListEntry *entry)
 {
     if (list->tail)
-        list->tail->next = entry;
+        ff_packet_list_entry_set_next(list->tail, entry);
     else
         list->head = entry;
     list->tail  = entry;
-    entry->next = NULL;
+    ff_packet_list_entry_set_next(entry, NULL);
 }
 
 /**

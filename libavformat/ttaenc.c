@@ -98,7 +98,7 @@ static int tta_write_packet(AVFormatContext *s, AVPacket *pkt)
     if (ret < 0) {
         return ret;
     }
-    pkt = &tta->queue.tail->pkt;
+    pkt = GET_PKT(tta->queue.tail);
 
     avio_wl32(tta->seek_table, pkt->size);
     tta->nb_samples += pkt->duration;

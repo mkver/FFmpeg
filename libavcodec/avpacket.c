@@ -540,15 +540,14 @@ int avpriv_packet_list_put(PacketList *packet_buffer,
                            int (*copy)(AVPacket *dst, const AVPacket *src),
                            int flags)
 {
-    PacketListEntry *pktl = av_malloc(sizeof(*pktl));
+    PacketListEntry *pktl = ff_packet_list_entry_alloc();
     int ret;
 
     if (!pktl)
         return AVERROR(ENOMEM);
 
     if (copy) {
-        get_packet_defaults(&pktl->pkt);
-        ret = copy(&pktl->pkt, pkt);
+        ret = copy(GET_PKT(pktl), pkt);
         if (ret < 0) {
             av_free(pktl);
             return ret;
@@ -559,18 +558,11 @@ int avpriv_packet_list_put(PacketList *packet_buffer,
             av_free(pktl);
             return ret;
         }
-        av_packet_move_ref(&pktl->pkt, pkt);
+        av_packet_move_ref(GET_PKT(pktl), pkt);
     }
 
-    pktl->next = NULL;
+    ff_packet_list_append_entry(packet_buffer, pktl);
 
-    if (packet_buffer->head)
-        packet_buffer->tail->next = pktl;
-    else
-        packet_buffer->head = pktl;
-
-    /* Add the packet in the buffered packet list. */
-    packet_buffer->tail = pktl;
     return 0;
 }
 
@@ -580,8 +572,8 @@ int avpriv_packet_list_get(PacketList *pkt_buffer,
     PacketListEntry *pktl = pkt_buffer->head;
     if (!pktl)
         return AVERROR(EAGAIN);
-    *pkt        = pktl->pkt;
-    pkt_buffer->head = pktl->next;
+    *pkt = *GET_PKT(pktl);
+    pkt_buffer->head = NEXT_ENTRY(pktl);
     if (!pkt_buffer->head)
         pkt_buffer->tail = NULL;
     av_freep(&pktl);
@@ -594,9 +586,8 @@ void avpriv_packet_list_free(PacketList *pkt_buf)
 
     while (tmp) {
         PacketListEntry *pktl = tmp;
-        tmp = pktl->next;
-        av_packet_unref(&pktl->pkt);
-        av_freep(&pktl);
+        tmp = NEXT_ENTRY(pktl);
+        ff_packet_list_entry_free(&pktl);
     }
     pkt_buf->head = pkt_buf->tail = NULL;
 }

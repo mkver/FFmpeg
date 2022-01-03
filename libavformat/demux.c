@@ -543,7 +543,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         const AVPacket *pkt1;
 
         if (pktl) {
-            AVStream *const st = s->streams[pktl->pkt.stream_index];
+            AVStream *const st = s->streams[GET_PKT(pktl)->stream_index];
             if (si->raw_packet_buffer_size >= s->probesize)
                 if ((err = probe_codec(s, st, NULL)) < 0)
                     return err;
@@ -628,7 +628,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             av_packet_unref(pkt);
             return err;
         }
-        pkt1 = &si->raw_packet_buffer.tail->pkt;
+        pkt1 = GET_PKT(si->raw_packet_buffer.tail);
         si->raw_packet_buffer_size += pkt1->size;
 
         if ((err = probe_codec(s, st, pkt1)) < 0)
@@ -718,8 +718,8 @@ static PacketListEntry *get_next_pkt(AVFormatContext *s, AVStream *st,
                                      PacketListEntry *pktl)
 {
     FFFormatContext *const si = ffformatcontext(s);
-    if (pktl->next)
-        return pktl->next;
+    if (NEXT_ENTRY(pktl))
+        return NEXT_ENTRY(pktl);
     if (pktl == si->packet_buffer.tail)
         return si->parse_queue.head;
     return NULL;
@@ -784,15 +784,15 @@ static void update_dts_from_pts(AVFormatContext *s, int stream_index,
         pts_buffer[i] = AV_NOPTS_VALUE;
 
     for (; pkt_buffer; pkt_buffer = get_next_pkt(s, st, pkt_buffer)) {
-        if (pkt_buffer->pkt.stream_index != stream_index)
+        if (GET_PKT(pkt_buffer)->stream_index != stream_index)
             continue;
 
-        if (pkt_buffer->pkt.pts != AV_NOPTS_VALUE && delay <= MAX_REORDER_DELAY) {
-            pts_buffer[0] = pkt_buffer->pkt.pts;
+        if (GET_PKT(pkt_buffer)->pts != AV_NOPTS_VALUE && delay <= MAX_REORDER_DELAY) {
+            pts_buffer[0] = GET_PKT(pkt_buffer)->pts;
             for (int i = 0; i < delay && pts_buffer[i] > pts_buffer[i + 1]; i++)
                 FFSWAP(int64_t, pts_buffer[i], pts_buffer[i + 1]);
 
-            pkt_buffer->pkt.dts = select_from_pts_buffer(st, pts_buffer, pkt_buffer->pkt.dts);
+            GET_PKT(pkt_buffer)->dts = select_from_pts_buffer(st, pts_buffer, GET_PKT(pkt_buffer)->dts);
         }
     }
 }
@@ -823,16 +823,16 @@ static void update_initial_timestamps(AVFormatContext *s, int stream_index,
         pts += shift;
 
     for (PacketListEntry *pktl_it = pktl; pktl_it; pktl_it = get_next_pkt(s, st, pktl_it)) {
-        if (pktl_it->pkt.stream_index != stream_index)
+        if (GET_PKT(pktl_it)->stream_index != stream_index)
             continue;
-        if (is_relative(pktl_it->pkt.pts))
-            pktl_it->pkt.pts += shift;
+        if (is_relative(GET_PKT(pktl_it)->pts))
+            GET_PKT(pktl_it)->pts += shift;
 
-        if (is_relative(pktl_it->pkt.dts))
-            pktl_it->pkt.dts += shift;
+        if (is_relative(GET_PKT(pktl_it)->dts))
+            GET_PKT(pktl_it)->dts += shift;
 
-        if (st->start_time == AV_NOPTS_VALUE && pktl_it->pkt.pts != AV_NOPTS_VALUE) {
-            st->start_time = pktl_it->pkt.pts;
+        if (st->start_time == AV_NOPTS_VALUE && GET_PKT(pktl_it)->pts != AV_NOPTS_VALUE) {
+            st->start_time = GET_PKT(pktl_it)->pts;
             if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO && st->codecpar->sample_rate)
                 st->start_time = av_sat_add64(st->start_time, av_rescale_q(sti->skip_samples, (AVRational){1, st->codecpar->sample_rate}, st->time_base));
         }
@@ -859,22 +859,24 @@ static void update_initial_durations(AVFormatContext *s, AVStream *st,
     int64_t cur_dts = RELATIVE_TS_BASE;
 
     if (sti->first_dts != AV_NOPTS_VALUE) {
+        AVPacket *pkt;
         if (sti->update_initial_durations_done)
             return;
         sti->update_initial_durations_done = 1;
         cur_dts = sti->first_dts;
         for (; pktl; pktl = get_next_pkt(s, st, pktl)) {
-            if (pktl->pkt.stream_index == stream_index) {
-                if (pktl->pkt.pts != pktl->pkt.dts  ||
-                    pktl->pkt.dts != AV_NOPTS_VALUE ||
-                    pktl->pkt.duration)
+            pkt = GET_PKT(pktl);
+            if (pkt->stream_index == stream_index) {
+                if (pkt->pts != pkt->dts  ||
+                    pkt->dts != AV_NOPTS_VALUE ||
+                    pkt->duration)
                     break;
                 cur_dts -= duration;
             }
         }
-        if (pktl && pktl->pkt.dts != sti->first_dts) {
+        if (pktl && pkt->dts != sti->first_dts) {
             av_log(s, AV_LOG_DEBUG, "first_dts %s not matching first dts %s (pts %s, duration %"PRId64") in the queue\n",
-                   av_ts2str(sti->first_dts), av_ts2str(pktl->pkt.dts), av_ts2str(pktl->pkt.pts), pktl->pkt.duration);
+                   av_ts2str(sti->first_dts), av_ts2str(pkt->dts), av_ts2str(pkt->pts), pkt->duration);
             return;
         }
         if (!pktl) {
@@ -887,23 +889,24 @@ static void update_initial_durations(AVFormatContext *s, AVStream *st,
         return;
 
     for (; pktl; pktl = get_next_pkt(s, st, pktl)) {
-        if (pktl->pkt.stream_index != stream_index)
+        AVPacket *const pkt = GET_PKT(pktl);
+        if (pkt->stream_index != stream_index)
             continue;
-        if ((pktl->pkt.pts == pktl->pkt.dts ||
-             pktl->pkt.pts == AV_NOPTS_VALUE) &&
-            (pktl->pkt.dts == AV_NOPTS_VALUE ||
-             pktl->pkt.dts == sti->first_dts ||
-             pktl->pkt.dts == RELATIVE_TS_BASE) &&
-            !pktl->pkt.duration &&
+        if ((pkt->pts == pkt->dts ||
+             pkt->pts == AV_NOPTS_VALUE) &&
+            (pkt->dts == AV_NOPTS_VALUE ||
+             pkt->dts == sti->first_dts ||
+             pkt->dts == RELATIVE_TS_BASE) &&
+            !pkt->duration &&
             av_sat_add64(cur_dts, duration) == cur_dts + (uint64_t)duration
         ) {
-            pktl->pkt.dts = cur_dts;
+            pkt->dts = cur_dts;
             if (!sti->avctx->has_b_frames)
-                pktl->pkt.pts = cur_dts;
-            pktl->pkt.duration = duration;
+                pkt->pts = cur_dts;
+            pkt->duration = duration;
         } else
             break;
-        cur_dts = pktl->pkt.dts + pktl->pkt.duration;
+        cur_dts = pkt->dts + pkt->duration;
     }
     if (!pktl)
         sti->cur_dts = cur_dts;
@@ -1430,7 +1433,7 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
         PacketListEntry *pktl = si->packet_buffer.head;
 
         if (pktl) {
-            AVPacket *next_pkt = &pktl->pkt;
+            AVPacket *next_pkt = GET_PKT(pktl);
 
             if (next_pkt->dts != AV_NOPTS_VALUE) {
                 int wrap_bits = s->streams[next_pkt->stream_index]->pts_wrap_bits;
@@ -1439,18 +1442,19 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
                 int64_t last_dts = next_pkt->dts;
                 av_assert2(wrap_bits <= 64);
                 while (pktl && next_pkt->pts == AV_NOPTS_VALUE) {
-                    if (pktl->pkt.stream_index == next_pkt->stream_index &&
-                        av_compare_mod(next_pkt->dts, pktl->pkt.dts, 2ULL << (wrap_bits - 1)) < 0) {
-                        if (av_compare_mod(pktl->pkt.pts, pktl->pkt.dts, 2ULL << (wrap_bits - 1))) {
+                    const AVPacket *const avpkt = GET_PKT(pktl);
+                    if (avpkt->stream_index == next_pkt->stream_index &&
+                        av_compare_mod(next_pkt->dts, avpkt->dts, 2ULL << (wrap_bits - 1)) < 0) {
+                        if (av_compare_mod(avpkt->pts, avpkt->dts, 2ULL << (wrap_bits - 1))) {
                             // not B-frame
-                            next_pkt->pts = pktl->pkt.dts;
+                            next_pkt->pts = avpkt->dts;
                         }
                         if (last_dts != AV_NOPTS_VALUE) {
                             // Once last dts was set to AV_NOPTS_VALUE, we don't change it.
-                            last_dts = pktl->pkt.dts;
+                            last_dts = avpkt->dts;
                         }
                     }
-                    pktl = pktl->next;
+                    pktl = NEXT_ENTRY(pktl);
                 }
                 if (eof && next_pkt->pts == AV_NOPTS_VALUE && last_dts != AV_NOPTS_VALUE) {
                     // Fixing the last reference frame had none pts issue (For MXF etc).
@@ -2597,7 +2601,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
             if (ret < 0)
                 goto unref_then_goto_end;
 
-            pkt = &si->packet_buffer.tail->pkt;
+            pkt = GET_PKT(si->packet_buffer.tail);
         } else {
             pkt = pkt1;
         }

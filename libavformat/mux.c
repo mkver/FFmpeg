@@ -814,22 +814,21 @@ int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
     FFStream *const sti = ffstream(st);
     int chunked  = s->max_chunk_size || s->max_chunk_duration;
 
-    this_pktl    = av_malloc(sizeof(*this_pktl));
+    if ((ret = av_packet_make_refcounted(pkt)) < 0) {
+        av_packet_unref(pkt);
+        return ret;
+    }
+    this_pktl = ff_packet_list_entry_alloc();
     if (!this_pktl) {
         av_packet_unref(pkt);
         return AVERROR(ENOMEM);
     }
-    if ((ret = av_packet_make_refcounted(pkt)) < 0) {
-        av_free(this_pktl);
-        av_packet_unref(pkt);
-        return ret;
-    }
 
-    av_packet_move_ref(&this_pktl->pkt, pkt);
-    pkt = &this_pktl->pkt;
+    av_packet_move_ref(GET_PKT(this_pktl), pkt);
+    pkt = GET_PKT(this_pktl);
 
     if (sti->last_in_packet_buffer) {
-        next_point = &(sti->last_in_packet_buffer->next);
+        next_point = NEXT_ENTRYP(sti->last_in_packet_buffer);
     } else {
         next_point = &si->packet_buffer.head;
     }
@@ -855,15 +854,15 @@ int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
         if (chunked && !(pkt->flags & CHUNK_START))
             goto next_non_null;
 
-        if (compare(s, &si->packet_buffer.tail->pkt, pkt)) {
+        if (compare(s, GET_PKT(si->packet_buffer.tail), pkt)) {
             while (   *next_point
-                   && ((chunked && !((*next_point)->pkt.flags&CHUNK_START))
-                       || !compare(s, &(*next_point)->pkt, pkt)))
-                next_point = &(*next_point)->next;
+                   && ((chunked && !(GET_PKT(*next_point)->flags&CHUNK_START))
+                       || !compare(s, GET_PKT(*next_point), pkt)))
+                next_point = NEXT_ENTRYP(*next_point);
             if (*next_point)
                 goto next_non_null;
         } else {
-            next_point = &(si->packet_buffer.tail->next);
+            next_point = NEXT_ENTRYP(si->packet_buffer.tail);
         }
     }
     av_assert1(!*next_point);
@@ -871,7 +870,7 @@ int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
     si->packet_buffer.tail = this_pktl;
 next_non_null:
 
-    this_pktl->next = *next_point;
+    ff_packet_list_entry_set_next(this_pktl, *next_point);
 
     sti->last_in_packet_buffer = *next_point = this_pktl;
 
@@ -943,7 +942,7 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *pkt,
         !flush &&
         si->nb_interleaved_streams == stream_count+noninterleaved_count
     ) {
-        AVPacket *const top_pkt = &si->packet_buffer.head->pkt;
+        AVPacket *const top_pkt = GET_PKT(si->packet_buffer.head);
         int64_t delta_dts = INT64_MIN;
         int64_t top_dts = av_rescale_q(top_pkt->dts,
                                        s->streams[top_pkt->stream_index]->time_base,
@@ -958,7 +957,7 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *pkt,
             if (!last)
                 continue;
 
-            last_dts = av_rescale_q(last->pkt.dts,
+            last_dts = av_rescale_q(GET_PKT(last)->dts,
                                     st->time_base,
                                     AV_TIME_BASE_Q);
             delta_dts = FFMAX(delta_dts, last_dts - top_dts);
@@ -977,7 +976,7 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *pkt,
         eof &&
         (s->flags & AVFMT_FLAG_SHORTEST) &&
         si->shortest_end == AV_NOPTS_VALUE) {
-        AVPacket *const top_pkt = &si->packet_buffer.head->pkt;
+        AVPacket *const top_pkt = GET_PKT(si->packet_buffer.head);
 
         si->shortest_end = av_rescale_q(top_pkt->dts,
                                        s->streams[top_pkt->stream_index]->time_base,
@@ -987,7 +986,7 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *pkt,
     if (si->shortest_end != AV_NOPTS_VALUE) {
         while (si->packet_buffer.head) {
             PacketListEntry *pktl = si->packet_buffer.head;
-            AVPacket *const top_pkt = &pktl->pkt;
+            AVPacket *const top_pkt = GET_PKT(pktl);
             AVStream *const st = s->streams[top_pkt->stream_index];
             FFStream *const sti = ffstream(st);
             int64_t top_dts = av_rescale_q(top_pkt->dts, st->time_base,
@@ -996,22 +995,21 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *pkt,
             if (si->shortest_end + 1 >= top_dts)
                 break;
 
-            si->packet_buffer.head = pktl->next;
+            si->packet_buffer.head = NEXT_ENTRY(pktl);
             if (!si->packet_buffer.head)
                 si->packet_buffer.tail = NULL;
 
             if (sti->last_in_packet_buffer == pktl)
                 sti->last_in_packet_buffer = NULL;
 
-            av_packet_unref(&pktl->pkt);
-            av_freep(&pktl);
+            ff_packet_list_entry_free(&pktl);
             flush = 0;
         }
     }
 
     if (stream_count && flush) {
         PacketListEntry *pktl = si->packet_buffer.head;
-        AVStream *const st = s->streams[pktl->pkt.stream_index];
+        AVStream *const st = s->streams[GET_PKT(pktl)->stream_index];
         FFStream *const sti = ffstream(st);
 
         if (sti->last_in_packet_buffer == pktl)
@@ -1051,10 +1049,10 @@ const AVPacket *ff_interleaved_peek(AVFormatContext *s, int stream)
     FFFormatContext *const si = ffformatcontext(s);
     PacketListEntry *pktl = si->packet_buffer.head;
     while (pktl) {
-        if (pktl->pkt.stream_index == stream) {
-            return &pktl->pkt;
+        if (GET_PKT(pktl)->stream_index == stream) {
+            return GET_PKT(pktl);
         }
-        pktl = pktl->next;
+        pktl = NEXT_ENTRY(pktl);
     }
     return NULL;
 }
