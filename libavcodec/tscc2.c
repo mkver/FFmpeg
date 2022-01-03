@@ -149,7 +149,7 @@ static int tscc2_decode_mb(TSCC2Context *c, int *q, int vlc_set,
             if (!(j | k)) {
                 dc = get_bits(gb, 8);
             } else {
-                dc = get_vlc2(gb, dc_vlc.table, TSCC2_VLC_BITS, 2);
+                dc = get_vlc(gb, dc_vlc.table, TSCC2_VLC_BITS, 2 * TSCC2_VLC_BITS);
                 if (dc == 0x100)
                     dc = get_bits(gb, 8);
             }
@@ -162,7 +162,7 @@ static int tscc2_decode_mb(TSCC2Context *c, int *q, int vlc_set,
             bpos = 1;
             memset(c->block + 1, 0, 15 * sizeof(*c->block));
             for (l = 0; l < nc; l++) {
-                ac = get_vlc2(gb, ac_vlc[vlc_set].table, TSCC2_VLC_BITS, 2);
+                ac = get_vlc(gb, ac_vlc[vlc_set].table, TSCC2_VLC_BITS, 2 * TSCC2_VLC_BITS);
                 if (ac == 0x1000)
                     ac = get_bits(gb, 12);
                 bpos += ac & 0xF;

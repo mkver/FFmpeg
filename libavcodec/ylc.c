@@ -358,7 +358,7 @@ static int decode_frame(AVCodecContext *avctx,
                 return AVERROR_INVALIDDATA;
 
             if (get_bits1(&gb)) {
-                int val = get_vlc2(&gb, s->vlc[0].table, YLC_VLC_BITS, 3);
+                int val = get_vlc(&gb, s->vlc[0].table, YLC_VLC_BITS, 3 * YLC_VLC_BITS);
                 if (val < 0) {
                     return AVERROR_INVALIDDATA;
                 } else if (val < 0xE1) {
@@ -381,10 +381,10 @@ static int decode_frame(AVCodecContext *avctx,
             } else {
                 int y1, y2, u, v;
 
-                y1 = get_vlc2(&gb, s->vlc[1].table, YLC_VLC_BITS, 3);
-                u  = get_vlc2(&gb, s->vlc[2].table, YLC_VLC_BITS, 3);
-                y2 = get_vlc2(&gb, s->vlc[1].table, YLC_VLC_BITS, 3);
-                v  = get_vlc2(&gb, s->vlc[3].table, YLC_VLC_BITS, 3);
+                y1 = get_vlc(&gb, s->vlc[1].table, YLC_VLC_BITS, 3 * YLC_VLC_BITS);
+                u  = get_vlc(&gb, s->vlc[2].table, YLC_VLC_BITS, 3 * YLC_VLC_BITS);
+                y2 = get_vlc(&gb, s->vlc[1].table, YLC_VLC_BITS, 3 * YLC_VLC_BITS);
+                v  = get_vlc(&gb, s->vlc[3].table, YLC_VLC_BITS, 3 * YLC_VLC_BITS);
                 if (y1 < 0 || y2 < 0 || u < 0 || v < 0)
                     return AVERROR_INVALIDDATA;
                 dst[x    ] = y1;

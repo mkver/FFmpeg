@@ -149,21 +149,23 @@ static inline unsigned int show_bits(GetBitContext *s, int n);
 
 #define CLOSE_READER(name, gb) (gb)->index = name ## _index
 
+#define UPDATE_CACHE_BE_EXT(name, gb, bits) name ## _cache = \
+    AV_RB(bits, (gb)->buffer + (name ## _index >> 3)) << (name ## _index & 7)
+
+#define UPDATE_CACHE_LE_EXT(name, gb, bits) name ## _cache = \
+    AV_RL(bits, (gb)->buffer + (name ## _index >> 3)) >> (name ## _index & 7)
+
 # ifdef LONG_BITSTREAM_READER
 
-# define UPDATE_CACHE_LE(name, gb) name ## _cache = \
-      AV_RL64((gb)->buffer + (name ## _index >> 3)) >> (name ## _index & 7)
+# define UPDATE_CACHE_LE(name, gb) UPDATE_CACHE_LE_EXT(name, gb, 64)
 
 # define UPDATE_CACHE_BE(name, gb) name ## _cache = \
       AV_RB64((gb)->buffer + (name ## _index >> 3)) >> (32 - (name ## _index & 7))
 
 #else
 
-# define UPDATE_CACHE_LE(name, gb) name ## _cache = \
-      AV_RL32((gb)->buffer + (name ## _index >> 3)) >> (name ## _index & 7)
-
-# define UPDATE_CACHE_BE(name, gb) name ## _cache = \
-      AV_RB32((gb)->buffer + (name ## _index >> 3)) << (name ## _index & 7)
+# define UPDATE_CACHE_LE(name, gb) UPDATE_CACHE_LE_EXT(name, gb, 32)
+# define UPDATE_CACHE_BE(name, gb) UPDATE_CACHE_BE_EXT(name, gb, 32)
 
 #endif
 
@@ -704,7 +706,7 @@ static inline const uint8_t *align_get_bits(GetBitContext *s)
  * If the vlc code is invalid and max_depth>1, then the number of bits removed
  * is undefined.
  */
-#define GET_VLC(code, name, gb, table, bits, max_depth)         \
+#define GET_VLC_EXT(code, name, gb, table, bits, max_depth, first_update) \
     do {                                                        \
         int n, nb_bits;                                         \
         unsigned int index;                                     \
@@ -714,8 +716,11 @@ static inline const uint8_t *align_get_bits(GetBitContext *s)
         n     = table[index][1];                                \
                                                                 \
         if (max_depth > 1 && n < 0) {                           \
-            LAST_SKIP_BITS(name, gb, bits);                     \
-            UPDATE_CACHE(name, gb);                             \
+            if (first_update <= 1) {                            \
+                LAST_SKIP_BITS(name, gb, bits);                 \
+                UPDATE_CACHE(name, gb);                         \
+            } else                                              \
+                SKIP_BITS(name, gb, bits);                      \
                                                                 \
             nb_bits = -n;                                       \
                                                                 \
@@ -723,8 +728,11 @@ static inline const uint8_t *align_get_bits(GetBitContext *s)
             code  = table[index][0];                            \
             n     = table[index][1];                            \
             if (max_depth > 2 && n < 0) {                       \
-                LAST_SKIP_BITS(name, gb, nb_bits);              \
-                UPDATE_CACHE(name, gb);                         \
+                if (first_update <= 2) {                        \
+                    LAST_SKIP_BITS(name, gb, nb_bits);          \
+                    UPDATE_CACHE(name, gb);                     \
+                } else                                          \
+                    SKIP_BITS(name, gb, bits);                  \
                                                                 \
                 nb_bits = -n;                                   \
                                                                 \
@@ -735,6 +743,9 @@ static inline const uint8_t *align_get_bits(GetBitContext *s)
         }                                                       \
         SKIP_BITS(name, gb, n);                                 \
     } while (0)
+
+#define GET_VLC(code, name, gb, table, bits, max_depth) \
+        GET_VLC_EXT(code, name, gb, table, bits, max_depth, 0)
 
 #define GET_RL_VLC(level, run, name, gb, table, bits,  \
                    max_depth, need_update)                      \
@@ -822,6 +833,28 @@ static av_always_inline int get_vlc2(GetBitContext *s, VLC_TYPE (*table)[2],
     UPDATE_CACHE(re, s);
 
     GET_VLC(code, re, s, table, bits, max_depth);
+
+    CLOSE_READER(re, s);
+
+    return code;
+#endif
+}
+
+static av_always_inline int get_vlc(GetBitContext *s, VLC_TYPE (*table)[2],
+                                    int bits, int max_length)
+{
+    const unsigned max_depth = (max_length + bits - 1) / bits;
+#if CACHED_BITSTREAM_READER
+    return get_vlc2(s, table, bits, max_depth);
+#else
+    const int first_update = max_length <= MIN_CACHE_BITS ? INT_MAX :
+                                 MIN_CACHE_BITS / bits;
+    int code;
+
+    OPEN_READER(re, s);
+    UPDATE_CACHE(re, s);
+
+    GET_VLC_EXT(code, re, s, table, bits, max_depth, first_update);
 
     CLOSE_READER(re, s);
 

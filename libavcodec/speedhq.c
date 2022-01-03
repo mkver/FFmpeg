@@ -165,9 +165,9 @@ static inline int decode_dc_le(GetBitContext *gb, int component)
     int code, diff;
 
     if (component == 0 || component == 3) {
-        code = get_vlc2(gb, dc_lum_vlc_le.table, DC_VLC_BITS, 2);
+        code = get_vlc(gb, dc_lum_vlc_le.table, DC_VLC_BITS, 2 * DC_VLC_BITS);
     } else {
-        code = get_vlc2(gb, dc_chroma_vlc_le.table, DC_VLC_BITS, 2);
+        code = get_vlc(gb, dc_chroma_vlc_le.table, DC_VLC_BITS, 2 * DC_VLC_BITS);
     }
     if (!code) {
         diff = 0;
@@ -184,27 +184,19 @@ static inline int decode_alpha_block(const SHQContext *s, GetBitContext *gb, uin
 
     memset(block, 0, sizeof(block));
 
-    {
-        OPEN_READER(re, gb);
-
         for ( ;; ) {
             int run, level;
 
-            UPDATE_CACHE_LE(re, gb);
-            GET_VLC(run, re, gb, dc_alpha_run_vlc_le.table, ALPHA_VLC_BITS, 2);
+            run = get_vlc(gb, dc_alpha_run_vlc_le.table, ALPHA_VLC_BITS, 2 * ALPHA_VLC_BITS);
 
             if (run < 0) break;
             i += run;
             if (i >= 128)
                 return AVERROR_INVALIDDATA;
 
-            UPDATE_CACHE_LE(re, gb);
-            GET_VLC(level, re, gb, dc_alpha_level_vlc_le.table, ALPHA_VLC_BITS, 2);
+            level = get_vlc(gb, dc_alpha_level_vlc_le.table, ALPHA_VLC_BITS, 2 * ALPHA_VLC_BITS);
             block[i++] = level;
         }
-
-        CLOSE_READER(re, gb);
-    }
 
     for (y = 0; y < 8; y++) {
         for (x = 0; x < 16; x++) {

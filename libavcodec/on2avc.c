@@ -171,7 +171,7 @@ static int on2avc_decode_band_scales(On2AVCContext *c, GetBitContext *gb)
                 scale = get_bits(gb, 7);
                 first = 0;
             } else {
-                scale += get_vlc2(gb, c->scale_diff.table, 9, 3);
+                scale += get_vlc(gb, c->scale_diff.table, 9, 21);
             }
             if (scale < 0 || scale > 127) {
                 av_log(c->avctx, AV_LOG_ERROR, "Invalid scale value %d\n",
@@ -197,7 +197,7 @@ static int on2avc_decode_quads(On2AVCContext *c, GetBitContext *gb, float *dst,
     int i, j, val, val1;
 
     for (i = 0; i < dst_size; i += 4) {
-        val = get_vlc2(gb, c->cb_vlc[type].table, 9, 2);
+        val = get_vlc(gb, c->cb_vlc[type].table, 9, 18);
 
         for (j = 0; j < 4; j++) {
             val1 = sign_extend((val >> (12 - j * 4)) & 0xF, 4);
@@ -230,7 +230,7 @@ static int on2avc_decode_pairs(On2AVCContext *c, GetBitContext *gb, float *dst,
     int i, val, val1, val2, sign;
 
     for (i = 0; i < dst_size; i += 2) {
-        val = get_vlc2(gb, c->cb_vlc[type].table, 9, 2);
+        val = get_vlc(gb, c->cb_vlc[type].table, 9, 18);
 
         val1 = sign_extend(val >> 8,   8);
         val2 = sign_extend(val & 0xFF, 8);

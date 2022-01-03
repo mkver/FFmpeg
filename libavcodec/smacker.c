@@ -155,9 +155,9 @@ static int smacker_decode_bigtree(GetBitContext *gb, DBCtx *ctx, int length)
         return AVERROR_INVALIDDATA;
     if(!get_bits1(gb)){ //Leaf
         int val, i1, i2;
-        i1 = ctx->v1->table ? get_vlc2(gb, ctx->v1->table, SMKTREE_BITS, 3)
+        i1 = ctx->v1->table ? get_vlc(gb, ctx->v1->table, SMKTREE_BITS, 3 * SMKTREE_BITS)
                             : ctx->vals[0];
-        i2 = ctx->v2->table ? get_vlc2(gb, ctx->v2->table, SMKTREE_BITS, 3)
+        i2 = ctx->v2->table ? get_vlc(gb, ctx->v2->table, SMKTREE_BITS, 3 * SMKTREE_BITS)
                             : ctx->vals[1];
         val = i1 | (i2 << 8);
         if(val == ctx->escapes[0]) {
@@ -677,12 +677,12 @@ static int smka_decode_frame(AVCodecContext *avctx, void *data,
                 goto error;
             }
             if (vlc[idx].table)
-                res = get_vlc2(&gb, vlc[idx].table, SMKTREE_BITS, 3);
+                res = get_vlc(&gb, vlc[idx].table, SMKTREE_BITS, 3 * SMKTREE_BITS);
             else
                 res = values[idx];
             val  = res;
             if (vlc[++idx].table)
-                res = get_vlc2(&gb, vlc[idx].table, SMKTREE_BITS, 3);
+                res = get_vlc(&gb, vlc[idx].table, SMKTREE_BITS, 3 * SMKTREE_BITS);
             else
                 res = values[idx];
             val |= res << 8;
@@ -701,7 +701,7 @@ static int smka_decode_frame(AVCodecContext *avctx, void *data,
                 goto error;
             }
             if (vlc[idx].table)
-                val = get_vlc2(&gb, vlc[idx].table, SMKTREE_BITS, 3);
+                val = get_vlc(&gb, vlc[idx].table, SMKTREE_BITS, 3 * SMKTREE_BITS);
             else
                 val = values[idx];
             pred[idx] += val;

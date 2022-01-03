@@ -92,13 +92,13 @@ static inline int decode_block(CLVContext *ctx, int16_t *blk, int has_ac,
     int idx = 1, last = 0, val, skip;
 
     memset(blk, 0, sizeof(*blk) * 64);
-    blk[0] = get_vlc2(gb, dc_vlc.table, CLV_VLC_BITS, 3);
+    blk[0] = get_vlc(gb, dc_vlc.table, CLV_VLC_BITS, 22);
 
     if (!has_ac)
         return 0;
 
     while (idx < 64 && !last) {
-        val = get_vlc2(gb, ac_vlc.table, CLV_VLC_BITS, 2);
+        val = get_vlc(gb, ac_vlc.table, CLV_VLC_BITS, 12);
         if (val < 0)
             return AVERROR_INVALIDDATA;
         if (val != 0x1BFF) {
@@ -369,11 +369,11 @@ static TileInfo *decode_tile_info(GetBitContext *gb, const LevelCodes *lc, int l
     MV mv = { 0 };
 
     if (lc[level].flags_cb.table) {
-        flags = get_vlc2(gb, lc[level].flags_cb.table, CLV_VLC_BITS, 2);
+        flags = get_vlc(gb, lc[level].flags_cb.table, CLV_VLC_BITS, 11);
     }
 
     if (lc[level].mv_cb.table) {
-        uint16_t mv_code = get_vlc2(gb, lc[level].mv_cb.table, CLV_VLC_BITS, 2);
+        uint16_t mv_code = get_vlc(gb, lc[level].mv_cb.table, CLV_VLC_BITS, 16);
 
         if (mv_code != MV_ESC) {
             mv.x = (int8_t)(mv_code & 0xff);
@@ -385,7 +385,7 @@ static TileInfo *decode_tile_info(GetBitContext *gb, const LevelCodes *lc, int l
     }
 
     if (lc[level].bias_cb.table) {
-        uint16_t bias_val = get_vlc2(gb, lc[level].bias_cb.table, CLV_VLC_BITS, 2);
+        uint16_t bias_val = get_vlc(gb, lc[level].bias_cb.table, CLV_VLC_BITS, 16);
 
         if (bias_val != BIAS_ESC) {
             bias = (int16_t)(bias_val);

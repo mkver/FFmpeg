@@ -333,7 +333,7 @@ static int decode_rle(GetBitContext *gb, uint8_t *pal_dst, ptrdiff_t pal_stride,
         uint8_t *rp = rgb_dst;
         do {
             if (repeat-- < 1) {
-                int b = get_vlc2(gb, vlc.table, 9, 3);
+                int b = get_vlc2(gb, vlc.table, 9, 3 * 9);
                 if (b < 256)
                     last_symbol = b;
                 else if (b < 268) {

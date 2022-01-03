@@ -193,7 +193,7 @@ static int mss4_decode_dct(GetBitContext *gb, VLC *dc_vlc, VLC *ac_vlc,
     block[0]       = dc * quant_mat[0];
 
     while (pos < 64) {
-        val = get_vlc2(gb, ac_vlc->table, 9, 2);
+        val = get_vlc(gb, ac_vlc->table, 9, 2 * 9);
         if (!val)
             return 0;
         if (val == -1)

@@ -399,8 +399,8 @@ static int decode_envelope(COOKContext *q, COOKSubpacket *p,
         if (vlc_index > 13)
             vlc_index = 13; // the VLC tables >13 are identical to No. 13
 
-        j = get_vlc2(&q->gb, q->envelope_quant_index[vlc_index - 1].table,
-                     QUANT_VLC_BITS, 2);
+        j = get_vlc(&q->gb, q->envelope_quant_index[vlc_index - 1].table,
+                     QUANT_VLC_BITS, 16);
         quant_index_table[i] = quant_index_table[i - 1] + j; // differential encoding
         if (quant_index_table[i] > 63 || quant_index_table[i] < -63) {
             av_log(q->avctx, AV_LOG_ERROR,
@@ -777,9 +777,9 @@ static int decouple_info(COOKContext *q, COOKSubpacket *p, int *decouple_tab)
 
     if (vlc)
         for (i = 0; i < length; i++)
-            decouple_tab[start + i] = get_vlc2(&q->gb,
+            decouple_tab[start + i] = get_vlc(&q->gb,
                                                p->channel_coupling.table,
-                                               COUPLING_VLC_BITS, 3);
+                                               COUPLING_VLC_BITS, 16);
     else
         for (i = 0; i < length; i++) {
             int v = get_bits(&q->gb, p->js_vlc_bits);

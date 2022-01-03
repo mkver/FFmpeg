@@ -356,8 +356,8 @@ static int decode_p_block(FourXContext *f, uint16_t *dst, const uint16_t *src,
     if (get_bits_left(&f->gb) < 1)
         return AVERROR_INVALIDDATA;
     h     = 1 << log2h;
-    code  = get_vlc2(&f->gb, block_type_vlc[1 - (f->version > 1)][index].table,
-                     BLOCK_TYPE_VLC_BITS, 1);
+    code  = get_vlc(&f->gb, block_type_vlc[1 - (f->version > 1)][index].table,
+                     BLOCK_TYPE_VLC_BITS, 32);
     av_assert0(code >= 0 && code <= 6);
 
     start = f->last_frame_buffer;
@@ -506,7 +506,7 @@ static int decode_i_block(FourXContext *f, int16_t *block)
     }
 
     /* DC coef */
-    val = get_vlc2(&f->pre_gb, f->pre_vlc.table, ACDC_VLC_BITS, 3);
+    val = get_vlc(&f->pre_gb, f->pre_vlc.table, ACDC_VLC_BITS, 32);
     if (val >> 4) {
         av_log(f->avctx, AV_LOG_ERROR, "error dc run != 0\n");
         return AVERROR_INVALIDDATA;
@@ -827,7 +827,7 @@ static int decode_i_frame(FourXContext *f, const uint8_t *buf, int length)
         }
     }
 
-    if (get_vlc2(&f->pre_gb, f->pre_vlc.table, ACDC_VLC_BITS, 3) != 256)
+    if (get_vlc(&f->pre_gb, f->pre_vlc.table, ACDC_VLC_BITS, 32) != 256)
         av_log(f->avctx, AV_LOG_ERROR, "end mismatch\n");
 
     return 0;
