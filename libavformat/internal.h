@@ -25,7 +25,7 @@
 
 #include "libavcodec/avcodec.h"
 #include "libavcodec/bsf.h"
-#include "libavcodec/packet_internal.h"
+#include "packet_list.h"
 
 #include "avformat.h"
 #include "os_support.h"

@@ -17,6 +17,7 @@ OBJS = allformats.o         \
        mux.o                \
        options.o            \
        os_support.o         \
+       packet_list.o        \
        protocols.o          \
        riff.o               \
        sdp.o                \

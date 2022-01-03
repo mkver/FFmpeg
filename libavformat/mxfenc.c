@@ -53,12 +53,12 @@
 #include "libavcodec/h264_ps.h"
 #include "libavcodec/golomb.h"
 #include "libavcodec/internal.h"
-#include "libavcodec/packet_internal.h"
 #include "avformat.h"
 #include "avio_internal.h"
 #include "internal.h"
 #include "avc.h"
 #include "mxf.h"
+#include "packet_list.h"
 #include "config.h"
 
 extern const AVOutputFormat ff_mxf_d10_muxer;
@@ -3130,7 +3130,7 @@ static int mxf_interleave_get_packet(AVFormatContext *s, AVPacket *out, int flus
 
         if (ffstream(s->streams[GET_PKT(pktl)->stream_index])->last_in_packet_buffer == pktl)
             ffstream(s->streams[GET_PKT(pktl)->stream_index])->last_in_packet_buffer = NULL;
-        avpriv_packet_list_get(&si->packet_buffer, out);
+        ff_packet_list_get(&si->packet_buffer, out);
         av_log(s, AV_LOG_TRACE, "out st:%d dts:%"PRId64"\n", out->stream_index, out->dts);
         return 1;
     } else {

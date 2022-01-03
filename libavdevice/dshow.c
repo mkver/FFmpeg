@@ -295,7 +295,7 @@ dshow_read_close(AVFormatContext *s)
     if(ctx->event[1])
         CloseHandle(ctx->event[1]);
 
-    avpriv_packet_list_free(&ctx->pktl);
+    ff_packet_list_free(&ctx->pktl);
 
     CoUninitialize();
 
@@ -1844,7 +1844,7 @@ static int dshow_read_packet(AVFormatContext *s, AVPacket *pkt)
     while (!ctx->eof && !got_packet) {
         WaitForSingleObject(ctx->mutex, INFINITE);
         if (ctx->pktl.head) {
-            avpriv_packet_list_get(&ctx->pktl, pkt);
+            ff_packet_list_get(&ctx->pktl, pkt);
             ctx->curbufsize[pkt->stream_index] -= pkt->size;
             got_packet = 1;
         }

@@ -38,7 +38,6 @@
 #include "libavcodec/bsf.h"
 #include "libavcodec/bytestream.h"
 #include "libavcodec/internal.h"
-#include "libavcodec/packet_internal.h"
 
 #include "avformat.h"
 #include "avio_internal.h"
@@ -46,6 +45,7 @@
 #if CONFIG_NETWORK
 #include "network.h"
 #endif
+#include "packet_list.h"
 
 #include "libavutil/ffversion.h"
 const char av_format_ffversion[] = "FFmpeg version " FFMPEG_VERSION;
@@ -238,7 +238,7 @@ int avformat_queue_attached_pictures(AVFormatContext *s)
                 continue;
             }
 
-            ret = avpriv_packet_list_put(&si->raw_packet_buffer,
+            ret = ff_packet_list_put(&si->raw_packet_buffer,
                                      &s->streams[i]->attached_pic,
                                      av_packet_ref, 0);
             if (ret < 0)
@@ -299,9 +299,9 @@ int ff_is_intra_only(enum AVCodecID id)
 void ff_flush_packet_queue(AVFormatContext *s)
 {
     FFFormatContext *const si = ffformatcontext(s);
-    avpriv_packet_list_free(&si->parse_queue);
-    avpriv_packet_list_free(&si->packet_buffer);
-    avpriv_packet_list_free(&si->raw_packet_buffer);
+    ff_packet_list_free(&si->parse_queue);
+    ff_packet_list_free(&si->packet_buffer);
+    ff_packet_list_free(&si->raw_packet_buffer);
 
     si->raw_packet_buffer_size = 0;
 }
@@ -2089,4 +2089,35 @@ int ff_format_shift_data(AVFormatContext *s, int64_t read_start, int shift_size)
 end:
     av_free(buf);
     return ret;
+}
+
+int ff_packet_list_put(PacketList *packet_buffer,
+                       AVPacket      *pkt,
+                       int (*copy)(AVPacket *dst, const AVPacket *src),
+                       int flags)
+{
+    PacketListEntry *pktl = ff_packet_list_entry_alloc();
+    int ret;
+
+    if (!pktl)
+        return AVERROR(ENOMEM);
+
+    if (copy) {
+        ret = copy(GET_PKT(pktl), pkt);
+        if (ret < 0) {
+            ff_packet_list_entry_free(&pktl);
+            return ret;
+        }
+    } else {
+        ret = av_packet_make_refcounted(pkt);
+        if (ret < 0) {
+            ff_packet_list_entry_free(&pktl);
+            return ret;
+        }
+        av_packet_move_ref(GET_PKT(pktl), pkt);
+    }
+
+    ff_packet_list_append_entry(packet_buffer, pktl);
+
+    return 0;
 }

@@ -1,4 +1,7 @@
 /*
+ * AVPacket List API function implementations
+ * Copyright (c) 2000, 2001, 2002 Fabrice Bellard
+ *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -16,15 +19,4 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef AVCODEC_PACKET_INTERNAL_H
-#define AVCODEC_PACKET_INTERNAL_H
-
-#include <stdint.h>
-
-#include "packet.h"
-
-int ff_side_data_set_encoder_stats(AVPacket *pkt, int quality, int64_t *error, int error_count, int pict_type);
-
-int ff_side_data_set_prft(AVPacket *pkt, int64_t timestamp);
-
-#endif // AVCODEC_PACKET_INTERNAL_H
+#include "libavformat/packet_list_funcs.h"

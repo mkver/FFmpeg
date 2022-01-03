@@ -24,7 +24,7 @@
 #include "isom.h"
 #include "movenc.h"
 #include "movenc_ttml.h"
-#include "libavcodec/packet_internal.h"
+#include "packet_list.h"
 
 static const unsigned char empty_ttml_document[] =
     "<tt xml:lang=\"\" xmlns=\"http://www.w3.org/ns/ttml\" />";
@@ -70,7 +70,7 @@ static int mov_write_ttml_document_from_queue(AVFormatContext *s,
         return ret;
     }
 
-    while (!avpriv_packet_list_get(&track->squashed_packet_queue, pkt)) {
+    while (!ff_packet_list_get(&track->squashed_packet_queue, pkt)) {
         end_ts = FFMAX(end_ts, pkt->pts + pkt->duration);
 
         // in case of the 'dfxp' muxing mode, each written document is offset

@@ -24,7 +24,7 @@
 #include "libavutil/opt.h"
 #include "libavutil/parseutils.h"
 
-#include "libavcodec/packet_internal.h"
+#include "libavformat/packet_list.h"
 #include "libavformat/internal.h"
 
 // windows.h must no be included before winsock2.h, and libavformat internal
@@ -230,7 +230,7 @@ static int vfw_read_close(AVFormatContext *s)
     if(ctx->event)
         CloseHandle(ctx->event);
 
-    avpriv_packet_list_free(&ctx->pktl);
+    ff_packet_list_free(&ctx->pktl);
 
     return 0;
 }
@@ -436,7 +436,7 @@ static int vfw_read_packet(AVFormatContext *s, AVPacket *pkt)
 
     while (!got_packet) {
         WaitForSingleObject(ctx->mutex, INFINITE);
-        got_packet = !avpriv_packet_list_get(&ctx->pktl, pkt);
+        got_packet = !ff_packet_list_get(&ctx->pktl, pkt);
         ResetEvent(ctx->event);
         ReleaseMutex(ctx->mutex);
         if (!got_packet) {

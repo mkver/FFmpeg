@@ -535,65 +535,6 @@ void av_packet_rescale_ts(AVPacket *pkt, AVRational src_tb, AVRational dst_tb)
         pkt->duration = av_rescale_q(pkt->duration, src_tb, dst_tb);
 }
 
-int avpriv_packet_list_put(PacketList *packet_buffer,
-                           AVPacket      *pkt,
-                           int (*copy)(AVPacket *dst, const AVPacket *src),
-                           int flags)
-{
-    PacketListEntry *pktl = ff_packet_list_entry_alloc();
-    int ret;
-
-    if (!pktl)
-        return AVERROR(ENOMEM);
-
-    if (copy) {
-        ret = copy(GET_PKT(pktl), pkt);
-        if (ret < 0) {
-            av_free(pktl);
-            return ret;
-        }
-    } else {
-        ret = av_packet_make_refcounted(pkt);
-        if (ret < 0) {
-            av_free(pktl);
-            return ret;
-        }
-        av_packet_move_ref(GET_PKT(pktl), pkt);
-    }
-
-    ff_packet_list_append_entry(packet_buffer, pktl);
-
-    return 0;
-}
-
-int avpriv_packet_list_get(PacketList *pkt_buffer,
-                           AVPacket      *pkt)
-{
-    PacketListEntry *pktl = pkt_buffer->head;
-    if (!pktl)
-        return AVERROR(EAGAIN);
-    pkt_buffer->head = NEXT_ENTRY(pktl);
-    if (!pkt_buffer->head)
-        pkt_buffer->tail = NULL;
-    /* Ensure pkt->opaque is blank. */
-    ff_packet_list_entry_set_next(pktl, NULL);
-    av_packet_move_ref(pkt, GET_PKT(pktl));
-    av_freep(&pktl);
-    return 0;
-}
-
-void avpriv_packet_list_free(PacketList *pkt_buf)
-{
-    PacketListEntry *tmp = pkt_buf->head;
-
-    while (tmp) {
-        PacketListEntry *pktl = tmp;
-        tmp = NEXT_ENTRY(pktl);
-        ff_packet_list_entry_free(&pktl);
-    }
-    pkt_buf->head = pkt_buf->tail = NULL;
-}
-
 int ff_side_data_set_encoder_stats(AVPacket *pkt, int quality, int64_t *error, int error_count, int pict_type)
 {
     uint8_t *side_data;

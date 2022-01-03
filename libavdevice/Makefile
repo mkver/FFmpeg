@@ -54,7 +54,9 @@ OBJS-$(CONFIG_LIBCDIO_INDEV)             += libcdio.o
 OBJS-$(CONFIG_LIBDC1394_INDEV)           += libdc1394.o
 
 # Objects duplicated from other libraries for shared builds
-SHLIBOBJS-$(CONFIG_DECKLINK_INDEV)       += reverse.o
+SHLIBOBJS-$(CONFIG_DECKLINK_INDEV)       += packet_list.o reverse.o
+SHLIBOBJS-$(CONFIG_DSHOW_INDEV)          += packet_list.o
+SHLIBOBJS-$(CONFIG_VFWCAP_INDEV)         += packet_list.o
 
 # Windows resource file
 SLIBOBJS-$(HAVE_GNU_WINDRES)             += avdeviceres.o

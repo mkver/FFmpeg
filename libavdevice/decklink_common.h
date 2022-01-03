@@ -30,7 +30,7 @@
 #endif
 
 extern "C" {
-#include "libavcodec/packet_internal.h"
+#include "libavformat/packet_list.h"
 }
 #include "libavutil/thread.h"
 #include "decklink_common_c.h"

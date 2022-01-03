@@ -35,7 +35,7 @@ extern "C" {
 
 extern "C" {
 #include "config.h"
-#include "libavcodec/packet_internal.h"
+#include "libavformat/packet_list.h"
 #include "libavformat/avformat.h"
 #include "libavutil/avassert.h"
 #include "libavutil/avutil.h"
@@ -484,7 +484,7 @@ static void avpacket_queue_init(AVFormatContext *avctx, AVPacketQueue *q)
 static void avpacket_queue_flush(AVPacketQueue *q)
 {
     pthread_mutex_lock(&q->mutex);
-    avpriv_packet_list_free(&q->pkt_list);
+    ff_packet_list_free(&q->pkt_list);
     q->nb_packets = 0;
     q->size       = 0;
     pthread_mutex_unlock(&q->mutex);
@@ -549,7 +549,7 @@ static int avpacket_queue_get(AVPacketQueue *q, AVPacket *pkt, int block)
 
     for (;; ) {
         if (q->pkt_list.head) {
-            avpriv_packet_list_get(&q->pkt_list, pkt);
+            ff_packet_list_get(&q->pkt_list, pkt);
             q->nb_packets--;
             q->size -= pkt->size + sizeof(PacketListEntry);
             ret = 1;

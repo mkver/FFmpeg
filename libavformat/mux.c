@@ -21,9 +21,9 @@
 
 #include "avformat.h"
 #include "internal.h"
+#include "packet_list.h"
 #include "libavcodec/bsf.h"
 #include "libavcodec/internal.h"
-#include "libavcodec/packet_internal.h"
 #include "libavutil/opt.h"
 #include "libavutil/dict.h"
 #include "libavutil/pixdesc.h"
@@ -1014,7 +1014,7 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *pkt,
 
         if (sti->last_in_packet_buffer == pktl)
             sti->last_in_packet_buffer = NULL;
-        avpriv_packet_list_get(&si->packet_buffer, pkt);
+        ff_packet_list_get(&si->packet_buffer, pkt);
 
         return 1;
     } else {
