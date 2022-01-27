@@ -35,6 +35,7 @@
 #include "libavutil/thread.h"
 #include "mpegvideo.h"
 #include "h263.h"
+#include "h263enc.h"
 #include "internal.h"
 #include "mpeg4video.h"
 #include "msmpeg4.h"
