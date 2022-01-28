@@ -31,17 +31,14 @@
 
 #include <stdint.h>
 
-#include "mjpeg.h"
-#include "mjpegenc_common.h"
-#include "mpegvideo.h"
-#include "put_bits.h"
+#include "mpegvideoenc.h"
 
-int  ff_speedhq_encode_init(MpegEncContext *s);
-void ff_speedhq_encode_close(MpegEncContext *s);
-void ff_speedhq_encode_mb(MpegEncContext *s, int16_t block[12][64]);
+int  ff_speedhq_encode_init (MPVMainEncContext *m);
+void ff_speedhq_encode_close(MPVMainEncContext *m);
+void ff_speedhq_encode_mb(MPVEncContext *s, int16_t block[12][64]);
 
-void ff_speedhq_encode_picture_header(MpegEncContext *s);
-void ff_speedhq_end_slice(MpegEncContext *s);
+void ff_speedhq_encode_picture_header(MPVMainEncContext *m);
+void ff_speedhq_end_slice(MPVEncContext *s);
 
 int ff_speedhq_mb_y_order_to_mb(int mb_y_order, int mb_height, int *first_in_slice);
 

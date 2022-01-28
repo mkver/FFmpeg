@@ -28,11 +28,11 @@
 #define H263_GOB_HEIGHT(h) ((h) <= 400 ? 1 : (h) <= 800 ? 2 : 4)
 
 av_const int ff_h263_aspect_to_info(AVRational aspect);
-int16_t *ff_h263_pred_motion(MpegEncContext * s, int block, int dir,
+int16_t *ff_h263_pred_motion(MPVContext *s, int block, int dir,
                              int *px, int *py);
 void ff_h263_init_rl_inter(void);
-void ff_h263_update_motion_val(MpegEncContext * s);
-void ff_h263_loop_filter(MpegEncContext * s);
+void ff_h263_update_motion_val(MPVContext *s);
+void ff_h263_loop_filter(MPVContext *s);
 
 
 

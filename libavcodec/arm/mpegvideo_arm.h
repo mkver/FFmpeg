@@ -21,6 +21,6 @@
 
 #include "libavcodec/mpegvideo.h"
 
-void ff_mpv_common_init_armv5te(MpegEncContext *s);
+void ff_mpv_common_init_armv5te(MPVMainContext *s);
 
 #endif /* AVCODEC_ARM_MPEGVIDEO_ARM_H */

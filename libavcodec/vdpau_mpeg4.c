@@ -33,7 +33,7 @@ static int vdpau_mpeg4_start_frame(AVCodecContext *avctx,
                                    const uint8_t *buffer, uint32_t size)
 {
     Mpeg4DecContext *ctx = avctx->priv_data;
-    MpegEncContext * const s = &ctx->m;
+    MPVDecContext *const s = &ctx->m;
     Picture *pic             = s->current_picture_ptr;
     struct vdpau_picture_context *pic_ctx = pic->hwaccel_picture_private;
     VdpPictureInfoMPEG4Part2 *info = &pic_ctx->info.mpeg4;

@@ -104,7 +104,7 @@ static av_always_inline void vc1_v_overlap_filter(VC1Context *v, int16_t (*top_b
 
 void ff_vc1_i_overlap_filter(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int16_t (*topleft_blk)[64], (*top_blk)[64], (*left_blk)[64], (*cur_blk)[64];
     int block_count = CONFIG_GRAY && (s->avctx->flags & AV_CODEC_FLAG_GRAY) ? 4 : 6;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
@@ -160,7 +160,7 @@ void ff_vc1_i_overlap_filter(VC1Context *v)
 
 void ff_vc1_p_overlap_filter(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int16_t (*topleft_blk)[64], (*top_blk)[64], (*left_blk)[64], (*cur_blk)[64];
     int block_count = CONFIG_GRAY && (s->avctx->flags & AV_CODEC_FLAG_GRAY) ? 4 : 6;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
@@ -206,7 +206,7 @@ void ff_vc1_p_overlap_filter(VC1Context *v)
 static av_always_inline void vc1_i_h_loop_filter(VC1Context *v, uint8_t *dest,
                                                  uint32_t flags, int block_num)
 {
-    MpegEncContext *s  = &v->s;
+    MPVDecContext *const s  = &v->s;
     int pq = v->pq;
     uint8_t *dst;
 
@@ -239,7 +239,7 @@ static av_always_inline void vc1_i_v_loop_filter(VC1Context *v, uint8_t *dest,
                                                  uint32_t flags, uint8_t fieldtx,
                                                  int block_num)
 {
-    MpegEncContext *s  = &v->s;
+    MPVDecContext *const s  = &v->s;
     int pq = v->pq;
     uint8_t *dst;
 
@@ -270,7 +270,7 @@ static av_always_inline void vc1_i_v_loop_filter(VC1Context *v, uint8_t *dest,
 
 void ff_vc1_i_loop_filter(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int block_count = CONFIG_GRAY && (s->avctx->flags & AV_CODEC_FLAG_GRAY) ? 4 : 6;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
     uint8_t *dest, fieldtx;
@@ -364,7 +364,7 @@ static av_always_inline void vc1_p_h_loop_filter(VC1Context *v, uint8_t *dest, u
                                                  uint8_t *is_intra, int16_t (*mv)[2], uint8_t *mv_f,
                                                  int *ttblk, uint32_t flags, int block_num)
 {
-    MpegEncContext *s  = &v->s;
+    MPVDecContext *const s  = &v->s;
     int pq = v->pq;
     uint32_t left_cbp = cbp[0] >> (block_num * 4), right_cbp;
     uint8_t left_is_intra, right_is_intra;
@@ -417,7 +417,7 @@ static av_always_inline void vc1_p_v_loop_filter(VC1Context *v, uint8_t *dest, u
                                                  uint8_t *is_intra, int16_t (*mv)[2], uint8_t *mv_f,
                                                  int *ttblk, uint32_t flags, int block_num)
 {
-    MpegEncContext *s  = &v->s;
+    MPVDecContext *const s  = &v->s;
     int pq = v->pq;
     uint32_t top_cbp = cbp[0] >> (block_num * 4), bottom_cbp;
     uint8_t top_is_intra, bottom_is_intra;
@@ -469,7 +469,7 @@ static av_always_inline void vc1_p_v_loop_filter(VC1Context *v, uint8_t *dest, u
 
 void ff_vc1_p_loop_filter(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int block_count = CONFIG_GRAY && (s->avctx->flags & AV_CODEC_FLAG_GRAY) ? 4 : 6;
     uint8_t *dest;
     uint32_t *cbp;
@@ -802,7 +802,7 @@ void ff_vc1_p_loop_filter(VC1Context *v)
 static av_always_inline void vc1_p_h_intfr_loop_filter(VC1Context *v, uint8_t *dest, int *ttblk,
                                                        uint32_t flags, uint8_t fieldtx, int block_num)
 {
-    MpegEncContext *s  = &v->s;
+    MPVDecContext *const s  = &v->s;
     int pq = v->pq;
     int tt;
     int linesize  = block_num > 3 ? s->uvlinesize : s->linesize;
@@ -852,7 +852,7 @@ static av_always_inline void vc1_p_h_intfr_loop_filter(VC1Context *v, uint8_t *d
 static av_always_inline void vc1_p_v_intfr_loop_filter(VC1Context *v, uint8_t *dest, int *ttblk,
                                                        uint32_t flags, uint8_t fieldtx, int block_num)
 {
-    MpegEncContext *s  = &v->s;
+    MPVDecContext *const s  = &v->s;
     int pq = v->pq;
     int tt;
     int linesize  = block_num > 3 ? s->uvlinesize : s->linesize;
@@ -908,7 +908,7 @@ static av_always_inline void vc1_p_v_intfr_loop_filter(VC1Context *v, uint8_t *d
 
 void ff_vc1_p_intfr_loop_filter(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int block_count = CONFIG_GRAY && (s->avctx->flags & AV_CODEC_FLAG_GRAY) ? 4 : 6;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
     uint8_t *dest;
@@ -1112,7 +1112,7 @@ void ff_vc1_p_intfr_loop_filter(VC1Context *v)
 static av_always_inline void vc1_b_h_intfi_loop_filter(VC1Context *v, uint8_t *dest, uint32_t *cbp,
                                                        int *ttblk, uint32_t flags, int block_num)
 {
-    MpegEncContext *s  = &v->s;
+    MPVDecContext *const s  = &v->s;
     int pq = v->pq;
     uint8_t *dst;
     uint32_t block_cbp = cbp[0] >> (block_num * 4);
@@ -1144,7 +1144,7 @@ static av_always_inline void vc1_b_h_intfi_loop_filter(VC1Context *v, uint8_t *d
 static av_always_inline void vc1_b_v_intfi_loop_filter(VC1Context *v, uint8_t *dest, uint32_t *cbp,
                                                        int *ttblk, uint32_t flags, int block_num)
 {
-    MpegEncContext *s  = &v->s;
+    MPVDecContext *const s  = &v->s;
     int pq = v->pq;
     uint8_t *dst;
     uint32_t block_cbp = cbp[0] >> (block_num * 4);
@@ -1171,7 +1171,7 @@ static av_always_inline void vc1_b_v_intfi_loop_filter(VC1Context *v, uint8_t *d
 
 void ff_vc1_b_intfi_loop_filter(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int block_count = CONFIG_GRAY && (s->avctx->flags & AV_CODEC_FLAG_GRAY) ? 4 : 6;
     uint8_t *dest;
     uint32_t *cbp;

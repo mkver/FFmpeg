@@ -40,7 +40,7 @@ static void fill_picture_parameters(AVCodecContext *avctx,
                                     AVDXVAContext *ctx, const VC1Context *v,
                                     DXVA_PictureParameters *pp)
 {
-    const MpegEncContext *s = &v->s;
+    const MPVDecContext *const s = &v->s;
     const Picture *current_picture = s->current_picture_ptr;
     int intcomp = 0;
 
@@ -163,7 +163,7 @@ static void fill_slice(AVCodecContext *avctx, DXVA_SliceInfo *slice,
                        unsigned position, unsigned size)
 {
     const VC1Context *v = avctx->priv_data;
-    const MpegEncContext *s = &v->s;
+    const MPVDecContext *const s = &v->s;
 
     memset(slice, 0, sizeof(*slice));
     slice->wHorizontalPosition = 0;
@@ -185,7 +185,7 @@ static int commit_bitstream_and_slice_buffer(AVCodecContext *avctx,
 {
     const VC1Context *v = avctx->priv_data;
     AVDXVAContext *ctx = DXVA_CONTEXT(avctx);
-    const MpegEncContext *s = &v->s;
+    const MPVDecContext *const s = &v->s;
     struct dxva2_picture_context *ctx_pic = s->current_picture_ptr->hwaccel_picture_private;
 
     static const uint8_t start_code[] = { 0, 0, 1, 0x0d };

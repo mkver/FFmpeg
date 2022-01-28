@@ -28,7 +28,7 @@
 
 static int nvdec_mpeg12_start_frame(AVCodecContext *avctx, const uint8_t *buffer, uint32_t size)
 {
-    MpegEncContext *s = avctx->priv_data;
+    MPVDecContext *const s = avctx->priv_data;
 
     NVDECContext      *ctx = avctx->internal->hwaccel_priv_data;
     CUVIDPICPARAMS     *pp = &ctx->pic_params;

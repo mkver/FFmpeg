@@ -34,7 +34,7 @@
 #include "wmv2data.h"
 
 typedef struct WMV2DecContext {
-    MpegEncContext s;
+    MPVMainDecContext s;
     WMV2Context common;
     IntraX8Context x8;
     int j_type_bit;
@@ -57,7 +57,7 @@ typedef struct WMV2DecContext {
 static void wmv2_add_block(WMV2DecContext *w, int16_t *block1,
                            uint8_t *dst, int stride, int n)
 {
-    MpegEncContext *const s = &w->s;
+    MPVDecContext *const s = &w->s;
 
     if (s->block_last_index[n] >= 0) {
         switch (w->abt_type_table[n]) {
@@ -80,7 +80,7 @@ static void wmv2_add_block(WMV2DecContext *w, int16_t *block1,
     }
 }
 
-void ff_wmv2_add_mb(MpegEncContext *s, int16_t block1[6][64],
+void ff_wmv2_add_mb(MPVDecContext *s, int16_t block1[6][64],
                     uint8_t *dest_y, uint8_t *dest_cb, uint8_t *dest_cr)
 {
     WMV2DecContext *const w = (WMV2DecContext *) s;
@@ -101,7 +101,7 @@ static int parse_mb_skip(WMV2DecContext *w)
 {
     int mb_x, mb_y;
     int coded_mb_count = 0;
-    MpegEncContext *const s = &w->s;
+    MPVDecContext *const s = &w->s;
     uint32_t *const mb_type = s->current_picture_ptr->mb_type;
 
     w->skip_type = get_bits(&s->gb, 2);
@@ -164,7 +164,7 @@ static int parse_mb_skip(WMV2DecContext *w)
 
 static int decode_ext_header(WMV2DecContext *w)
 {
-    MpegEncContext *const s = &w->s;
+    MPVDecContext *const s = &w->s;
     GetBitContext gb;
     int fps;
     int code;
@@ -200,7 +200,7 @@ static int decode_ext_header(WMV2DecContext *w)
     return 0;
 }
 
-int ff_wmv2_decode_picture_header(MpegEncContext *s)
+int ff_wmv2_decode_picture_header(MPVMainDecContext *s)
 {
     WMV2DecContext *const w = (WMV2DecContext *) s;
     int code;
@@ -235,7 +235,7 @@ int ff_wmv2_decode_picture_header(MpegEncContext *s)
     return 0;
 }
 
-int ff_wmv2_decode_secondary_picture_header(MpegEncContext *s)
+int ff_wmv2_decode_secondary_picture_header(MPVMainDecContext *s)
 {
     WMV2DecContext *const w = (WMV2DecContext *) s;
 
@@ -347,7 +347,7 @@ int ff_wmv2_decode_secondary_picture_header(MpegEncContext *s)
 
 static inline void wmv2_decode_motion(WMV2DecContext *w, int *mx_ptr, int *my_ptr)
 {
-    MpegEncContext *const s = &w->s;
+    MPVDecContext *const s = &w->s;
 
     ff_msmpeg4_decode_motion(s, mx_ptr, my_ptr);
 
@@ -359,7 +359,7 @@ static inline void wmv2_decode_motion(WMV2DecContext *w, int *mx_ptr, int *my_pt
 
 static int16_t *wmv2_pred_motion(WMV2DecContext *w, int *px, int *py)
 {
-    MpegEncContext *const s = &w->s;
+    MPVDecContext *const s = &w->s;
     int xy, wrap, diff, type;
     int16_t *A, *B, *C, *mot_val;
 
@@ -405,7 +405,7 @@ static int16_t *wmv2_pred_motion(WMV2DecContext *w, int *px, int *py)
 static inline int wmv2_decode_inter_block(WMV2DecContext *w, int16_t *block,
                                           int n, int cbp)
 {
-    MpegEncContext *const s = &w->s;
+    MPVDecContext *const s = &w->s;
     static const int sub_cbp_table[3] = { 2, 3, 1 };
     int sub_cbp, ret;
 
@@ -442,7 +442,7 @@ static inline int wmv2_decode_inter_block(WMV2DecContext *w, int16_t *block,
     }
 }
 
-int ff_wmv2_decode_mb(MpegEncContext *s, int16_t block[6][64])
+int ff_wmv2_decode_mb(MPVDecContext *s, int16_t block[6][64])
 {
     /* The following is only allowed because this encoder
      * does not use slice threading. */
@@ -562,7 +562,7 @@ int ff_wmv2_decode_mb(MpegEncContext *s, int16_t block[6][64])
 static av_cold int wmv2_decode_init(AVCodecContext *avctx)
 {
     WMV2DecContext *const w = avctx->priv_data;
-    MpegEncContext *const s = &w->s;
+    MPVMainDecContext *const s = &w->s;
     int ret;
 
     s->private_ctx = &w->common;

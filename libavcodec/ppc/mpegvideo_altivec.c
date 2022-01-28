@@ -38,7 +38,7 @@
 
 /* AltiVec version of dct_unquantize_h263
    this code assumes `block' is 16 bytes-aligned */
-static void dct_unquantize_h263_altivec(MpegEncContext *s,
+static void dct_unquantize_h263_altivec(MPVContext *s,
                                  int16_t *block, int n, int qscale)
 {
     int i, level, qmul, qadd;
@@ -116,7 +116,7 @@ static void dct_unquantize_h263_altivec(MpegEncContext *s,
 
 #endif /* HAVE_ALTIVEC */
 
-av_cold void ff_mpv_common_init_ppc(MpegEncContext *s)
+av_cold void ff_mpv_common_init_ppc(MPVMainContext *s)
 {
 #if HAVE_ALTIVEC
     if (!PPC_ALTIVEC(av_get_cpu_flags()))

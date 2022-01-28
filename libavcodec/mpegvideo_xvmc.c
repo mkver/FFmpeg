@@ -34,13 +34,13 @@
 #include "version.h"
 
 /**
- * Initialize the block field of the MpegEncContext pointer passed as
+ * Initialize the block field of the MPVDecContext pointer passed as
  * parameter after making sure that the data is not corrupted.
  * In order to implement something like direct rendering instead of decoding
  * coefficients in s->blocks and then copying them, copy them directly
  * into the data_blocks array provided by xvmc.
  */
-void ff_xvmc_init_block(MpegEncContext *s)
+void ff_xvmc_init_block(MPVDecContext *s)
 {
     struct xvmc_pix_fmt *render = (struct xvmc_pix_fmt*)s->current_picture.f->data[2];
     assert(render && render->xvmc_id == AV_XVMC_ID);
@@ -48,7 +48,7 @@ void ff_xvmc_init_block(MpegEncContext *s)
     s->block = (int16_t (*)[64])(render->data_blocks + render->next_free_data_block_num * 64);
 }
 
-static void exchange_uv(MpegEncContext *s)
+static void exchange_uv(MPVDecContext *s)
 {
     int16_t (*tmp)[64];
 
@@ -61,7 +61,7 @@ static void exchange_uv(MpegEncContext *s)
  * Fill individual block pointers, so there are no gaps in the data_block array
  * in case not all blocks in the macroblock are coded.
  */
-void ff_xvmc_pack_pblocks(MpegEncContext *s, int cbp)
+void ff_xvmc_pack_pblocks(MPVDecContext *s, int cbp)
 {
     int i, j = 0;
     const int mb_block_count = 4 + (1 << s->chroma_format);
@@ -86,7 +86,7 @@ void ff_xvmc_pack_pblocks(MpegEncContext *s, int cbp)
  */
 static int ff_xvmc_field_start(AVCodecContext *avctx, const uint8_t *buf, uint32_t buf_size)
 {
-    struct MpegEncContext *s = avctx->priv_data;
+    MPVDecContext *const s = avctx->priv_data;
     struct xvmc_pix_fmt *last, *next, *render = (struct xvmc_pix_fmt*)s->current_picture.f->data[2];
     const int mb_block_count = 4 + (1 << s->chroma_format);
 
@@ -155,7 +155,7 @@ return -1;
  */
 static int ff_xvmc_field_end(AVCodecContext *avctx)
 {
-    struct MpegEncContext *s = avctx->priv_data;
+    MPVDecContext *const s = avctx->priv_data;
     struct xvmc_pix_fmt *render = (struct xvmc_pix_fmt*)s->current_picture.f->data[2];
     assert(render);
 
@@ -170,7 +170,7 @@ static int ff_xvmc_field_end(AVCodecContext *avctx)
  */
 static void ff_xvmc_decode_mb(void *opaque)
 {
-    MpegEncContext *const s = opaque;
+    MPVDecContext *const s = opaque;
     XvMCMacroBlock *mv_block;
     struct xvmc_pix_fmt *render;
     int i, cbp, blocks_per_mb;

@@ -41,17 +41,17 @@
 extern VLC ff_mb_non_intra_vlc[4];
 extern VLC ff_inter_intra_vlc;
 
-void ff_msmpeg4_common_init(MpegEncContext *s);
-int ff_msmpeg4_coded_block_pred(MpegEncContext * s, int n,
+void ff_msmpeg4_common_init(MPVMainContext *m);
+int ff_msmpeg4_coded_block_pred(MPVContext *s, int n,
                                 uint8_t **coded_block_ptr);
 
 int ff_msmpeg4_decode_init(AVCodecContext *avctx);
-int ff_msmpeg4_decode_picture_header(MpegEncContext *s);
-int ff_msmpeg4_decode_ext_header(MpegEncContext *s, int buf_size);
-void ff_msmpeg4_decode_motion(MpegEncContext * s, int *mx_ptr, int *my_ptr);
-int ff_msmpeg4_decode_block(MpegEncContext * s, int16_t * block,
+int ff_msmpeg4_decode_picture_header(MPVMainDecContext *m);
+int ff_msmpeg4_decode_ext_header(MPVMainDecContext *m, int buf_size);
+void ff_msmpeg4_decode_motion(MPVDecContext *s, int *mx_ptr, int *my_ptr);
+int ff_msmpeg4_decode_block(MPVDecContext *s, int16_t *block,
                             int n, int coded, const uint8_t *scan_table);
-int ff_msmpeg4_pred_dc(MpegEncContext *s, int n,
+int ff_msmpeg4_pred_dc(MPVContext *s, int n,
                        int16_t **dc_val_ptr, int *dir_ptr);
 
 

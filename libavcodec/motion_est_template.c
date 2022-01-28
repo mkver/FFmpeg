@@ -47,7 +47,7 @@
     COPY3_IF_LT(dmin, d, bx, hx, by, hy)\
 }
 
-static int hpel_motion_search(MpegEncContext * s,
+static int hpel_motion_search(MPVEncContext *s,
                                   int *mx_ptr, int *my_ptr, int dmin,
                                   int src_index, int ref_index,
                                   int size, int h)
@@ -152,7 +152,7 @@ static int hpel_motion_search(MpegEncContext * s,
     return dmin;
 }
 
-static int no_sub_motion_search(MpegEncContext * s,
+static int no_sub_motion_search(MPVEncContext *s,
           int *mx_ptr, int *my_ptr, int dmin,
                                   int src_index, int ref_index,
                                   int size, int h)
@@ -162,7 +162,7 @@ static int no_sub_motion_search(MpegEncContext * s,
     return dmin;
 }
 
-static inline int get_mb_score(MpegEncContext *s, int mx, int my,
+static inline int get_mb_score(MPVEncContext *s, int mx, int my,
                                int src_index, int ref_index, int size,
                                int h, int add_rate)
 {
@@ -189,7 +189,7 @@ static inline int get_mb_score(MpegEncContext *s, int mx, int my,
     return d;
 }
 
-int ff_get_mb_score(MpegEncContext *s, int mx, int my, int src_index,
+int ff_get_mb_score(MPVEncContext *s, int mx, int my, int src_index,
                     int ref_index, int size, int h, int add_rate)
 {
     return get_mb_score(s, mx, my, src_index, ref_index, size, h, add_rate);
@@ -204,7 +204,7 @@ int ff_get_mb_score(MpegEncContext *s, int mx, int my, int src_index,
     COPY3_IF_LT(dmin, d, bx, hx, by, hy)\
 }
 
-static int qpel_motion_search(MpegEncContext * s,
+static int qpel_motion_search(MPVEncContext *s,
                                   int *mx_ptr, int *my_ptr, int dmin,
                                   int src_index, int ref_index,
                                   int size, int h)
@@ -413,7 +413,7 @@ if( (y)>(ymax<<(S)) ) av_log(NULL, AV_LOG_ERROR, "%d %d %d %d %d ymax" #v, ymax,
     const int qpel= flags&FLAG_QPEL;\
     const int shift= 1+qpel;\
 
-static av_always_inline int small_diamond_search(MpegEncContext * s, int *best, int dmin,
+static av_always_inline int small_diamond_search(MPVEncContext *s, int *best, int dmin,
                                        int src_index, int ref_index, const int penalty_factor,
                                        int size, int h, int flags)
 {
@@ -454,7 +454,7 @@ static av_always_inline int small_diamond_search(MpegEncContext * s, int *best, 
     }
 }
 
-static int funny_diamond_search(MpegEncContext * s, int *best, int dmin,
+static int funny_diamond_search(MPVEncContext *s, int *best, int dmin,
                                        int src_index, int ref_index, const int penalty_factor,
                                        int size, int h, int flags)
 {
@@ -496,7 +496,7 @@ static int funny_diamond_search(MpegEncContext * s, int *best, int dmin,
     return dmin;
 }
 
-static int hex_search(MpegEncContext * s, int *best, int dmin,
+static int hex_search(MPVEncContext *s, int *best, int dmin,
                                        int src_index, int ref_index, const int penalty_factor,
                                        int size, int h, int flags, int dia_size)
 {
@@ -530,7 +530,7 @@ static int hex_search(MpegEncContext * s, int *best, int dmin,
     return dmin;
 }
 
-static int l2s_dia_search(MpegEncContext * s, int *best, int dmin,
+static int l2s_dia_search(MPVEncContext *s, int *best, int dmin,
                                        int src_index, int ref_index, const int penalty_factor,
                                        int size, int h, int flags)
 {
@@ -568,7 +568,7 @@ static int l2s_dia_search(MpegEncContext * s, int *best, int dmin,
     return dmin;
 }
 
-static int umh_search(MpegEncContext * s, int *best, int dmin,
+static int umh_search(MPVEncContext *s, int *best, int dmin,
                                        int src_index, int ref_index, const int penalty_factor,
                                        int size, int h, int flags)
 {
@@ -615,7 +615,7 @@ static int umh_search(MpegEncContext * s, int *best, int dmin,
     return hex_search(s, best, dmin, src_index, ref_index, penalty_factor, size, h, flags, 2);
 }
 
-static int full_search(MpegEncContext * s, int *best, int dmin,
+static int full_search(MPVEncContext *s, int *best, int dmin,
                                        int src_index, int ref_index, const int penalty_factor,
                                        int size, int h, int flags)
 {
@@ -678,7 +678,7 @@ static int full_search(MpegEncContext * s, int *best, int dmin,
 }
 
 #define MAX_SAB_SIZE ME_MAP_SIZE
-static int sab_diamond_search(MpegEncContext * s, int *best, int dmin,
+static int sab_diamond_search(MPVEncContext *s, int *best, int dmin,
                                        int src_index, int ref_index, const int penalty_factor,
                                        int size, int h, int flags)
 {
@@ -768,7 +768,7 @@ static int sab_diamond_search(MpegEncContext * s, int *best, int dmin,
     return dmin;
 }
 
-static int var_diamond_search(MpegEncContext * s, int *best, int dmin,
+static int var_diamond_search(MPVEncContext *s, int *best, int dmin,
                                        int src_index, int ref_index, const int penalty_factor,
                                        int size, int h, int flags)
 {
@@ -829,7 +829,7 @@ static int var_diamond_search(MpegEncContext * s, int *best, int dmin,
     return dmin;
 }
 
-static av_always_inline int diamond_search(MpegEncContext * s, int *best, int dmin,
+static av_always_inline int diamond_search(MPVEncContext *s, int *best, int dmin,
                                        int src_index, int ref_index, const int penalty_factor,
                                        int size, int h, int flags){
     MotionEstContext * const c= &s->me;
@@ -857,7 +857,7 @@ static av_always_inline int diamond_search(MpegEncContext * s, int *best, int dm
    it takes fewer iterations. And it increases the chance that we find the
    optimal mv.
  */
-static av_always_inline int epzs_motion_search_internal(MpegEncContext * s, int *mx_ptr, int *my_ptr,
+static av_always_inline int epzs_motion_search_internal(MPVEncContext *s, int *mx_ptr, int *my_ptr,
                              int P[10][2], int src_index, int ref_index, int16_t (*last_mv)[2],
                              int ref_mv_scale, int flags, int size, int h)
 {
@@ -974,7 +974,7 @@ static av_always_inline int epzs_motion_search_internal(MpegEncContext * s, int 
 }
 
 //this function is dedicated to the brain damaged gcc
-int ff_epzs_motion_search(MpegEncContext *s, int *mx_ptr, int *my_ptr,
+int ff_epzs_motion_search(MPVEncContext *s, int *mx_ptr, int *my_ptr,
                           int P[10][2], int src_index, int ref_index,
                           int16_t (*last_mv)[2], int ref_mv_scale,
                           int size, int h)
@@ -990,7 +990,7 @@ int ff_epzs_motion_search(MpegEncContext *s, int *mx_ptr, int *my_ptr,
     }
 }
 
-static int epzs_motion_search2(MpegEncContext * s,
+static int epzs_motion_search2(MPVEncContext *s,
                              int *mx_ptr, int *my_ptr, int P[10][2],
                              int src_index, int ref_index, int16_t (*last_mv)[2],
                              int ref_mv_scale, const int size)

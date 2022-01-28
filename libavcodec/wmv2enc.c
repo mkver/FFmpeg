@@ -20,7 +20,6 @@
 
 #include "avcodec.h"
 #include "h263.h"
-#include "mpegvideo.h"
 #include "mpegvideoenc.h"
 #include "msmpeg4.h"
 #include "msmpeg4enc.h"
@@ -43,7 +42,7 @@ typedef struct WMV2EncContext {
 
 static int encode_ext_header(WMV2EncContext *w)
 {
-    MpegEncContext *const s = &w->msmpeg4.s;
+    MPVMainEncContext *const s = &w->msmpeg4.s;
     PutBitContext pb;
     int code;
 
@@ -70,7 +69,7 @@ static int encode_ext_header(WMV2EncContext *w)
 static av_cold int wmv2_encode_init(AVCodecContext *avctx)
 {
     WMV2EncContext *const w = avctx->priv_data;
-    MpegEncContext *const s = &w->msmpeg4.s;
+    MPVMainEncContext *const s = &w->msmpeg4.s;
 
     s->private_ctx = &w->common;
     if (ff_mpv_encode_init(avctx) < 0)
@@ -88,7 +87,7 @@ static av_cold int wmv2_encode_init(AVCodecContext *avctx)
     return 0;
 }
 
-int ff_wmv2_encode_picture_header(MpegEncContext *s, int picture_number)
+int ff_wmv2_encode_picture_header(MPVMainEncContext *s, int picture_number)
 {
     WMV2EncContext *const w = (WMV2EncContext *) s;
 
@@ -161,7 +160,7 @@ int ff_wmv2_encode_picture_header(MpegEncContext *s, int picture_number)
 /* Nearly identical to wmv1 but that is just because we do not use the
  * useless M$ crap features. It is duplicated here in case someone wants
  * to add support for these crap features. */
-void ff_wmv2_encode_mb(MpegEncContext *s, int16_t block[6][64],
+void ff_wmv2_encode_mb(MPVEncContext *s, int16_t block[6][64],
                        int motion_x, int motion_y)
 {
     WMV2EncContext *const w = (WMV2EncContext *) s;

@@ -26,7 +26,7 @@
 #include "mpegvideodata.h"
 
 /* don't understand why they choose a different header ! */
-int ff_intel_h263_decode_picture_header(MpegEncContext *s)
+int ff_intel_h263_decode_picture_header(MPVMainDecContext *s)
 {
     int format;
 
@@ -134,7 +134,7 @@ const AVCodec ff_h263i_decoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("Intel H.263"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_H263I,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainDecContext),
     .init           = ff_h263_decode_init,
     .close          = ff_h263_decode_end,
     .decode         = ff_h263_decode_frame,

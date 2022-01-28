@@ -55,7 +55,7 @@ static enum AVPixelFormat h263_get_format(AVCodecContext *avctx)
 {
     /* MPEG-4 Studio Profile only, not supported by hardware */
     if (avctx->bits_per_raw_sample > 8) {
-        av_assert1(((MpegEncContext *)avctx->priv_data)->studio_profile);
+        av_assert1(((MPVDecContext *)avctx->priv_data)->studio_profile);
         return avctx->pix_fmt;
     }
 
@@ -73,7 +73,7 @@ static enum AVPixelFormat h263_get_format(AVCodecContext *avctx)
 
 av_cold int ff_h263_decode_init(AVCodecContext *avctx)
 {
-    MpegEncContext *s = avctx->priv_data;
+    MPVMainDecContext *const s = avctx->priv_data;
     int ret;
 
     s->out_format      = FMT_H263;
@@ -156,7 +156,7 @@ av_cold int ff_h263_decode_init(AVCodecContext *avctx)
 
 av_cold int ff_h263_decode_end(AVCodecContext *avctx)
 {
-    MpegEncContext *s = avctx->priv_data;
+    MPVMainDecContext *const s = avctx->priv_data;
 
     ff_mpv_common_end(s);
     return 0;
@@ -165,7 +165,7 @@ av_cold int ff_h263_decode_end(AVCodecContext *avctx)
 /**
  * Return the number of bytes consumed for building the current frame.
  */
-static int get_consumed_bytes(MpegEncContext *s, int buf_size)
+static int get_consumed_bytes(MPVMainDecContext *s, int buf_size)
 {
     int pos = (get_bits_count(&s->gb) + 7) >> 3;
 
@@ -193,7 +193,7 @@ static int get_consumed_bytes(MpegEncContext *s, int buf_size)
     }
 }
 
-static int decode_slice(MpegEncContext *s)
+static int decode_slice(MPVMainDecContext *s)
 {
     const int part_mask = s->partitioned_frame
                           ? (ER_AC_END | ER_AC_ERROR) : 0x7F;
@@ -425,9 +425,9 @@ static int decode_slice(MpegEncContext *s)
 int ff_h263_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
                          AVPacket *avpkt)
 {
+    MPVMainDecContext *const s  = avctx->priv_data;
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;
-    MpegEncContext *s  = avctx->priv_data;
     int ret;
     int slice_ret = 0;
     AVFrame *pict = data;
@@ -763,7 +763,7 @@ const AVCodec ff_h263_decoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("H.263 / H.263-1996, H.263+ / H.263-1998 / H.263 version 2"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_H263,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainDecContext),
     .init           = ff_h263_decode_init,
     .close          = ff_h263_decode_end,
     .decode         = ff_h263_decode_frame,
@@ -784,7 +784,7 @@ const AVCodec ff_h263p_decoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("H.263 / H.263-1996, H.263+ / H.263-1998 / H.263 version 2"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_H263P,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainDecContext),
     .init           = ff_h263_decode_init,
     .close          = ff_h263_decode_end,
     .decode         = ff_h263_decode_frame,

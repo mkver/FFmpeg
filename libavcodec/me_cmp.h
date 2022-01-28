@@ -39,13 +39,14 @@ extern const uint32_t ff_square_tab[512];
  * !future video codecs might need functions with less strict alignment
  */
 
-struct MpegEncContext;
+#define MPVEncContext MPVContext
+struct MPVEncContext;
 /* Motion estimation:
  * h is limited to { width / 2, width, 2 * width },
  * but never larger than 16 and never smaller than 2.
  * Although currently h < 4 is not used as functions with
  * width < 8 are neither used nor implemented. */
-typedef int (*me_cmp_func)(struct MpegEncContext *c,
+typedef int (*me_cmp_func)(struct MPVEncContext *c,
                            uint8_t *blk1 /* align width (8 or 16) */,
                            uint8_t *blk2 /* align 1 */, ptrdiff_t stride,
                            int h);
@@ -89,5 +90,6 @@ void ff_me_cmp_init_mips(MECmpContext *c, AVCodecContext *avctx);
 void ff_set_cmp(MECmpContext *c, me_cmp_func *cmp, int type);
 
 void ff_dsputil_init_dwt(MECmpContext *c);
+#undef MPVEncContext
 
 #endif /* AVCODEC_ME_CMP_H */

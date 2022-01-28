@@ -68,7 +68,7 @@ static const int mb_type_b_map[4] = {
     MB_TYPE_L0      | MB_TYPE_16x16,
 };
 
-void ff_mpeg4_decode_studio(MpegEncContext *s, uint8_t *dest_y, uint8_t *dest_cb,
+void ff_mpeg4_decode_studio(MPVContext *s, uint8_t *dest_y, uint8_t *dest_cb,
                             uint8_t *dest_cr, int block_size, int uvlinesize,
                             int dct_linesize, int dct_offset)
 {
@@ -136,7 +136,7 @@ void ff_mpeg4_decode_studio(MpegEncContext *s, uint8_t *dest_y, uint8_t *dest_cb
  * @param n block index (0-3 are luma, 4-5 are chroma)
  * @param dir the ac prediction direction
  */
-void ff_mpeg4_pred_ac(MpegEncContext *s, int16_t *block, int n, int dir)
+void ff_mpeg4_pred_ac(MPVDecContext *s, int16_t *block, int n, int dir)
 {
     int i;
     int16_t *ac_val, *ac_val1;
@@ -193,7 +193,7 @@ void ff_mpeg4_pred_ac(MpegEncContext *s, int16_t *block, int n, int dir)
  */
 static inline int mpeg4_is_resync(Mpeg4DecContext *ctx)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVDecContext *const s = &ctx->m;
     int bits_count = get_bits_count(&s->gb);
     int v          = show_bits(&s->gb, 16);
 
@@ -243,7 +243,7 @@ static inline int mpeg4_is_resync(Mpeg4DecContext *ctx)
 
 static int mpeg4_decode_sprite_trajectory(Mpeg4DecContext *ctx, GetBitContext *gb)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVDecContext *const s = &ctx->m;
     int a     = 2 << s->sprite_warping_accuracy;
     int rho   = 3  - s->sprite_warping_accuracy;
     int r     = 16 / a;
@@ -495,7 +495,7 @@ overflow:
 }
 
 static int decode_new_pred(Mpeg4DecContext *ctx, GetBitContext *gb) {
-    MpegEncContext *s = &ctx->m;
+    MPVDecContext *const s = &ctx->m;
     int len = FFMIN(ctx->time_increment_bits + 3, 15);
 
     get_bits(gb, len);
@@ -512,7 +512,7 @@ static int decode_new_pred(Mpeg4DecContext *ctx, GetBitContext *gb) {
  */
 int ff_mpeg4_decode_video_packet_header(Mpeg4DecContext *ctx)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
 
     int mb_num_bits      = av_log2(s->mb_num - 1) + 1;
     int header_extension = 0, mb_num, len;
@@ -599,7 +599,7 @@ int ff_mpeg4_decode_video_packet_header(Mpeg4DecContext *ctx)
     return 0;
 }
 
-static void reset_studio_dc_predictors(MpegEncContext *s)
+static void reset_studio_dc_predictors(MPVDecContext *s)
 {
     /* Reset DC Predictors */
     s->last_dc[0] =
@@ -613,7 +613,7 @@ static void reset_studio_dc_predictors(MpegEncContext *s)
  */
 int ff_mpeg4_decode_studio_slice_header(Mpeg4DecContext *ctx)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
     GetBitContext *gb = &s->gb;
     unsigned vlc_len;
     uint16_t mb_num;
@@ -655,7 +655,7 @@ int ff_mpeg4_decode_studio_slice_header(Mpeg4DecContext *ctx)
  */
 static inline int get_amv(Mpeg4DecContext *ctx, int n)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVDecContext *const s = &ctx->m;
     int x, y, mb_v, sum, dx, dy, shift;
     int len     = 1 << (s->f_code + 4);
     const int a = s->sprite_warping_accuracy;
@@ -706,7 +706,7 @@ static inline int get_amv(Mpeg4DecContext *ctx, int n)
  * @param dir_ptr the prediction direction will be stored here
  * @return the quantized dc
  */
-static inline int mpeg4_decode_dc(MpegEncContext *s, int n, int *dir_ptr)
+static inline int mpeg4_decode_dc(MPVDecContext *s, int n, int *dir_ptr)
 {
     int level, code;
 
@@ -755,7 +755,7 @@ static inline int mpeg4_decode_dc(MpegEncContext *s, int n, int *dir_ptr)
  */
 static int mpeg4_decode_partition_a(Mpeg4DecContext *ctx)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
     int mb_num = 0;
     static const int8_t quant_tab[4] = { -1, -2, 1, 2 };
 
@@ -947,7 +947,7 @@ try_again:
  * decode second partition.
  * @return <0 if an error occurred
  */
-static int mpeg4_decode_partition_b(MpegEncContext *s, int mb_count)
+static int mpeg4_decode_partition_b(MPVMainDecContext *s, int mb_count)
 {
     int mb_num = 0;
     static const int8_t quant_tab[4] = { -1, -2, 1, 2 };
@@ -1042,7 +1042,7 @@ static int mpeg4_decode_partition_b(MpegEncContext *s, int mb_count)
  */
 int ff_mpeg4_decode_partitions(Mpeg4DecContext *ctx)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
     int mb_num;
     int ret;
     const int part_a_error = s->pict_type == AV_PICTURE_TYPE_I ? (ER_DC_ERROR | ER_MV_ERROR) : ER_MV_ERROR;
@@ -1109,7 +1109,7 @@ static inline int mpeg4_decode_block(Mpeg4DecContext *ctx, int16_t *block,
                                      int n, int coded, int intra,
                                      int use_intra_dc_vlc, int rvlc)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVDecContext *const s = &ctx->m;
     int level, i, last, run, qmul, qadd;
     int av_uninit(dc_pred_dir);
     RLTable *rl;
@@ -1377,7 +1377,7 @@ not_coded:
  * decode partition C of one MB.
  * @return <0 if an error occurred
  */
-static int mpeg4_decode_partitioned_mb(MpegEncContext *s, int16_t block[6][64])
+static int mpeg4_decode_partitioned_mb(MPVDecContext *s, int16_t block[6][64])
 {
     Mpeg4DecContext *ctx = s->avctx->priv_data;
     int cbp, mb_type, use_intra_dc_vlc;
@@ -1465,7 +1465,7 @@ static int mpeg4_decode_partitioned_mb(MpegEncContext *s, int16_t block[6][64])
     }
 }
 
-static int mpeg4_decode_mb(MpegEncContext *s, int16_t block[6][64])
+static int mpeg4_decode_mb(MPVDecContext *s, int16_t block[6][64])
 {
     Mpeg4DecContext *ctx = s->avctx->priv_data;
     int cbpc, cbpy, i, cbp, pred_x, pred_y, mx, my, dquant;
@@ -1885,7 +1885,7 @@ static const uint8_t ac_state_tab[22][2] =
     {0, 11}
 };
 
-static int mpeg4_decode_studio_block(MpegEncContext *s, int32_t block[64], int n)
+static int mpeg4_decode_studio_block(MPVDecContext *s, int32_t block[64], int n)
 {
     Mpeg4DecContext *ctx = s->avctx->priv_data;
 
@@ -2000,7 +2000,7 @@ static int mpeg4_decode_studio_block(MpegEncContext *s, int32_t block[64], int n
     return 0;
 }
 
-static int mpeg4_decode_dpcm_macroblock(MpegEncContext *s, int16_t macroblock[256], int n)
+static int mpeg4_decode_dpcm_macroblock(MPVDecContext *s, int16_t macroblock[256], int n)
 {
     int i, j, w, h, idx = 0;
     int block_mean, rice_parameter, rice_prefix_code, rice_suffix_code,
@@ -2083,7 +2083,7 @@ static int mpeg4_decode_dpcm_macroblock(MpegEncContext *s, int16_t macroblock[25
     return 0;
 }
 
-static int mpeg4_decode_studio_mb(MpegEncContext *s, int16_t block_[12][64])
+static int mpeg4_decode_studio_mb(MPVDecContext *s, int16_t block_[12][64])
 {
     Mpeg4DecContext *const ctx = (Mpeg4DecContext*)s;
     int i;
@@ -2131,7 +2131,7 @@ static int mpeg4_decode_studio_mb(MpegEncContext *s, int16_t block_[12][64])
     return SLICE_OK;
 }
 
-static int mpeg4_decode_gop_header(MpegEncContext *s, GetBitContext *gb)
+static int mpeg4_decode_gop_header(MPVMainDecContext *s, GetBitContext *gb)
 {
     int hours, minutes, seconds;
 
@@ -2153,7 +2153,7 @@ static int mpeg4_decode_gop_header(MpegEncContext *s, GetBitContext *gb)
     return 0;
 }
 
-static int mpeg4_decode_profile_level(MpegEncContext *s, GetBitContext *gb, int *profile, int *level)
+static int mpeg4_decode_profile_level(GetBitContext *gb, int *profile, int *level)
 {
 
     *profile = get_bits(gb, 4);
@@ -2167,7 +2167,7 @@ static int mpeg4_decode_profile_level(MpegEncContext *s, GetBitContext *gb, int 
     return 0;
 }
 
-static int mpeg4_decode_visual_object(MpegEncContext *s, GetBitContext *gb)
+static int mpeg4_decode_visual_object(MPVMainDecContext *s, GetBitContext *gb)
 {
     int visual_object_type;
     int is_visual_object_identifier = get_bits1(gb);
@@ -2199,7 +2199,7 @@ static int mpeg4_decode_visual_object(MpegEncContext *s, GetBitContext *gb)
     return 0;
 }
 
-static void mpeg4_load_default_matrices(MpegEncContext *s)
+static void mpeg4_load_default_matrices(MPVMainDecContext *s)
 {
     int i, v;
 
@@ -2216,7 +2216,7 @@ static void mpeg4_load_default_matrices(MpegEncContext *s)
     }
 }
 
-static int read_quant_matrix_ext(MpegEncContext *s, GetBitContext *gb)
+static int read_quant_matrix_ext(MPVMainDecContext *s, GetBitContext *gb)
 {
     int i, j, v;
 
@@ -2265,7 +2265,7 @@ static int read_quant_matrix_ext(MpegEncContext *s, GetBitContext *gb)
     return 0;
 }
 
-static void extension_and_user_data(MpegEncContext *s, GetBitContext *gb, int id)
+static void extension_and_user_data(MPVMainDecContext *s, GetBitContext *gb, int id)
 {
     uint32_t startcode;
     uint8_t extension_type;
@@ -2284,7 +2284,7 @@ static void extension_and_user_data(MpegEncContext *s, GetBitContext *gb, int id
 
 static int decode_studio_vol_header(Mpeg4DecContext *ctx, GetBitContext *gb)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
     int width, height, aspect_ratio_info;
     int bits_per_raw_sample;
     int rgb, chroma_format;
@@ -2370,7 +2370,7 @@ static int decode_studio_vol_header(Mpeg4DecContext *ctx, GetBitContext *gb)
 
 static int decode_vol_header(Mpeg4DecContext *ctx, GetBitContext *gb)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
     int width, height, vo_ver_id, aspect_ratio_info;
 
     /* vol header */
@@ -2745,7 +2745,7 @@ no_cplx_est:
  */
 static int decode_user_data(Mpeg4DecContext *ctx, GetBitContext *gb)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
     char buf[256];
     int i;
     int e;
@@ -2803,7 +2803,7 @@ static int decode_user_data(Mpeg4DecContext *ctx, GetBitContext *gb)
 int ff_mpeg4_workaround_bugs(AVCodecContext *avctx)
 {
     Mpeg4DecContext *ctx = avctx->priv_data;
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
 
     if (ctx->xvid_build == -1 && ctx->divx_version == -1 && ctx->lavc_build == -1) {
         if (s->codec_tag        == AV_RL32("XVID") ||
@@ -2921,7 +2921,7 @@ int ff_mpeg4_workaround_bugs(AVCodecContext *avctx)
 static int decode_vop_header(Mpeg4DecContext *ctx, GetBitContext *gb,
                              int parse_only)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
     int time_incr, time_increment;
     int64_t pts;
 
@@ -3203,7 +3203,7 @@ end:
 
 static void decode_smpte_tc(Mpeg4DecContext *ctx, GetBitContext *gb)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
 
     skip_bits(gb, 16); /* Time_code[63..48] */
     check_marker(s->avctx, gb, "after Time_code[63..48]");
@@ -3222,7 +3222,7 @@ static void decode_smpte_tc(Mpeg4DecContext *ctx, GetBitContext *gb)
  */
 static int decode_studio_vop_header(Mpeg4DecContext *ctx, GetBitContext *gb)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
 
     if (get_bits_left(gb) <= 32)
         return 0;
@@ -3277,7 +3277,7 @@ static int decode_studio_vop_header(Mpeg4DecContext *ctx, GetBitContext *gb)
 
 static int decode_studiovisualobject(Mpeg4DecContext *ctx, GetBitContext *gb)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
     int visual_object_type;
 
     skip_bits(gb, 4); /* visual_object_verid */
@@ -3306,7 +3306,7 @@ static int decode_studiovisualobject(Mpeg4DecContext *ctx, GetBitContext *gb)
 int ff_mpeg4_decode_picture_header(Mpeg4DecContext *ctx, GetBitContext *gb,
                                    int header, int parse_only)
 {
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
     unsigned startcode, v;
     int ret;
     int vol = 0;
@@ -3420,7 +3420,7 @@ int ff_mpeg4_decode_picture_header(Mpeg4DecContext *ctx, GetBitContext *gb,
             mpeg4_decode_gop_header(s, gb);
         } else if (startcode == VOS_STARTCODE) {
             int profile, level;
-            mpeg4_decode_profile_level(s, gb, &profile, &level);
+            mpeg4_decode_profile_level(gb, &profile, &level);
             if (profile == FF_PROFILE_MPEG4_SIMPLE_STUDIO &&
                 (level > 0 && level < 9)) {
                 s->studio_profile = 1;
@@ -3464,7 +3464,7 @@ end:
 int ff_mpeg4_frame_end(AVCodecContext *avctx, const uint8_t *buf, int buf_size)
 {
     Mpeg4DecContext *ctx = avctx->priv_data;
-    MpegEncContext    *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
 
     /* divx 5.01+ bitstream reorder stuff */
     /* Since this clobbers the input buffer and hwaccel codecs still need the
@@ -3560,8 +3560,8 @@ static int mpeg4_update_thread_context(AVCodecContext *dst,
 static int mpeg4_update_thread_context_for_user(AVCodecContext *dst,
                                                 const AVCodecContext *src)
 {
-    MpegEncContext *m = dst->priv_data;
-    const MpegEncContext *m1 = src->priv_data;
+    MPVMainDecContext *const m = dst->priv_data;
+    const MPVMainDecContext *const m1 = src->priv_data;
 
     m->quarter_sample = m1->quarter_sample;
     m->divx_packed    = m1->divx_packed;
@@ -3621,7 +3621,7 @@ static av_cold int decode_init(AVCodecContext *avctx)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
     Mpeg4DecContext *ctx = avctx->priv_data;
-    MpegEncContext *s = &ctx->m;
+    MPVMainDecContext *const s = &ctx->m;
     int ret;
 
     ctx->divx_version =
@@ -3644,7 +3644,7 @@ static av_cold int decode_init(AVCodecContext *avctx)
     return 0;
 }
 
-#define OFFSET(x) offsetof(MpegEncContext, x)
+#define OFFSET(x) offsetof(MPVMainDecContext, x)
 #define FLAGS AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY
 static const AVOption mpeg4_options[] = {
     {"quarter_sample", "1/4 subpel MC", OFFSET(quarter_sample), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, FLAGS},

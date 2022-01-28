@@ -102,7 +102,7 @@ av_const int ff_h263_aspect_to_info(AVRational aspect){
     return FF_ASPECT_EXTENDED;
 }
 
-void ff_h263_encode_picture_header(MpegEncContext * s, int picture_number)
+void ff_h263_encode_picture_header(MPVMainEncContext *s, int picture_number)
 {
     int format, coded_frame_rate, coded_frame_rate_base, i, temp_ref;
     int best_clock_code=1;
@@ -240,7 +240,7 @@ void ff_h263_encode_picture_header(MpegEncContext * s, int picture_number)
 /**
  * Encode a group of blocks header.
  */
-void ff_h263_encode_gob_header(MpegEncContext * s, int mb_line)
+void ff_h263_encode_gob_header(MPVEncContext *s, int mb_line)
 {
     put_bits(&s->pb, 17, 1); /* GBSC */
 
@@ -266,7 +266,8 @@ void ff_h263_encode_gob_header(MpegEncContext * s, int mb_line)
 /**
  * modify qscale so that encoding is actually possible in H.263 (limit difference to -2..2)
  */
-void ff_clean_h263_qscales(MpegEncContext *s){
+void ff_clean_h263_qscales(MPVMainEncContext *s)
+{
     int i;
     int8_t * const qscale_table = s->current_picture.qscale_table;
 
@@ -299,7 +300,7 @@ static const int dquant_code[5]= {1,0,9,2,3};
  * @param block the 8x8 block
  * @param n block index (0-3 are luma, 4-5 are chroma)
  */
-static void h263_encode_block(MpegEncContext * s, int16_t * block, int n)
+static void h263_encode_block(MPVEncContext *s, int16_t *block, int n)
 {
     int level, run, last, i, j, last_index, last_non_zero, sign, slevel, code;
     RLTable *rl;
@@ -447,7 +448,7 @@ static void h263p_encode_umotion(PutBitContext *pb, int val)
     }
 }
 
-static int h263_pred_dc(MpegEncContext * s, int n, int16_t **dc_val_ptr)
+static int h263_pred_dc(MPVEncContext *s, int n, int16_t **dc_val_ptr)
 {
     int x, y, wrap, a, c, pred_dc;
     int16_t *dc_val;
@@ -488,7 +489,7 @@ static int h263_pred_dc(MpegEncContext * s, int n, int16_t **dc_val_ptr)
     return pred_dc;
 }
 
-void ff_h263_encode_mb(MpegEncContext * s,
+void ff_h263_encode_mb(MPVEncContext *s,
                        int16_t block[6][64],
                        int motion_x, int motion_y)
 {
@@ -811,7 +812,7 @@ static av_cold void h263_encode_init_static(void)
     init_mv_penalty_and_fcode();
 }
 
-av_cold void ff_h263_encode_init(MpegEncContext *s)
+av_cold void ff_h263_encode_init(MPVMainEncContext *s)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
 
@@ -866,7 +867,7 @@ av_cold void ff_h263_encode_init(MpegEncContext *s)
     ff_thread_once(&init_static_once, h263_encode_init_static);
 }
 
-void ff_h263_encode_mba(MpegEncContext *s)
+void ff_h263_encode_mba(MPVEncContext *s)
 {
     int i, mb_pos;
 
@@ -877,7 +878,7 @@ void ff_h263_encode_mba(MpegEncContext *s)
     put_bits(&s->pb, ff_mba_length[i], mb_pos);
 }
 
-#define OFFSET(x) offsetof(MpegEncContext, x)
+#define OFFSET(x) offsetof(MPVMainEncContext, x)
 #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption h263_options[] = {
     { "obmc",         "use overlapped block motion compensation.", OFFSET(obmc), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
@@ -907,7 +908,7 @@ const AVCodec ff_h263_encoder = {
     .pix_fmts= (const enum AVPixelFormat[]){AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE},
     .priv_class     = &h263_class,
     .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainEncContext),
     .init           = ff_mpv_encode_init,
     .encode2        = ff_mpv_encode_picture,
     .close          = ff_mpv_encode_end,
@@ -943,7 +944,7 @@ const AVCodec ff_h263p_encoder = {
     .priv_class     = &h263p_class,
     .capabilities   = AV_CODEC_CAP_SLICE_THREADS,
     .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainEncContext),
     .init           = ff_mpv_encode_init,
     .encode2        = ff_mpv_encode_picture,
     .close          = ff_mpv_encode_end,

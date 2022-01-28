@@ -26,7 +26,7 @@
 #include "mpegvideo.h"
 #include "mpegvideodata.h"
 
-int ff_flv_decode_picture_header(MpegEncContext *s)
+int ff_flv_decode_picture_header(MPVMainDecContext *s)
 {
     int format, width, height;
 
@@ -118,7 +118,7 @@ const AVCodec ff_flv_decoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("FLV / Sorenson Spark / Sorenson H.263 (Flash Video)"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_FLV1,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainDecContext),
     .init           = ff_h263_decode_init,
     .close          = ff_h263_decode_end,
     .decode         = ff_h263_decode_frame,

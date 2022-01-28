@@ -74,7 +74,8 @@ static const int h263_mb_type_b_map[15]= {
     MB_TYPE_INTRA4x4                | MB_TYPE_CBP | MB_TYPE_QUANT,
 };
 
-void ff_h263_show_pict_info(MpegEncContext *s){
+void ff_h263_show_pict_info(MPVMainDecContext *s)
+{
     if(s->avctx->debug&FF_DEBUG_PICT_INFO){
     av_log(s->avctx, AV_LOG_DEBUG, "qp:%d %c size:%d rnd:%d%s%s%s%s%s%s%s%s%s %d/%d\n",
          s->qscale, av_get_picture_type_char(s->pict_type),
@@ -136,7 +137,7 @@ av_cold void ff_h263_decode_init_vlc(void)
     }
 }
 
-int ff_h263_decode_mba(MpegEncContext *s)
+int ff_h263_decode_mba(MPVDecContext *s)
 {
     int i, mb_pos;
 
@@ -154,7 +155,7 @@ int ff_h263_decode_mba(MpegEncContext *s)
  * Decode the group of blocks header or slice header.
  * @return <0 if an error occurred
  */
-static int h263_decode_gob_header(MpegEncContext *s)
+static int h263_decode_gob_header(MPVDecContext *s)
 {
     unsigned int val, gob_number;
     int left;
@@ -210,7 +211,8 @@ static int h263_decode_gob_header(MpegEncContext *s)
  * Decode the group of blocks / video packet header / slice header (MPEG-4 Studio).
  * @return bit position of the resync_marker, or <0 if none was found
  */
-int ff_h263_resync(MpegEncContext *s){
+int ff_h263_resync(MPVMainDecContext *s)
+{
     int left, pos, ret;
 
     /* In MPEG-4 studio mode look for a new slice startcode
@@ -267,7 +269,7 @@ int ff_h263_resync(MpegEncContext *s){
     return -1;
 }
 
-int ff_h263_decode_motion(MpegEncContext * s, int pred, int f_code)
+int ff_h263_decode_motion(MPVDecContext *s, int pred, int f_code)
 {
     int code, val, sign, shift;
     code = get_vlc2(&s->gb, ff_h263_mv_vlc.table, H263_MV_VLC_BITS, 2);
@@ -305,7 +307,7 @@ int ff_h263_decode_motion(MpegEncContext * s, int pred, int f_code)
 
 
 /* Decode RVLC of H.263+ UMV */
-static int h263p_decode_umotion(MpegEncContext * s, int pred)
+static int h263p_decode_umotion(MPVDecContext *s, int pred)
 {
    int code = 0, sign;
 
@@ -335,7 +337,8 @@ static int h263p_decode_umotion(MpegEncContext * s, int pred)
 /**
  * read the next MVs for OBMC. yes this is an ugly hack, feel free to send a patch :)
  */
-static void preview_obmc(MpegEncContext *s){
+static void preview_obmc(MPVDecContext *s)
+{
     GetBitContext gb= s->gb;
 
     int cbpc, i, pred_x, pred_y, mx, my;
@@ -427,7 +430,8 @@ end:
     s->gb= gb;
 }
 
-static void h263_decode_dquant(MpegEncContext *s){
+static void h263_decode_dquant(MPVDecContext *s)
+{
     static const int8_t quant_tab[4] = { -1, -2, 1, 2 };
 
     if(s->modified_quant){
@@ -440,7 +444,7 @@ static void h263_decode_dquant(MpegEncContext *s){
     ff_set_qscale(s, s->qscale);
 }
 
-static void h263_pred_acdc(MpegEncContext * s, int16_t *block, int n)
+static void h263_pred_acdc(MPVDecContext *s, int16_t *block, int n)
 {
     int x, y, wrap, a, c, pred_dc, scale;
     int16_t *dc_val, *ac_val, *ac_val1;
@@ -527,7 +531,7 @@ static void h263_pred_acdc(MpegEncContext * s, int16_t *block, int n)
         ac_val1[8 + i] = block[s->idsp.idct_permutation[i]];
 }
 
-static int h263_decode_block(MpegEncContext * s, int16_t * block,
+static int h263_decode_block(MPVDecContext *s, int16_t * block,
                              int n, int coded)
 {
     int level, i, j, run;
@@ -674,7 +678,7 @@ not_coded:
     return 0;
 }
 
-static int h263_skip_b_part(MpegEncContext *s, int cbp)
+static int h263_skip_b_part(MPVDecContext *s, int cbp)
 {
     LOCAL_ALIGNED_32(int16_t, dblock, [64]);
     int i, mbi;
@@ -716,7 +720,7 @@ static int h263_get_modb(GetBitContext *gb, int pb_frame, int *cbpb)
 
 #define tab_size ((signed)FF_ARRAY_ELEMS(s->direct_scale_mv[0]))
 #define tab_bias (tab_size / 2)
-static inline void set_one_direct_mv(MpegEncContext *s, Picture *p, int i)
+static inline void set_one_direct_mv(MPVDecContext *s, Picture *p, int i)
 {
     int xy           = s->block_index[i];
     uint16_t time_pp = s->pp_time;
@@ -744,7 +748,7 @@ static inline void set_one_direct_mv(MpegEncContext *s, Picture *p, int i)
 /**
  * @return the mb_type
  */
-static int set_direct_mv(MpegEncContext *s)
+static int set_direct_mv(MPVDecContext *s)
 {
     const int mb_index = s->mb_x + s->mb_y * s->mb_stride;
     Picture *p = &s->next_picture;
@@ -781,7 +785,7 @@ static int set_direct_mv(MpegEncContext *s)
     }
 }
 
-int ff_h263_decode_mb(MpegEncContext *s,
+int ff_h263_decode_mb(MPVDecContext *s,
                       int16_t block[6][64])
 {
     int cbpc, cbpy, i, cbp, pred_x, pred_y, mx, my, dquant;
@@ -1083,7 +1087,7 @@ end:
 }
 
 /* Most is hardcoded; should extend to handle all H.263 streams. */
-int ff_h263_decode_picture_header(MpegEncContext *s)
+int ff_h263_decode_picture_header(MPVMainDecContext *s)
 {
     int format, width, height, i, ret;
     uint32_t startcode;

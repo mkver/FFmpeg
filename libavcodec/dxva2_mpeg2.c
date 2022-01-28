@@ -39,7 +39,7 @@ struct dxva2_picture_context {
 
 static void fill_picture_parameters(AVCodecContext *avctx,
                                     AVDXVAContext *ctx,
-                                    const struct MpegEncContext *s,
+                                    const MPVDecContext *s,
                                     DXVA_PictureParameters *pp)
 {
     const Picture *current_picture = s->current_picture_ptr;
@@ -105,7 +105,7 @@ static void fill_picture_parameters(AVCodecContext *avctx,
 
 static void fill_quantization_matrices(AVCodecContext *avctx,
                                        AVDXVAContext *ctx,
-                                       const struct MpegEncContext *s,
+                                       const MPVDecContext *s,
                                        DXVA_QmatrixData *qm)
 {
     int i;
@@ -121,7 +121,7 @@ static void fill_quantization_matrices(AVCodecContext *avctx,
 }
 
 static void fill_slice(AVCodecContext *avctx,
-                       const struct MpegEncContext *s,
+                       const MPVDecContext *s,
                        DXVA_SliceInfo *slice,
                        unsigned position,
                        const uint8_t *buffer, unsigned size)
@@ -151,7 +151,7 @@ static int commit_bitstream_and_slice_buffer(AVCodecContext *avctx,
                                              DECODER_BUFFER_DESC *bs,
                                              DECODER_BUFFER_DESC *sc)
 {
-    const struct MpegEncContext *s = avctx->priv_data;
+    const MPVDecContext *const s = avctx->priv_data;
     AVDXVAContext *ctx = DXVA_CONTEXT(avctx);
     struct dxva2_picture_context *ctx_pic =
         s->current_picture_ptr->hwaccel_picture_private;
@@ -254,7 +254,7 @@ static int dxva2_mpeg2_start_frame(AVCodecContext *avctx,
                                    av_unused const uint8_t *buffer,
                                    av_unused uint32_t size)
 {
-    const struct MpegEncContext *s = avctx->priv_data;
+    const MPVDecContext *const s = avctx->priv_data;
     AVDXVAContext *ctx = DXVA_CONTEXT(avctx);
     struct dxva2_picture_context *ctx_pic =
         s->current_picture_ptr->hwaccel_picture_private;
@@ -275,7 +275,7 @@ static int dxva2_mpeg2_start_frame(AVCodecContext *avctx,
 static int dxva2_mpeg2_decode_slice(AVCodecContext *avctx,
                                     const uint8_t *buffer, uint32_t size)
 {
-    const struct MpegEncContext *s = avctx->priv_data;
+    const MPVDecContext *const s = avctx->priv_data;
     struct dxva2_picture_context *ctx_pic =
         s->current_picture_ptr->hwaccel_picture_private;
     unsigned position;
@@ -297,7 +297,7 @@ static int dxva2_mpeg2_decode_slice(AVCodecContext *avctx,
 
 static int dxva2_mpeg2_end_frame(AVCodecContext *avctx)
 {
-    struct MpegEncContext *s = avctx->priv_data;
+    MPVDecContext *const s = avctx->priv_data;
     struct dxva2_picture_context *ctx_pic =
         s->current_picture_ptr->hwaccel_picture_private;
     int ret;

@@ -168,7 +168,7 @@ static int rv40_parse_slice_header(RV34DecContext *r, GetBitContext *gb, SliceIn
  */
 static int rv40_decode_intra_types(RV34DecContext *r, GetBitContext *gb, int8_t *dst)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     int i, j, k, v;
     int A, B, C;
     int pattern;
@@ -230,7 +230,7 @@ static int rv40_decode_intra_types(RV34DecContext *r, GetBitContext *gb, int8_t 
  */
 static int rv40_decode_mb_info(RV34DecContext *r)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     GetBitContext *gb = &s->gb;
     int q, i;
     int prev_type = 0;
@@ -340,7 +340,7 @@ static void rv40_adaptive_loop_filter(RV34DSPContext *rdsp,
  */
 static void rv40_loop_filter(RV34DecContext *r, int row)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     int mb_pos, mb_x;
     int i, j, k;
     uint8_t *Y, *C;

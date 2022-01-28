@@ -48,7 +48,7 @@ static VLC h261_mv_vlc;
 static VLC h261_cbp_vlc;
 
 typedef struct H261DecContext {
-    MpegEncContext s;
+    MPVMainDecContext s;
 
     H261Context common;
 
@@ -81,7 +81,7 @@ static av_cold int h261_decode_init(AVCodecContext *avctx)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
     H261DecContext *const h = avctx->priv_data;
-    MpegEncContext *const s = &h->s;
+    MPVMainDecContext *const s = &h->s;
 
     s->private_ctx = &h->common;
     // set defaults
@@ -105,8 +105,8 @@ static av_cold int h261_decode_init(AVCodecContext *avctx)
  */
 static int h261_decode_gob_header(H261DecContext *h)
 {
+    MPVDecContext *const s = &h->s;
     unsigned int val;
-    MpegEncContext *const s = &h->s;
 
     if (!h->gob_start_code_skipped) {
         /* Check for GOB Start Code */
@@ -159,7 +159,7 @@ static int h261_decode_gob_header(H261DecContext *h)
  */
 static int h261_resync(H261DecContext *h)
 {
-    MpegEncContext *const s = &h->s;
+    MPVDecContext *const s = &h->s;
     int left, ret;
 
     if (h->gob_start_code_skipped) {
@@ -200,7 +200,7 @@ static int h261_resync(H261DecContext *h)
  */
 static int h261_decode_mb_skipped(H261DecContext *h, int mba1, int mba2)
 {
-    MpegEncContext *const s = &h->s;
+    MPVDecContext *const s = &h->s;
     int i;
 
     s->mb_intra = 0;
@@ -270,7 +270,7 @@ static int decode_mv_component(GetBitContext *gb, int v)
  */
 static int h261_decode_block(H261DecContext *h, int16_t *block, int n, int coded)
 {
-    MpegEncContext *const s = &h->s;
+    MPVDecContext *const s = &h->s;
     int level, i, j, run;
     RLTable *rl = &ff_h261_rl_tcoeff;
     const uint8_t *scan_table;
@@ -362,7 +362,7 @@ static int h261_decode_block(H261DecContext *h, int16_t *block, int n, int coded
 
 static int h261_decode_mb(H261DecContext *h)
 {
-    MpegEncContext *const s = &h->s;
+    MPVDecContext *const s = &h->s;
     H261Context *const com = &h->common;
     int i, cbp, xy;
 
@@ -487,7 +487,7 @@ intra:
  */
 static int h261_decode_picture_header(H261DecContext *h)
 {
-    MpegEncContext *const s = &h->s;
+    MPVDecContext *const s = &h->s;
     int format, i;
     uint32_t startcode = 0;
 
@@ -551,7 +551,7 @@ static int h261_decode_picture_header(H261DecContext *h)
 
 static int h261_decode_gob(H261DecContext *h)
 {
-    MpegEncContext *const s = &h->s;
+    MPVDecContext *const s = &h->s;
 
     ff_set_qscale(s, s->qscale);
 
@@ -581,7 +581,7 @@ static int h261_decode_gob(H261DecContext *h)
 /**
  * returns the number of bytes consumed for building the current frame
  */
-static int get_consumed_bytes(MpegEncContext *s, int buf_size)
+static int get_consumed_bytes(MPVDecContext *s, int buf_size)
 {
     int pos = get_bits_count(&s->gb) >> 3;
     if (pos == 0)
@@ -596,9 +596,10 @@ static int h261_decode_frame(AVCodecContext *avctx, void *data,
                              int *got_frame, AVPacket *avpkt)
 {
     H261DecContext *const h = avctx->priv_data;
+    MPVMainDecContext *const s2 = &h->s;
+    MPVDecContext *const s = s2;
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;
-    MpegEncContext *s  = &h->s;
     int ret;
     AVFrame *pict = data;
 
@@ -619,11 +620,11 @@ retry:
     }
 
     if (s->width != avctx->coded_width || s->height != avctx->coded_height) {
-        ff_mpv_common_end(s);
+        ff_mpv_common_end(s2);
     }
 
     if (!s->context_initialized) {
-        if ((ret = ff_mpv_common_init(s)) < 0)
+        if ((ret = ff_mpv_common_init(s2)) < 0)
             return ret;
 
         ret = ff_set_dimensions(avctx, s->width, s->height);
@@ -673,7 +674,7 @@ retry:
 static av_cold int h261_decode_end(AVCodecContext *avctx)
 {
     H261DecContext *const h = avctx->priv_data;
-    MpegEncContext *s = &h->s;
+    MPVMainContext *const s = &h->s;
 
     ff_mpv_common_end(s);
     return 0;

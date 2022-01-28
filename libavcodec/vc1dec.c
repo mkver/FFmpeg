@@ -174,12 +174,12 @@ static int vc1_parse_sprites(VC1Context *v, GetBitContext* gb, SpriteData* sd)
 
 static void vc1_draw_sprites(VC1Context *v, SpriteData* sd)
 {
+    MPVDecContext *const s = &v->s;
     int i, plane, row, sprite;
     int sr_cache[2][2] = { { -1, -1 }, { -1, -1 } };
     uint8_t* src_h[2][2];
     int xoff[2], xadv[2], yoff[2], yadv[2], alpha;
     int ysub[2];
-    MpegEncContext *s = &v->s;
 
     for (i = 0; i <= v->two_sprites; i++) {
         xoff[i] = av_clip(sd->coefs[i][2], 0, v->sprite_width-1 << 16);
@@ -271,8 +271,8 @@ static void vc1_draw_sprites(VC1Context *v, SpriteData* sd)
 
 static int vc1_decode_sprites(VC1Context *v, GetBitContext* gb)
 {
+    MPVDecContext *const s = &v->s;
     int ret;
-    MpegEncContext *s     = &v->s;
     AVCodecContext *avctx = s->avctx;
     SpriteData sd;
 
@@ -304,7 +304,7 @@ static int vc1_decode_sprites(VC1Context *v, GetBitContext* gb)
 static void vc1_sprite_flush(AVCodecContext *avctx)
 {
     VC1Context *v     = avctx->priv_data;
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     AVFrame *f = s->current_picture.f;
     int plane, i;
 
@@ -323,7 +323,7 @@ static void vc1_sprite_flush(AVCodecContext *avctx)
 
 av_cold int ff_vc1_decode_init_alloc_tables(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVMainDecContext *const s = &v->s;
     int i, ret = AVERROR(ENOMEM);
     int mb_height = FFALIGN(s->mb_height, 2);
 
@@ -422,7 +422,7 @@ av_cold void ff_vc1_init_transposed_scantables(VC1Context *v)
 static av_cold int vc1_decode_init(AVCodecContext *avctx)
 {
     VC1Context *v = avctx->priv_data;
-    MpegEncContext *s = &v->s;
+    MPVMainDecContext *const s = &v->s;
     GetBitContext gb;
     int ret;
 
@@ -584,7 +584,6 @@ static av_cold int vc1_decode_init(AVCodecContext *avctx)
 }
 
 /** Close a VC1/WMV3 decoder
- * @warning Initial try at using MpegEncContext stuff
  */
 av_cold int ff_vc1_decode_end(AVCodecContext *avctx)
 {
@@ -625,7 +624,7 @@ static int vc1_decode_frame(AVCodecContext *avctx, void *data,
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size, n_slices = 0, i, ret;
     VC1Context *v = avctx->priv_data;
-    MpegEncContext *s = &v->s;
+    MPVMainDecContext *const s = &v->s;
     AVFrame *pict = data;
     uint8_t *buf2 = NULL;
     const uint8_t *buf_start = buf, *buf_start_second_field = NULL;

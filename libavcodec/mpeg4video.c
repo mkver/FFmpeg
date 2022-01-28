@@ -39,7 +39,7 @@ av_cold void ff_mpeg4_init_rl_intra(void)
     ff_thread_once(&init_static_once, mpeg4_init_rl_intra);
 }
 
-int ff_mpeg4_get_video_packet_prefix_length(MpegEncContext *s)
+int ff_mpeg4_get_video_packet_prefix_length(MPVContext *s)
 {
     switch (s->pict_type) {
     case AV_PICTURE_TYPE_I:
@@ -54,7 +54,7 @@ int ff_mpeg4_get_video_packet_prefix_length(MpegEncContext *s)
     }
 }
 
-void ff_mpeg4_clean_buffers(MpegEncContext *s)
+void ff_mpeg4_clean_buffers(MPVContext *s)
 {
     int c_wrap, c_xy, l_wrap, l_xy;
 
@@ -80,7 +80,7 @@ void ff_mpeg4_clean_buffers(MpegEncContext *s)
 #define tab_bias (tab_size / 2)
 
 // used by MPEG-4 and rv10 decoder
-void ff_mpeg4_init_direct_mv(MpegEncContext *s)
+void ff_mpeg4_init_direct_mv(MPVMainContext *s)
 {
     int i;
     for (i = 0; i < tab_size; i++) {
@@ -90,7 +90,7 @@ void ff_mpeg4_init_direct_mv(MpegEncContext *s)
     }
 }
 
-static inline void ff_mpeg4_set_one_direct_mv(MpegEncContext *s, int mx,
+static inline void ff_mpeg4_set_one_direct_mv(MPVContext *s, int mx,
                                               int my, int i)
 {
     int xy           = s->block_index[i];
@@ -126,7 +126,7 @@ static inline void ff_mpeg4_set_one_direct_mv(MpegEncContext *s, int mx,
 /**
  * @return the mb_type
  */
-int ff_mpeg4_set_direct_mv(MpegEncContext *s, int mx, int my)
+int ff_mpeg4_set_direct_mv(MPVContext *s, int mx, int my)
 {
     const int mb_index          = s->mb_x + s->mb_y * s->mb_stride;
     const int colocated_mb_type = s->next_picture.mb_type[mb_index];

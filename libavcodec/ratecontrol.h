@@ -86,14 +86,16 @@ typedef struct RateControlContext{
     AVExpr * rc_eq_eval;
 }RateControlContext;
 
-struct MpegEncContext;
+#define MPVMainEncContext MPVContext
+struct MPVMainEncContext;
 
 /* rate control */
-int ff_rate_control_init(struct MpegEncContext *s);
-float ff_rate_estimate_qscale(struct MpegEncContext *s, int dry_run);
-void ff_write_pass1_stats(struct MpegEncContext *s);
-void ff_rate_control_uninit(struct MpegEncContext *s);
-int ff_vbv_update(struct MpegEncContext *s, int frame_size);
-void ff_get_2pass_fcode(struct MpegEncContext *s);
+int ff_rate_control_init(struct MPVMainEncContext *m);
+float ff_rate_estimate_qscale(struct MPVMainEncContext *m, int dry_run);
+void ff_write_pass1_stats(struct MPVMainEncContext *m);
+void ff_rate_control_uninit(struct MPVMainEncContext *m);
+int ff_vbv_update(struct MPVMainEncContext *m, int frame_size);
+void ff_get_2pass_fcode(struct MPVMainEncContext *m);
+#undef MPVMainEncContext
 
 #endif /* AVCODEC_RATECONTROL_H */

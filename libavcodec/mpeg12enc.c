@@ -64,7 +64,7 @@ static uint32_t mpeg1_lum_dc_uni[512];
 static uint32_t mpeg1_chr_dc_uni[512];
 
 typedef struct MPEG12EncContext {
-    MpegEncContext mpeg;
+    MPVMainEncContext mpeg;
     AVRational frame_rate_ext;
     unsigned frame_rate_index;
 
@@ -122,7 +122,7 @@ av_cold void ff_mpeg1_init_uni_ac_vlc(const RLTable *rl, uint8_t *uni_ac_vlc_len
 #if CONFIG_MPEG1VIDEO_ENCODER || CONFIG_MPEG2VIDEO_ENCODER
 static int find_frame_rate_index(MPEG12EncContext *mpeg12)
 {
-    MpegEncContext *const s = &mpeg12->mpeg;
+    MPVMainEncContext *const s = &mpeg12->mpeg;
     int i;
     AVRational bestq = (AVRational) {0, 0};
     AVRational ext;
@@ -163,7 +163,7 @@ static int find_frame_rate_index(MPEG12EncContext *mpeg12)
 static av_cold int encode_init(AVCodecContext *avctx)
 {
     MPEG12EncContext *const mpeg12 = avctx->priv_data;
-    MpegEncContext *const s = &mpeg12->mpeg;
+    MPVMainEncContext *const s = &mpeg12->mpeg;
     int ret;
     int max_size = avctx->codec_id == AV_CODEC_ID_MPEG2VIDEO ? 16383 : 4095;
 
@@ -255,7 +255,7 @@ static av_cold int encode_init(AVCodecContext *avctx)
     return 0;
 }
 
-static void put_header(MpegEncContext *s, int header)
+static void put_header(MPVEncContext *s, int header)
 {
     align_put_bits(&s->pb);
     put_bits(&s->pb, 16, header >> 16);
@@ -263,7 +263,7 @@ static void put_header(MpegEncContext *s, int header)
 }
 
 /* put sequence header if needed */
-static void mpeg1_encode_sequence_header(MpegEncContext *s)
+static void mpeg1_encode_sequence_header(MPVMainEncContext *s)
 {
     MPEG12EncContext *const mpeg12 = (MPEG12EncContext*)s;
     unsigned int vbv_buffer_size, fps, v;
@@ -422,7 +422,7 @@ static void mpeg1_encode_sequence_header(MpegEncContext *s)
     put_bits(&s->pb, 1, 0);                     // broken link
 }
 
-static inline void encode_mb_skip_run(MpegEncContext *s, int run)
+static inline void encode_mb_skip_run(MPVEncContext *s, int run)
 {
     while (run >= 33) {
         put_bits(&s->pb, 11, 0x008);
@@ -432,12 +432,12 @@ static inline void encode_mb_skip_run(MpegEncContext *s, int run)
              ff_mpeg12_mbAddrIncrTable[run][0]);
 }
 
-static av_always_inline void put_qscale(MpegEncContext *s)
+static av_always_inline void put_qscale(MPVEncContext *s)
 {
     put_bits(&s->pb, 5, s->qscale);
 }
 
-void ff_mpeg1_encode_slice_header(MpegEncContext *s)
+void ff_mpeg1_encode_slice_header(MPVEncContext *s)
 {
     if (s->codec_id == AV_CODEC_ID_MPEG2VIDEO && s->height > 2800) {
         put_header(s, SLICE_MIN_START_CODE + (s->mb_y & 127));
@@ -451,7 +451,7 @@ void ff_mpeg1_encode_slice_header(MpegEncContext *s)
     put_bits(&s->pb, 1, 0);
 }
 
-void ff_mpeg1_encode_picture_header(MpegEncContext *s, int picture_number)
+void ff_mpeg1_encode_picture_header(MPVMainEncContext *s, int picture_number)
 {
     MPEG12EncContext *const mpeg12 = (MPEG12EncContext*)s;
     AVFrameSideData *side_data;
@@ -611,7 +611,7 @@ void ff_mpeg1_encode_picture_header(MpegEncContext *s, int picture_number)
     ff_mpeg1_encode_slice_header(s);
 }
 
-static inline void put_mb_modes(MpegEncContext *s, int n, int bits,
+static inline void put_mb_modes(MPVEncContext *s, int n, int bits,
                                 int has_mv, int field_motion)
 {
     put_bits(&s->pb, n, bits);
@@ -624,7 +624,7 @@ static inline void put_mb_modes(MpegEncContext *s, int n, int bits,
 }
 
 // RAL: Parameter added: f_or_b_code
-static void mpeg1_encode_motion(MpegEncContext *s, int val, int f_or_b_code)
+static void mpeg1_encode_motion(MPVEncContext *s, int val, int f_or_b_code)
 {
     if (val == 0) {
         /* zero vector, corresponds to ff_mpeg12_mbMotionVectorTable[0] */
@@ -661,7 +661,7 @@ static void mpeg1_encode_motion(MpegEncContext *s, int val, int f_or_b_code)
     }
 }
 
-static inline void encode_dc(MpegEncContext *s, int diff, int component)
+static inline void encode_dc(MPVEncContext *s, int diff, int component)
 {
     unsigned int diff_u = diff + 255;
     if (diff_u >= 511) {
@@ -695,7 +695,7 @@ static inline void encode_dc(MpegEncContext *s, int diff, int component)
     }
 }
 
-static void mpeg1_encode_block(MpegEncContext *s, int16_t *block, int n)
+static void mpeg1_encode_block(MPVEncContext *s, int16_t *block, int n)
 {
     int alevel, level, last_non_zero, dc, diff, i, j, run, last_index, sign;
     int code, component;
@@ -776,7 +776,7 @@ next_coef:
     put_bits(&s->pb, table_vlc[112][1], table_vlc[112][0]);
 }
 
-static av_always_inline void mpeg1_encode_mb_internal(MpegEncContext *s,
+static av_always_inline void mpeg1_encode_mb_internal(MPVEncContext *s,
                                                       int16_t block[8][64],
                                                       int motion_x, int motion_y,
                                                       int mb_block_count,
@@ -1057,7 +1057,7 @@ static av_always_inline void mpeg1_encode_mb_internal(MpegEncContext *s,
     }
 }
 
-void ff_mpeg1_encode_mb(MpegEncContext *s, int16_t block[8][64],
+void ff_mpeg1_encode_mb(MPVEncContext *s, int16_t block[8][64],
                         int motion_x, int motion_y)
 {
     if (s->chroma_format == CHROMA_420)
@@ -1131,7 +1131,7 @@ static av_cold void mpeg12_encode_init_static(void)
             fcode_tab[mv + MAX_MV] = f_code;
 }
 
-av_cold void ff_mpeg1_encode_init(MpegEncContext *s)
+av_cold void ff_mpeg1_encode_init(MPVMainEncContext *s)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
 

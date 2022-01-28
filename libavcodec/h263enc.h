@@ -24,16 +24,16 @@
 #include "h263data.h"
 #include "mpegvideoenc.h"
 
-void ff_h263_encode_init(MpegEncContext *s);
-void ff_h263_encode_picture_header(MpegEncContext *s, int picture_number);
-void ff_h263_encode_gob_header(MpegEncContext * s, int mb_line);
-void ff_h263_encode_mb(MpegEncContext *s,
+void ff_h263_encode_init(MPVMainEncContext *m);
+void ff_h263_encode_picture_header(MPVMainEncContext *m, int picture_number);
+void ff_h263_encode_gob_header(MPVEncContext *s, int mb_line);
+void ff_h263_encode_mb(MPVEncContext *s,
                        int16_t block[6][64],
                        int motion_x, int motion_y);
-void ff_h263_encode_mba(MpegEncContext *s);
+void ff_h263_encode_mba(MPVEncContext *s);
 
-void ff_init_qscale_tab(MpegEncContext *s);
-void ff_clean_h263_qscales(MpegEncContext *s);
+void ff_init_qscale_tab(MPVMainEncContext *m);
+void ff_clean_h263_qscales(MPVMainEncContext *m);
 
 void ff_h263_encode_motion(PutBitContext *pb, int val, int f_code);
 
@@ -57,7 +57,7 @@ static inline int h263_get_motion_length(int val, int f_code)
     }
 }
 
-static inline void ff_h263_encode_motion_vector(MpegEncContext * s,
+static inline void ff_h263_encode_motion_vector(MPVEncContext *s,
                                                 int x, int y, int f_code)
 {
     if (s->avctx->flags2 & AV_CODEC_FLAG2_NO_OUTPUT) {
@@ -70,7 +70,7 @@ static inline void ff_h263_encode_motion_vector(MpegEncContext * s,
     }
 }
 
-static inline int get_p_cbp(MpegEncContext * s,
+static inline int get_p_cbp(MPVEncContext *s,
                       int16_t block[6][64],
                       int motion_x, int motion_y){
     int cbp;

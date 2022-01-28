@@ -213,7 +213,7 @@ void ff_vc1_pred_mv(VC1Context *v, int n, int dmv_x, int dmv_y,
                     int mv1, int r_x, int r_y, uint8_t* is_intra,
                     int pred_flag, int dir)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int xy, wrap, off = 0;
     int16_t *A, *B, *C;
     int px, py;
@@ -470,7 +470,7 @@ void ff_vc1_pred_mv(VC1Context *v, int n, int dmv_x, int dmv_y,
 void ff_vc1_pred_mv_intfr(VC1Context *v, int n, int dmv_x, int dmv_y,
                           int mvn, int r_x, int r_y, int dir)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int xy, wrap, off = 0;
     int A[2], B[2], C[2];
     int px = 0, py = 0;
@@ -691,7 +691,7 @@ void ff_vc1_pred_mv_intfr(VC1Context *v, int n, int dmv_x, int dmv_y,
 void ff_vc1_pred_b_mv(VC1Context *v, int dmv_x[2], int dmv_y[2],
                       int direct, int mvtype)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int xy, wrap, off = 0;
     int16_t *A, *B, *C;
     int px, py;
@@ -892,7 +892,7 @@ void ff_vc1_pred_b_mv_intfi(VC1Context *v, int n, int *dmv_x, int *dmv_y,
                             int mv1, int *pred_flag)
 {
     int dir = (v->bmvtype == BMV_TYPE_BACKWARD) ? 1 : 0;
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
 
     if (v->bmvtype == BMV_TYPE_DIRECT) {

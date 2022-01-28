@@ -47,7 +47,7 @@
 #include "wmv2.h"
 #include <limits.h>
 
-static void dct_unquantize_mpeg1_intra_c(MpegEncContext *s,
+static void dct_unquantize_mpeg1_intra_c(MPVContext *s,
                                    int16_t *block, int n, int qscale)
 {
     int i, level, nCoeffs;
@@ -76,7 +76,7 @@ static void dct_unquantize_mpeg1_intra_c(MpegEncContext *s,
     }
 }
 
-static void dct_unquantize_mpeg1_inter_c(MpegEncContext *s,
+static void dct_unquantize_mpeg1_inter_c(MPVContext *s,
                                    int16_t *block, int n, int qscale)
 {
     int i, level, nCoeffs;
@@ -105,7 +105,7 @@ static void dct_unquantize_mpeg1_inter_c(MpegEncContext *s,
     }
 }
 
-static void dct_unquantize_mpeg2_intra_c(MpegEncContext *s,
+static void dct_unquantize_mpeg2_intra_c(MPVContext *s,
                                    int16_t *block, int n, int qscale)
 {
     int i, level, nCoeffs;
@@ -135,7 +135,7 @@ static void dct_unquantize_mpeg2_intra_c(MpegEncContext *s,
     }
 }
 
-static void dct_unquantize_mpeg2_intra_bitexact(MpegEncContext *s,
+static void dct_unquantize_mpeg2_intra_bitexact(MPVContext *s,
                                    int16_t *block, int n, int qscale)
 {
     int i, level, nCoeffs;
@@ -169,7 +169,7 @@ static void dct_unquantize_mpeg2_intra_bitexact(MpegEncContext *s,
     block[63]^=sum&1;
 }
 
-static void dct_unquantize_mpeg2_inter_c(MpegEncContext *s,
+static void dct_unquantize_mpeg2_inter_c(MPVContext *s,
                                    int16_t *block, int n, int qscale)
 {
     int i, level, nCoeffs;
@@ -203,7 +203,7 @@ static void dct_unquantize_mpeg2_inter_c(MpegEncContext *s,
     block[63]^=sum&1;
 }
 
-static void dct_unquantize_h263_intra_c(MpegEncContext *s,
+static void dct_unquantize_h263_intra_c(MPVContext *s,
                                   int16_t *block, int n, int qscale)
 {
     int i, level, qmul, qadd;
@@ -237,7 +237,7 @@ static void dct_unquantize_h263_intra_c(MpegEncContext *s,
     }
 }
 
-static void dct_unquantize_h263_inter_c(MpegEncContext *s,
+static void dct_unquantize_h263_inter_c(MPVContext *s,
                                   int16_t *block, int n, int qscale)
 {
     int i, level, qmul, qadd;
@@ -277,7 +277,7 @@ static void gray8(uint8_t *dst, const uint8_t *src, ptrdiff_t linesize, int h)
 }
 
 /* init common dct for both encoder and decoder */
-static av_cold int dct_init(MpegEncContext *s)
+static av_cold int dct_init(MPVMainContext *s)
 {
     ff_blockdsp_init(&s->bdsp, s->avctx);
     ff_h264chroma_init(&s->h264chroma, 8); //for lowres
@@ -324,7 +324,7 @@ static av_cold int dct_init(MpegEncContext *s)
     return 0;
 }
 
-av_cold void ff_mpv_idct_init(MpegEncContext *s)
+av_cold void ff_mpv_idct_init(MPVMainContext *s)
 {
     if (s->codec_id == AV_CODEC_ID_MPEG4)
         s->idsp.mpeg4_studio_profile = s->studio_profile;
@@ -344,7 +344,7 @@ av_cold void ff_mpv_idct_init(MpegEncContext *s)
     ff_init_scantable(s->idsp.idct_permutation, &s->intra_v_scantable, ff_alternate_vertical_scan);
 }
 
-static int init_duplicate_context(MpegEncContext *s)
+static int init_duplicate_context(MPVContext *s)
 {
     int y_size = s->b8_stride * (2 * s->mb_height + 1);
     int c_size = s->mb_stride * (s->mb_height + 1);
@@ -389,7 +389,7 @@ static int init_duplicate_context(MpegEncContext *s)
     return 0;
 }
 
-int ff_mpv_init_duplicate_contexts(MpegEncContext *s)
+int ff_mpv_init_duplicate_contexts(MPVMainContext *s)
 {
     int nb_slices = s->slice_context_count, ret;
 
@@ -397,7 +397,7 @@ int ff_mpv_init_duplicate_contexts(MpegEncContext *s)
      * fields allocated in init_duplicate_context are NULL after
      * copying. This prevents double-frees upon allocation error. */
     for (int i = 1; i < nb_slices; i++) {
-        s->thread_context[i] = av_memdup(s, sizeof(MpegEncContext));
+        s->thread_context[i] = av_memdup(s, sizeof(MPVContext));
         if (!s->thread_context[i])
             return AVERROR(ENOMEM);
         if ((ret = init_duplicate_context(s->thread_context[i])) < 0)
@@ -413,7 +413,7 @@ int ff_mpv_init_duplicate_contexts(MpegEncContext *s)
     return init_duplicate_context(s);
 }
 
-static void free_duplicate_context(MpegEncContext *s)
+static void free_duplicate_context(MPVContext *s)
 {
     if (!s)
         return;
@@ -433,7 +433,7 @@ static void free_duplicate_context(MpegEncContext *s)
     s->block = NULL;
 }
 
-static void free_duplicate_contexts(MpegEncContext *s)
+static void free_duplicate_contexts(MPVMainContext *s)
 {
     for (int i = 1; i < s->slice_context_count; i++) {
         free_duplicate_context(s->thread_context[i]);
@@ -442,7 +442,7 @@ static void free_duplicate_contexts(MpegEncContext *s)
     free_duplicate_context(s);
 }
 
-static void backup_duplicate_context(MpegEncContext *bak, MpegEncContext *src)
+static void backup_duplicate_context(MPVContext *bak, MPVContext *src)
 {
 #define COPY(a) bak->a = src->a
     COPY(sc.edge_emu_buffer);
@@ -469,13 +469,13 @@ static void backup_duplicate_context(MpegEncContext *bak, MpegEncContext *src)
 #undef COPY
 }
 
-int ff_update_duplicate_context(MpegEncContext *dst, MpegEncContext *src)
+int ff_update_duplicate_context(MPVContext *dst, MPVContext *src)
 {
-    MpegEncContext bak;
+    MPVContext bak;
     int i, ret;
     // FIXME copy only needed parts
     backup_duplicate_context(&bak, dst);
-    memcpy(dst, src, sizeof(MpegEncContext));
+    memcpy(dst, src, sizeof(*dst));
     backup_duplicate_context(dst, &bak);
     for (i = 0; i < 12; i++) {
         dst->pblocks[i] = &dst->block[i];
@@ -495,12 +495,12 @@ int ff_update_duplicate_context(MpegEncContext *dst, MpegEncContext *src)
 }
 
 /**
- * Set the given MpegEncContext to common defaults
+ * Set the given MPVMainContext to common defaults
  * (same for encoding and decoding).
  * The changed fields will not depend upon the
- * prior state of the MpegEncContext.
+ * prior state of the MPVMainContext.
  */
-void ff_mpv_common_defaults(MpegEncContext *s)
+void ff_mpv_common_defaults(MPVMainContext *s)
 {
     s->y_dc_scale_table      =
     s->c_dc_scale_table      = ff_mpeg1_dc_scale_table;
@@ -518,7 +518,7 @@ void ff_mpv_common_defaults(MpegEncContext *s)
     s->slice_context_count   = 1;
 }
 
-int ff_mpv_init_context_frame(MpegEncContext *s)
+int ff_mpv_init_context_frame(MPVMainContext *s)
 {
     int y_size, c_size, yc_size, i, mb_array_size, mv_table_size, x, y;
 
@@ -652,7 +652,7 @@ int ff_mpv_init_context_frame(MpegEncContext *s)
     return !CONFIG_MPEGVIDEODEC || s->encoding ? 0 : ff_mpeg_er_init(s);
 }
 
-static void clear_context(MpegEncContext *s)
+static void clear_context(MPVMainContext *s)
 {
     int i, j, k;
 
@@ -731,7 +731,7 @@ static void clear_context(MpegEncContext *s)
  * init common structure for both encoder and decoder.
  * this assumes that some variables like width/height are already set
  */
-av_cold int ff_mpv_common_init(MpegEncContext *s)
+av_cold int ff_mpv_common_init(MPVMainContext *s)
 {
     int i, ret;
     int nb_slices = (HAVE_THREADS &&
@@ -818,7 +818,7 @@ av_cold int ff_mpv_common_init(MpegEncContext *s)
     return ret;
 }
 
-void ff_mpv_free_context_frame(MpegEncContext *s)
+void ff_mpv_free_context_frame(MPVMainContext *s)
 {
     int i, j, k;
 
@@ -872,7 +872,7 @@ void ff_mpv_free_context_frame(MpegEncContext *s)
 }
 
 /* init common structure for both encoder and decoder */
-void ff_mpv_common_end(MpegEncContext *s)
+void ff_mpv_common_end(MPVMainContext *s)
 {
     if (!s)
         return;
@@ -911,7 +911,7 @@ void ff_mpv_common_end(MpegEncContext *s)
 }
 
 
-static inline int hpel_motion_lowres(MpegEncContext *s,
+static inline int hpel_motion_lowres(MPVContext *s,
                                      uint8_t *dest, uint8_t *src,
                                      int field_based, int field_select,
                                      int src_x, int src_y,
@@ -958,7 +958,7 @@ static inline int hpel_motion_lowres(MpegEncContext *s,
 }
 
 /* apply one mpeg motion vector to the three components */
-static av_always_inline void mpeg_motion_lowres(MpegEncContext *s,
+static av_always_inline void mpeg_motion_lowres(MPVContext *s,
                                                 uint8_t *dest_y,
                                                 uint8_t *dest_cb,
                                                 uint8_t *dest_cr,
@@ -1097,7 +1097,7 @@ static av_always_inline void mpeg_motion_lowres(MpegEncContext *s,
     // FIXME h261 lowres loop filter
 }
 
-static inline void chroma_4mv_motion_lowres(MpegEncContext *s,
+static inline void chroma_4mv_motion_lowres(MPVContext *s,
                                             uint8_t *dest_cb, uint8_t *dest_cr,
                                             uint8_t **ref_picture,
                                             h264_chroma_mc_func * pix_op,
@@ -1165,7 +1165,7 @@ static inline void chroma_4mv_motion_lowres(MpegEncContext *s,
  * @param pix_op halfpel motion compensation function (average or put normally)
  * the motion vectors are taken from s->mv and the MV type from s->mv_type
  */
-static inline void MPV_motion_lowres(MpegEncContext *s,
+static inline void MPV_motion_lowres(MPVContext *s,
                                      uint8_t *dest_y, uint8_t *dest_cb,
                                      uint8_t *dest_cr,
                                      int dir, uint8_t **ref_picture,
@@ -1299,7 +1299,7 @@ static inline void MPV_motion_lowres(MpegEncContext *s,
 /**
  * find the lowest MB row referenced in the MVs
  */
-static int lowest_referenced_row(MpegEncContext *s, int dir)
+static int lowest_referenced_row(MPVContext *s, int dir)
 {
     int my_max = INT_MIN, my_min = INT_MAX, qpel_shift = !s->quarter_sample;
     int my, off, i, mvs;
@@ -1335,7 +1335,7 @@ unhandled:
 }
 
 /* put block[] to dest[] */
-static inline void put_dct(MpegEncContext *s,
+static inline void put_dct(MPVContext *s,
                            int16_t *block, int i, uint8_t *dest, int line_size, int qscale)
 {
     s->dct_unquantize_intra(s, block, i, qscale);
@@ -1343,7 +1343,7 @@ static inline void put_dct(MpegEncContext *s,
 }
 
 /* add block[] to dest[] */
-static inline void add_dct(MpegEncContext *s,
+static inline void add_dct(MPVContext *s,
                            int16_t *block, int i, uint8_t *dest, int line_size)
 {
     if (s->block_last_index[i] >= 0) {
@@ -1351,7 +1351,7 @@ static inline void add_dct(MpegEncContext *s,
     }
 }
 
-static inline void add_dequant_dct(MpegEncContext *s,
+static inline void add_dequant_dct(MPVContext *s,
                            int16_t *block, int i, uint8_t *dest, int line_size, int qscale)
 {
     if (s->block_last_index[i] >= 0) {
@@ -1364,7 +1364,7 @@ static inline void add_dequant_dct(MpegEncContext *s,
 /**
  * Clean dc, ac, coded_block for the current non-intra MB.
  */
-void ff_clean_intra_table_entries(MpegEncContext *s)
+void ff_clean_intra_table_entries(MPVContext *s)
 {
     int wrap = s->b8_stride;
     int xy = s->block_index[0];
@@ -1405,7 +1405,7 @@ void ff_clean_intra_table_entries(MpegEncContext *s)
    s->interlaced_dct : true if interlaced dct used (mpeg2)
  */
 static av_always_inline
-void mpv_reconstruct_mb_internal(MpegEncContext *s, int16_t block[12][64],
+void mpv_reconstruct_mb_internal(MPVContext *s, int16_t block[12][64],
                             int lowres_flag, int is_mpeg12)
 {
 #define IS_ENCODER(s) (CONFIG_MPEGVIDEOENC && !lowres_flag && (s)->encoding)
@@ -1642,7 +1642,7 @@ skip_idct:
     }
 }
 
-void ff_mpv_reconstruct_mb(MpegEncContext *s, int16_t block[12][64])
+void ff_mpv_reconstruct_mb(MPVContext *s, int16_t block[12][64])
 {
     if (CONFIG_XVMC &&
         s->avctx->hwaccel && s->avctx->hwaccel->decode_mb) {
@@ -1672,7 +1672,8 @@ void ff_mpv_reconstruct_mb(MpegEncContext *s, int16_t block[12][64])
     else                  mpv_reconstruct_mb_internal(s, block, 0, 0);
 }
 
-void ff_init_block_index(MpegEncContext *s){ //FIXME maybe rename
+void ff_init_block_index(MPVContext *s) //FIXME maybe rename
+{
     const int linesize   = s->current_picture.f->linesize[0]; //not s->linesize as this would be wrong for field pics
     const int uvlinesize = s->current_picture.f->linesize[1];
     const int width_of_mb = (4 + (s->avctx->bits_per_raw_sample > 8)) - s->avctx->lowres;
@@ -1708,7 +1709,7 @@ void ff_init_block_index(MpegEncContext *s){ //FIXME maybe rename
 /**
  * set qscale and update qscale dependent variables.
  */
-void ff_set_qscale(MpegEncContext * s, int qscale)
+void ff_set_qscale(MPVContext *s, int qscale)
 {
     if (qscale < 1)
         qscale = 1;

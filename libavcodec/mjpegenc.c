@@ -44,10 +44,10 @@
 
 /* The following is the private context of MJPEG/AMV decoder.
  * Note that when using slice threading only the main thread's
- * MpegEncContext is followed by a MjpegContext; the other threads
- * can access this shared context via MpegEncContext.mjpeg. */
+ * MPVMainEncContext is followed by a MjpegContext; the other threads
+ * can access this shared context via MPVEncContext.mjpeg. */
 typedef struct MJPEGEncContext {
-    MpegEncContext mpeg;
+    MPVMainEncContext mpeg;
     MJpegContext   mjpeg;
 } MJPEGEncContext;
 
@@ -75,7 +75,7 @@ static av_cold void init_uni_ac_vlc(const uint8_t huff_size_ac[256],
     }
 }
 
-static void mjpeg_encode_picture_header(MpegEncContext *s)
+static void mjpeg_encode_picture_header(MPVMainEncContext *s)
 {
     ff_mjpeg_encode_picture_header(s->avctx, &s->pb, s->mjpeg_ctx,
                                    &s->intra_scantable, 0,
@@ -87,7 +87,7 @@ static void mjpeg_encode_picture_header(MpegEncContext *s)
         s->thread_context[i]->esc_pos = 0;
 }
 
-void ff_mjpeg_amv_encode_picture_header(MpegEncContext *s)
+void ff_mjpeg_amv_encode_picture_header(MPVMainEncContext *s)
 {
     MJPEGEncContext *const m = (MJPEGEncContext*)s;
     av_assert2(s->mjpeg_ctx == &m->mjpeg);
@@ -100,9 +100,9 @@ void ff_mjpeg_amv_encode_picture_header(MpegEncContext *s)
 /**
  * Encodes and outputs the entire frame in the JPEG format.
  *
- * @param s The MpegEncContext.
+ * @param s The MPVEncContext.
  */
-static void mjpeg_encode_picture_frame(MpegEncContext *s)
+static void mjpeg_encode_picture_frame(MPVEncContext *s)
 {
     int nbits, code, table_id;
     MJpegContext *m = s->mjpeg_ctx;
@@ -211,10 +211,10 @@ static void mjpeg_build_optimal_huffman(MJpegContext *m)
  *
  * Header + values + stuffing.
  *
- * @param s The MpegEncContext.
+ * @param s The MPVEncContext.
  * @return int Error code, 0 if successful.
  */
-int ff_mjpeg_encode_stuffing(MpegEncContext *s)
+int ff_mjpeg_encode_stuffing(MPVEncContext *s)
 {
     MJpegContext *const m = s->mjpeg_ctx;
     PutBitContext *pbc = &s->pb;
@@ -260,7 +260,7 @@ fail:
     return ret;
 }
 
-static int alloc_huffman(MpegEncContext *s)
+static int alloc_huffman(MPVMainEncContext *s)
 {
     MJpegContext *m = s->mjpeg_ctx;
     size_t num_mbs, num_blocks, num_codes;
@@ -288,7 +288,7 @@ static int alloc_huffman(MpegEncContext *s)
     return 0;
 }
 
-av_cold int ff_mjpeg_encode_init(MpegEncContext *s)
+av_cold int ff_mjpeg_encode_init(MPVMainEncContext *s)
 {
     MJpegContext *const m = &((MJPEGEncContext*)s)->mjpeg;
     int ret, use_slices;
@@ -412,11 +412,11 @@ static void ff_mjpeg_encode_coef(MJpegContext *s, uint8_t table_id, int val, int
 /**
  * Add the block's data into the JPEG buffer.
  *
- * @param s The MpegEncContext that contains the JPEG buffer.
+ * @param s The MPVEncContext that contains the JPEG buffer.
  * @param block The block.
  * @param n The block's index or number.
  */
-static void record_block(MpegEncContext *s, int16_t *block, int n)
+static void record_block(MPVEncContext *s, int16_t *block, int n)
 {
     int i, j, table_id;
     int component, dc, last_index, val, run;
@@ -459,7 +459,7 @@ static void record_block(MpegEncContext *s, int16_t *block, int n)
         ff_mjpeg_encode_code(m, table_id, 0);
 }
 
-static void encode_block(MpegEncContext *s, int16_t *block, int n)
+static void encode_block(MPVEncContext *s, int16_t *block, int n)
 {
     int mant, nbits, code, i, j;
     int component, dc, run, last_index, val;
@@ -517,7 +517,7 @@ static void encode_block(MpegEncContext *s, int16_t *block, int n)
         put_bits(&s->pb, huff_size_ac[0], huff_code_ac[0]);
 }
 
-void ff_mjpeg_encode_mb(MpegEncContext *s, int16_t block[12][64])
+void ff_mjpeg_encode_mb(MPVEncContext *s, int16_t block[12][64])
 {
     int i;
     if (s->mjpeg_ctx->huffman == HUFFMAN_TABLE_OPTIMAL) {
@@ -589,7 +589,7 @@ void ff_mjpeg_encode_mb(MpegEncContext *s, int16_t block[12][64])
 static int amv_encode_picture(AVCodecContext *avctx, AVPacket *pkt,
                               const AVFrame *pic_arg, int *got_packet)
 {
-    MpegEncContext *s = avctx->priv_data;
+    MPVMainEncContext *const s = avctx->priv_data;
     AVFrame *pic;
     int i, ret;
     int chroma_h_shift, chroma_v_shift;

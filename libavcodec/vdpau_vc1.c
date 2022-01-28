@@ -33,7 +33,7 @@ static int vdpau_vc1_start_frame(AVCodecContext *avctx,
                                  const uint8_t *buffer, uint32_t size)
 {
     VC1Context * const v  = avctx->priv_data;
-    MpegEncContext * const s = &v->s;
+    MPVDecContext *const s = &v->s;
     Picture *pic          = s->current_picture_ptr;
     struct vdpau_picture_context *pic_ctx = pic->hwaccel_picture_private;
     VdpPictureInfoVC1 *info = &pic_ctx->info.vc1;
@@ -101,7 +101,7 @@ static int vdpau_vc1_decode_slice(AVCodecContext *avctx,
                                   const uint8_t *buffer, uint32_t size)
 {
     VC1Context * const v  = avctx->priv_data;
-    MpegEncContext * const s = &v->s;
+    MPVDecContext *const s = &v->s;
     Picture *pic          = s->current_picture_ptr;
     struct vdpau_picture_context *pic_ctx = pic->hwaccel_picture_private;
     int val;

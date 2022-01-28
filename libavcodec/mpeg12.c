@@ -103,7 +103,7 @@ av_cold void ff_init_2d_vlc_rl(RLTable *rl, unsigned static_size, int flags)
     }
 }
 
-av_cold void ff_mpeg12_common_init(MpegEncContext *s)
+av_cold void ff_mpeg12_common_init(MPVMainContext *s)
 {
 
     s->y_dc_scale_table =
@@ -111,7 +111,7 @@ av_cold void ff_mpeg12_common_init(MpegEncContext *s)
 
 }
 
-void ff_mpeg1_clean_buffers(MpegEncContext *s)
+void ff_mpeg1_clean_buffers(MPVContext *s)
 {
     s->last_dc[0] = 1 << (7 + s->intra_dc_precision);
     s->last_dc[1] = s->last_dc[0];

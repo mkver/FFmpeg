@@ -29,14 +29,14 @@
 #include "avcodec.h"
 #include "hpeldsp.h"
 #include "me_cmp.h"
-#include "mpegvideo.h"
+#include "mpegvideoenc.h"
 #include "put_bits.h"
 
 typedef struct SVQ1EncContext {
     /* FIXME: Needed for motion estimation, should not be used for anything
      * else, the idea is to make the motion estimation eventually independent
-     * of MpegEncContext, so this will be removed then. */
-    MpegEncContext m;
+     * of mpegvideoenc, so this will be removed then. */
+    MPVMainEncContext m;
     AVCodecContext *avctx;
     MECmpContext mecc;
     HpelDSPContext hdsp;

@@ -43,7 +43,7 @@ static void set_erpic(ERPicture *dst, Picture *src)
     dst->field_picture = src->field_picture;
 }
 
-void ff_mpeg_er_frame_start(MpegEncContext *s)
+void ff_mpeg_er_frame_start(MPVMainDecContext *s)
 {
     ERContext *er = &s->er;
 
@@ -63,7 +63,7 @@ static void mpeg_er_decode_mb(void *opaque, int ref, int mv_dir, int mv_type,
                               int (*mv)[2][4][2], int mb_x, int mb_y,
                               int mb_intra, int mb_skipped)
 {
-    MpegEncContext *s = opaque;
+    MPVDecContext *const s = opaque;
 
     s->mv_dir     = mv_dir;
     s->mv_type    = mv_type;
@@ -97,7 +97,7 @@ static void mpeg_er_decode_mb(void *opaque, int ref, int mv_dir, int mv_type,
     ff_mpv_reconstruct_mb(s, s->block);
 }
 
-int ff_mpeg_er_init(MpegEncContext *s)
+int ff_mpeg_er_init(MPVDecContext *s)
 {
     ERContext *er = &s->er;
     int mb_array_size = s->mb_height * s->mb_stride;

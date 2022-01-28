@@ -66,7 +66,7 @@ static uint8_t  uni_mpeg4_inter_rl_len[64 * 64 * 2 * 2];
  * Return the number of bits that encoding the 8x8 block in block would need.
  * @param[in]  block_last_index last index in scantable order that refers to a non zero element in block.
  */
-static inline int get_block_rate(MpegEncContext *s, int16_t block[64],
+static inline int get_block_rate(MPVEncContext *s, int16_t block[64],
                                  int block_last_index, uint8_t scantable[64])
 {
     int last = 0;
@@ -101,7 +101,7 @@ static inline int get_block_rate(MpegEncContext *s, int16_t block[64],
  * @param[out] st scantable for each 8x8 block
  * @param[in] zigzag_last_index index referring to the last non zero coefficient in zigzag order
  */
-static inline void restore_ac_coeffs(MpegEncContext *s, int16_t block[6][64],
+static inline void restore_ac_coeffs(MPVEncContext *s, int16_t block[6][64],
                                      const int dir[6], uint8_t *st[6],
                                      const int zigzag_last_index[6])
 {
@@ -132,7 +132,7 @@ static inline void restore_ac_coeffs(MpegEncContext *s, int16_t block[6][64],
  * @param[out] st scantable for each 8x8 block
  * @param[out] zigzag_last_index index referring to the last non zero coefficient in zigzag order
  */
-static inline int decide_ac_pred(MpegEncContext *s, int16_t block[6][64],
+static inline int decide_ac_pred(MPVEncContext *s, int16_t block[6][64],
                                  const int dir[6], uint8_t *st[6],
                                  int zigzag_last_index[6])
 {
@@ -215,7 +215,7 @@ static inline int decide_ac_pred(MpegEncContext *s, int16_t block[6][64],
 /**
  * modify mb_type & qscale so that encoding is actually possible in MPEG-4
  */
-void ff_clean_mpeg4_qscales(MpegEncContext *s)
+void ff_clean_mpeg4_qscales(MPVMainEncContext *s)
 {
     int i;
     int8_t *const qscale_table = s->current_picture.qscale_table;
@@ -284,7 +284,7 @@ static inline int mpeg4_get_dc_length(int level, int n)
  * Encode an 8x8 block.
  * @param n block index (0-3 are luma, 4-5 are chroma)
  */
-static inline void mpeg4_encode_block(MpegEncContext *s,
+static inline void mpeg4_encode_block(MPVEncContext *s,
                                       int16_t *block, int n, int intra_dc,
                                       uint8_t *scan_table, PutBitContext *dc_pb,
                                       PutBitContext *ac_pb)
@@ -345,7 +345,7 @@ static inline void mpeg4_encode_block(MpegEncContext *s,
     }
 }
 
-static int mpeg4_get_block_length(MpegEncContext *s,
+static int mpeg4_get_block_length(MPVEncContext *s,
                                   int16_t *block, int n,
                                   int intra_dc, uint8_t *scan_table)
 {
@@ -399,7 +399,7 @@ static int mpeg4_get_block_length(MpegEncContext *s,
     return len;
 }
 
-static inline void mpeg4_encode_blocks(MpegEncContext *s, int16_t block[6][64],
+static inline void mpeg4_encode_blocks(MPVEncContext *s, int16_t block[6][64],
                                        int intra_dc[6], uint8_t **scan_table,
                                        PutBitContext *dc_pb,
                                        PutBitContext *ac_pb)
@@ -433,7 +433,7 @@ static inline void mpeg4_encode_blocks(MpegEncContext *s, int16_t block[6][64],
     }
 }
 
-static inline int get_b_cbp(MpegEncContext *s, int16_t block[6][64],
+static inline int get_b_cbp(MPVEncContext *s, int16_t block[6][64],
                             int motion_x, int motion_y, int mb_type)
 {
     int cbp = 0, i;
@@ -477,7 +477,7 @@ static inline int get_b_cbp(MpegEncContext *s, int16_t block[6][64],
 // FIXME this is duplicated to h263.c
 static const int dquant_code[5] = { 1, 0, 9, 2, 3 };
 
-void ff_mpeg4_encode_mb(MpegEncContext *s, int16_t block[6][64],
+void ff_mpeg4_encode_mb(MPVEncContext *s, int16_t block[6][64],
                         int motion_x, int motion_y)
 {
     int cbpc, cbpy, pred_x, pred_y;
@@ -875,7 +875,7 @@ void ff_mpeg4_stuffing(PutBitContext *pbc)
 }
 
 /* must be called before writing the header */
-void ff_set_mpeg4_time(MpegEncContext *s)
+void ff_set_mpeg4_time(MPVMainEncContext *s)
 {
     if (s->pict_type == AV_PICTURE_TYPE_B) {
         ff_mpeg4_init_direct_mv(s);
@@ -885,7 +885,7 @@ void ff_set_mpeg4_time(MpegEncContext *s)
     }
 }
 
-static void mpeg4_encode_gop_header(MpegEncContext *s)
+static void mpeg4_encode_gop_header(MPVMainEncContext *s)
 {
     int64_t hours, minutes, seconds;
     int64_t time;
@@ -915,7 +915,7 @@ static void mpeg4_encode_gop_header(MpegEncContext *s)
     ff_mpeg4_stuffing(&s->pb);
 }
 
-static void mpeg4_encode_visual_object_header(MpegEncContext *s)
+static void mpeg4_encode_visual_object_header(MPVMainEncContext *s)
 {
     int profile_and_level_indication;
     int vo_ver_id;
@@ -959,7 +959,7 @@ static void mpeg4_encode_visual_object_header(MpegEncContext *s)
     ff_mpeg4_stuffing(&s->pb);
 }
 
-static void mpeg4_encode_vol_header(MpegEncContext *s,
+static void mpeg4_encode_vol_header(MPVMainEncContext *s,
                                     int vo_number,
                                     int vol_number)
 {
@@ -1060,7 +1060,7 @@ static void mpeg4_encode_vol_header(MpegEncContext *s,
 }
 
 /* write MPEG-4 VOP header */
-int ff_mpeg4_encode_picture_header(MpegEncContext *s, int picture_number)
+int ff_mpeg4_encode_picture_header(MPVMainEncContext *s, int picture_number)
 {
     uint64_t time_incr;
     int64_t time_div, time_mod;
@@ -1283,7 +1283,7 @@ static av_cold void mpeg4_encode_init_static(void)
 static av_cold int encode_init(AVCodecContext *avctx)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
-    MpegEncContext *s = avctx->priv_data;
+    MPVMainEncContext *const s = avctx->priv_data;
     int ret;
 
     if (avctx->width >= (1<<13) || avctx->height >= (1<<13)) {
@@ -1324,7 +1324,7 @@ static av_cold int encode_init(AVCodecContext *avctx)
     return 0;
 }
 
-void ff_mpeg4_init_partitions(MpegEncContext *s)
+void ff_mpeg4_init_partitions(MPVEncContext *s)
 {
     uint8_t *start = put_bits_ptr(&s->pb);
     uint8_t *end   = s->pb.buf_end;
@@ -1337,7 +1337,7 @@ void ff_mpeg4_init_partitions(MpegEncContext *s)
     init_put_bits(&s->pb2, start + pb_size + tex_size, pb_size);
 }
 
-void ff_mpeg4_merge_partitions(MpegEncContext *s)
+void ff_mpeg4_merge_partitions(MPVEncContext *s)
 {
     const int pb2_len    = put_bits_count(&s->pb2);
     const int tex_pb_len = put_bits_count(&s->tex_pb);
@@ -1363,7 +1363,7 @@ void ff_mpeg4_merge_partitions(MpegEncContext *s)
     s->last_bits = put_bits_count(&s->pb);
 }
 
-void ff_mpeg4_encode_video_packet_header(MpegEncContext *s)
+void ff_mpeg4_encode_video_packet_header(MPVEncContext *s)
 {
     int mb_num_bits = av_log2(s->mb_num - 1) + 1;
 
@@ -1375,7 +1375,7 @@ void ff_mpeg4_encode_video_packet_header(MpegEncContext *s)
     put_bits(&s->pb, 1, 0); /* no HEC */
 }
 
-#define OFFSET(x) offsetof(MpegEncContext, x)
+#define OFFSET(x) offsetof(MPVMainEncContext, x)
 #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption options[] = {
     { "data_partitioning", "Use data partitioning.",      OFFSET(data_partitioning), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
@@ -1404,7 +1404,7 @@ const AVCodec ff_mpeg4_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("MPEG-4 part 2"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MPEG4,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainEncContext),
     .init           = encode_init,
     .encode2        = ff_mpv_encode_picture,
     .close          = ff_mpv_encode_end,

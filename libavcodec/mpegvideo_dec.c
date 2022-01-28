@@ -33,7 +33,7 @@
 #include "mpegvideo.h"
 #include "thread.h"
 
-void ff_mpv_decode_init(MpegEncContext *s, AVCodecContext *avctx)
+void ff_mpv_decode_init(MPVMainDecContext *s, AVCodecContext *avctx)
 {
     ff_mpv_common_defaults(s);
 
@@ -50,8 +50,8 @@ void ff_mpv_decode_init(MpegEncContext *s, AVCodecContext *avctx)
 int ff_mpeg_update_thread_context(AVCodecContext *dst,
                                   const AVCodecContext *src)
 {
-    MpegEncContext *const s1 = src->priv_data;
-    MpegEncContext *const s  = dst->priv_data;
+    MPVMainDecContext *const s1 = src->priv_data;
+    MPVMainDecContext *const s  = dst->priv_data;
     int ret;
 
     if (dst == src)
@@ -189,7 +189,7 @@ do {\
     return 0;
 }
 
-int ff_mpv_common_frame_size_change(MpegEncContext *s)
+int ff_mpv_common_frame_size_change(MPVMainDecContext *s)
 {
     int err = 0;
 
@@ -243,7 +243,7 @@ int ff_mpv_common_frame_size_change(MpegEncContext *s)
     return err;
 }
 
-static int alloc_picture(MpegEncContext *s, Picture *pic)
+static int alloc_picture(MPVMainDecContext *s, Picture *pic)
 {
     return ff_alloc_picture(s->avctx, pic, &s->me, &s->sc, 0, 0,
                             s->chroma_x_shift, s->chroma_y_shift, s->out_format,
@@ -271,7 +271,7 @@ static void gray_frame(AVFrame *frame)
  * generic function called after decoding
  * the header and before a frame is decoded.
  */
-int ff_mpv_frame_start(MpegEncContext *s, AVCodecContext *avctx)
+int ff_mpv_frame_start(MPVMainDecContext *s, AVCodecContext *avctx)
 {
     Picture *pic;
     int idx, ret;
@@ -495,7 +495,7 @@ int ff_mpv_frame_start(MpegEncContext *s, AVCodecContext *avctx)
 }
 
 /* called after a frame has been decoded. */
-void ff_mpv_frame_end(MpegEncContext *s)
+void ff_mpv_frame_end(MPVMainDecContext *s)
 {
     emms_c();
 
@@ -503,14 +503,14 @@ void ff_mpv_frame_end(MpegEncContext *s)
         ff_thread_report_progress(&s->current_picture_ptr->tf, INT_MAX, 0);
 }
 
-void ff_print_debug_info(MpegEncContext *s, Picture *p, AVFrame *pict)
+void ff_print_debug_info(MPVDecContext *s, Picture *p, AVFrame *pict)
 {
     ff_print_debug_info2(s->avctx, pict, s->mbskip_table, p->mb_type,
                          p->qscale_table, p->motion_val,
                          s->mb_width, s->mb_height, s->mb_stride, s->quarter_sample);
 }
 
-int ff_mpv_export_qp_table(MpegEncContext *s, AVFrame *f, Picture *p, int qp_type)
+int ff_mpv_export_qp_table(MPVMainDecContext *s, AVFrame *f, Picture *p, int qp_type)
 {
     AVVideoEncParams *par;
     int mult = (qp_type == FF_QSCALE_TYPE_MPEG1) ? 2 : 1;
@@ -540,7 +540,7 @@ int ff_mpv_export_qp_table(MpegEncContext *s, AVFrame *f, Picture *p, int qp_typ
     return 0;
 }
 
-void ff_mpeg_draw_horiz_band(MpegEncContext *s, int y, int h)
+void ff_mpeg_draw_horiz_band(MPVDecContext *s, int y, int h)
 {
     ff_draw_horiz_band(s->avctx, s->current_picture_ptr->f,
                        s->last_picture_ptr ? s->last_picture_ptr->f : NULL,
@@ -550,7 +550,7 @@ void ff_mpeg_draw_horiz_band(MpegEncContext *s, int y, int h)
 
 void ff_mpeg_flush(AVCodecContext *avctx)
 {
-    MpegEncContext *const s = avctx->priv_data;
+    MPVMainDecContext *const s = avctx->priv_data;
 
     if (!s->picture)
         return;
@@ -577,7 +577,7 @@ void ff_mpeg_flush(AVCodecContext *avctx)
     s->pp_time = 0;
 }
 
-void ff_mpv_report_decode_progress(MpegEncContext *s)
+void ff_mpv_report_decode_progress(MPVDecContext *s)
 {
     if (s->pict_type != AV_PICTURE_TYPE_B && !s->partitioned_frame && !s->er.error_occurred)
         ff_thread_report_progress(&s->current_picture_ptr->tf, s->mb_y, 0);

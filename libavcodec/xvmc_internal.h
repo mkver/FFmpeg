@@ -21,11 +21,9 @@
 #ifndef AVCODEC_XVMC_INTERNAL_H
 #define AVCODEC_XVMC_INTERNAL_H
 
-#include "avcodec.h"
 #include "mpegvideo.h"
-#include "version.h"
 
-void ff_xvmc_init_block(MpegEncContext *s);
-void ff_xvmc_pack_pblocks(MpegEncContext *s, int cbp);
+void ff_xvmc_init_block(MPVDecContext *s);
+void ff_xvmc_pack_pblocks(MPVDecContext *s, int cbp);
 
 #endif /* AVCODEC_XVMC_INTERNAL_H */

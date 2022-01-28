@@ -23,7 +23,7 @@
 #include "h263dsp_mips.h"
 #include "mpegvideo_mips.h"
 
-av_cold void ff_mpv_common_init_mips(MpegEncContext *s)
+av_cold void ff_mpv_common_init_mips(MPVMainContext *s)
 {
     int cpu_flags = av_get_cpu_flags();
 

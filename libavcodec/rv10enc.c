@@ -25,12 +25,11 @@
  * RV10 encoder
  */
 
-#include "mpegvideo.h"
 #include "mpegvideoenc.h"
 #include "put_bits.h"
 #include "rv10.h"
 
-int ff_rv10_encode_picture_header(MpegEncContext *s, int picture_number)
+int ff_rv10_encode_picture_header(MPVMainEncContext *s, int picture_number)
 {
     int full_frame= 0;
 
@@ -70,7 +69,7 @@ const AVCodec ff_rv10_encoder = {
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_RV10,
     .priv_class     = &ff_mpv_enc_class,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainEncContext),
     .init           = ff_mpv_encode_init,
     .encode2        = ff_mpv_encode_picture,
     .close          = ff_mpv_encode_end,

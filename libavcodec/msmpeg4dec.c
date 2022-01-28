@@ -44,7 +44,7 @@
 
 #define DEFAULT_INTER_INDEX 3
 
-static inline int msmpeg4v1_pred_dc(MpegEncContext * s, int n,
+static inline int msmpeg4v1_pred_dc(MPVDecContext *s, int n,
                                     int32_t **dc_val_ptr)
 {
     int i;
@@ -70,7 +70,7 @@ static VLC v2_mb_type_vlc;
 VLC ff_inter_intra_vlc;
 
 /* This is identical to H.263 except that its range is multiplied by 2. */
-static int msmpeg4v2_decode_motion(MpegEncContext * s, int pred, int f_code)
+static int msmpeg4v2_decode_motion(MPVDecContext *s, int pred, int f_code)
 {
     int code, val, sign, shift;
 
@@ -101,7 +101,7 @@ static int msmpeg4v2_decode_motion(MpegEncContext * s, int pred, int f_code)
     return val;
 }
 
-static int msmpeg4v12_decode_mb(MpegEncContext *s, int16_t block[6][64])
+static int msmpeg4v12_decode_mb(MPVDecContext *s, int16_t block[6][64])
 {
     int cbp, code, i;
     uint32_t * const mb_type_ptr = &s->current_picture.mb_type[s->mb_x + s->mb_y*s->mb_stride];
@@ -202,7 +202,7 @@ static int msmpeg4v12_decode_mb(MpegEncContext *s, int16_t block[6][64])
     return 0;
 }
 
-static int msmpeg4v34_decode_mb(MpegEncContext *s, int16_t block[6][64])
+static int msmpeg4v34_decode_mb(MPVDecContext *s, int16_t block[6][64])
 {
     int cbp, code, i;
     uint8_t *coded_val;
@@ -295,7 +295,7 @@ static int msmpeg4v34_decode_mb(MpegEncContext *s, int16_t block[6][64])
 /* init all vlc decoding tables */
 av_cold int ff_msmpeg4_decode_init(AVCodecContext *avctx)
 {
-    MpegEncContext *s = avctx->priv_data;
+    MPVMainDecContext *const s = avctx->priv_data;
     static volatile int done = 0;
     int ret;
     MVTable *mv;
@@ -398,7 +398,7 @@ av_cold int ff_msmpeg4_decode_init(AVCodecContext *avctx)
     return 0;
 }
 
-int ff_msmpeg4_decode_picture_header(MpegEncContext * s)
+int ff_msmpeg4_decode_picture_header(MPVMainDecContext *s)
 {
     int code;
 
@@ -554,7 +554,7 @@ int ff_msmpeg4_decode_picture_header(MpegEncContext * s)
     return 0;
 }
 
-int ff_msmpeg4_decode_ext_header(MpegEncContext * s, int buf_size)
+int ff_msmpeg4_decode_ext_header(MPVMainDecContext *s, int buf_size)
 {
     int left= buf_size*8 - get_bits_count(&s->gb);
     int length= s->msmpeg4_version>=3 ? 17 : 16;
@@ -582,7 +582,7 @@ int ff_msmpeg4_decode_ext_header(MpegEncContext * s, int buf_size)
     return 0;
 }
 
-static int msmpeg4_decode_dc(MpegEncContext * s, int n, int *dir_ptr)
+static int msmpeg4_decode_dc(MPVDecContext *s, int n, int *dir_ptr)
 {
     int level, pred;
 
@@ -638,7 +638,7 @@ static int msmpeg4_decode_dc(MpegEncContext * s, int n, int *dir_ptr)
     return level;
 }
 
-int ff_msmpeg4_decode_block(MpegEncContext * s, int16_t * block,
+int ff_msmpeg4_decode_block(MPVDecContext *s, int16_t *block,
                               int n, int coded, const uint8_t *scan_table)
 {
     int level, i, last, run, run_diff;
@@ -825,7 +825,7 @@ int ff_msmpeg4_decode_block(MpegEncContext * s, int16_t * block,
     return 0;
 }
 
-void ff_msmpeg4_decode_motion(MpegEncContext *s, int *mx_ptr, int *my_ptr)
+void ff_msmpeg4_decode_motion(MPVDecContext *s, int *mx_ptr, int *my_ptr)
 {
     MVTable *mv;
     int code, mx, my;
@@ -862,7 +862,7 @@ const AVCodec ff_msmpeg4v1_decoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("MPEG-4 part 2 Microsoft variant version 1"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MSMPEG4V1,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainDecContext),
     .init           = ff_msmpeg4_decode_init,
     .close          = ff_h263_decode_end,
     .decode         = ff_h263_decode_frame,
@@ -880,7 +880,7 @@ const AVCodec ff_msmpeg4v2_decoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("MPEG-4 part 2 Microsoft variant version 2"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MSMPEG4V2,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainDecContext),
     .init           = ff_msmpeg4_decode_init,
     .close          = ff_h263_decode_end,
     .decode         = ff_h263_decode_frame,
@@ -898,7 +898,7 @@ const AVCodec ff_msmpeg4v3_decoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("MPEG-4 part 2 Microsoft variant version 3"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MSMPEG4V3,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainDecContext),
     .init           = ff_msmpeg4_decode_init,
     .close          = ff_h263_decode_end,
     .decode         = ff_h263_decode_frame,
@@ -916,7 +916,7 @@ const AVCodec ff_wmv1_decoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("Windows Media Video 7"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_WMV1,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainDecContext),
     .init           = ff_msmpeg4_decode_init,
     .close          = ff_h263_decode_end,
     .decode         = ff_h263_decode_frame,

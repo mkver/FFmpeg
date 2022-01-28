@@ -114,7 +114,7 @@ static inline int vc1_has_FORWARDMB_bitplane(const VC1Context *v)
 /** Reconstruct bitstream PTYPE (7.1.1.4, index into Table-35) */
 static int vc1_get_PTYPE(const VC1Context *v)
 {
-    const MpegEncContext *s = &v->s;
+    const MPVDecContext *const s = &v->s;
     switch (s->pict_type) {
     case AV_PICTURE_TYPE_I: return 0;
     case AV_PICTURE_TYPE_P: return v->p_frame_skipped ? 4 : 1;
@@ -126,7 +126,7 @@ static int vc1_get_PTYPE(const VC1Context *v)
 /** Reconstruct bitstream FPTYPE (9.1.1.42, index into Table-105) */
 static int vc1_get_FPTYPE(const VC1Context *v)
 {
-    const MpegEncContext *s = &v->s;
+    const MPVDecContext *const s = &v->s;
     switch (s->pict_type) {
     case AV_PICTURE_TYPE_I: return 0;
     case AV_PICTURE_TYPE_P: return 3;
@@ -250,7 +250,7 @@ static inline void vc1_pack_bitplanes(uint8_t *bitplane, int n, const uint8_t *f
 static int vaapi_vc1_start_frame(AVCodecContext *avctx, av_unused const uint8_t *buffer, av_unused uint32_t size)
 {
     const VC1Context *v = avctx->priv_data;
-    const MpegEncContext *s = &v->s;
+    const MPVDecContext *const s = &v->s;
     VAAPIDecodePicture *pic = s->current_picture_ptr->hwaccel_picture_private;
     VAPictureParameterBufferVC1 pic_param;
     int err;
@@ -447,7 +447,7 @@ fail:
 static int vaapi_vc1_end_frame(AVCodecContext *avctx)
 {
     VC1Context *v = avctx->priv_data;
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     VAAPIDecodePicture *pic = s->current_picture_ptr->hwaccel_picture_private;
     int ret;
 
@@ -464,7 +464,7 @@ fail:
 static int vaapi_vc1_decode_slice(AVCodecContext *avctx, const uint8_t *buffer, uint32_t size)
 {
     const VC1Context *v = avctx->priv_data;
-    const MpegEncContext *s = &v->s;
+    const MPVDecContext *const s = &v->s;
     VAAPIDecodePicture *pic = s->current_picture_ptr->hwaccel_picture_private;
     VASliceParameterBufferVC1 slice_param;
     int mb_height;

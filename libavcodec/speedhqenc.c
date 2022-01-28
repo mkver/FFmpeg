@@ -56,7 +56,7 @@ static uint32_t speedhq_chr_dc_uni[512];
 static uint8_t uni_speedhq_ac_vlc_len[64 * 64 * 2];
 
 typedef struct SpeedHQEncContext {
-    MpegEncContext m;
+    MPVMainEncContext m;
 
     int slice_start;
 } SpeedHQEncContext;
@@ -90,7 +90,7 @@ static av_cold void speedhq_init_static_data(void)
     ff_mpeg1_init_uni_ac_vlc(&ff_rl_speedhq, uni_speedhq_ac_vlc_len);
 }
 
-av_cold int ff_speedhq_encode_init(MpegEncContext *s)
+av_cold int ff_speedhq_encode_init(MPVMainEncContext *s)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
 
@@ -128,7 +128,7 @@ av_cold int ff_speedhq_encode_init(MpegEncContext *s)
     return 0;
 }
 
-void ff_speedhq_encode_picture_header(MpegEncContext *s)
+void ff_speedhq_encode_picture_header(MPVMainEncContext *s)
 {
     SpeedHQEncContext *ctx = (SpeedHQEncContext*)s;
 
@@ -140,7 +140,7 @@ void ff_speedhq_encode_picture_header(MpegEncContext *s)
     put_bits_le(&s->pb, 24, 0);
 }
 
-void ff_speedhq_end_slice(MpegEncContext *s)
+void ff_speedhq_end_slice(MPVEncContext *s)
 {
     SpeedHQEncContext *ctx = (SpeedHQEncContext*)s;
     int slice_len;
@@ -188,7 +188,7 @@ static inline void encode_dc(PutBitContext *pb, int diff, int component)
     }
 }
 
-static void encode_block(MpegEncContext *s, int16_t *block, int n)
+static void encode_block(MPVEncContext *s, int16_t *block, int n)
 {
     int alevel, level, last_non_zero, dc, i, j, run, last_index, sign;
     int code;
@@ -237,7 +237,7 @@ static void encode_block(MpegEncContext *s, int16_t *block, int n)
     put_bits_le(&s->pb, 4, 6);
 }
 
-void ff_speedhq_encode_mb(MpegEncContext *s, int16_t block[12][64])
+void ff_speedhq_encode_mb(MPVEncContext *s, int16_t block[12][64])
 {
     int i;
     for(i=0;i<6;i++) {

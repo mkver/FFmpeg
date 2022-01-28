@@ -100,7 +100,7 @@
             "psubw "a", "b"             \n\t" // out=((ABS(block[i])*qmat[0] - bias[0]*qmat[0])>>16)*sign(block[i])
 #endif
 
-static int RENAME(dct_quantize)(MpegEncContext *s,
+static int RENAME(dct_quantize)(MPVEncContext *s,
                             int16_t *block, int n,
                             int qscale, int *overflow)
 {

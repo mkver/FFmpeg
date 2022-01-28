@@ -20,11 +20,10 @@
 
 #include "flv.h"
 #include "h263data.h"
-#include "mpegvideo.h"
 #include "mpegvideodata.h"
 #include "mpegvideoenc.h"
 
-void ff_flv_encode_picture_header(MpegEncContext *s, int picture_number)
+void ff_flv_encode_picture_header(MPVMainEncContext *s, int picture_number)
 {
     int format;
 
@@ -97,7 +96,7 @@ const AVCodec ff_flv_encoder = {
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_FLV1,
     .priv_class     = &ff_mpv_enc_class,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainEncContext),
     .init           = ff_mpv_encode_init,
     .encode2        = ff_mpv_encode_picture,
     .close          = ff_mpv_encode_end,

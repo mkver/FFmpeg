@@ -25,7 +25,6 @@
  * RV20 encoder
  */
 
-#include "mpegvideo.h"
 #include "mpegvideodata.h"
 #include "mpegvideoenc.h"
 #include "h263data.h"
@@ -33,7 +32,8 @@
 #include "put_bits.h"
 #include "rv10.h"
 
-void ff_rv20_encode_picture_header(MpegEncContext *s, int picture_number){
+void ff_rv20_encode_picture_header(MPVMainEncContext *s, int picture_number)
+{
     put_bits(&s->pb, 2, s->pict_type); //I 0 vs. 1 ?
     put_bits(&s->pb, 1, 0);     /* unknown bit */
     put_bits(&s->pb, 5, s->qscale);
@@ -67,7 +67,7 @@ const AVCodec ff_rv20_encoder = {
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_RV20,
     .priv_class     = &ff_mpv_enc_class,
-    .priv_data_size = sizeof(MpegEncContext),
+    .priv_data_size = sizeof(MPVMainEncContext),
     .init           = ff_mpv_encode_init,
     .encode2        = ff_mpv_encode_picture,
     .close          = ff_mpv_encode_end,

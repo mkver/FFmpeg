@@ -39,7 +39,7 @@ static uint8_t uni_h261_rl_len [64*64*2*2];
 #define UNI_ENC_INDEX(last,run,level) ((last)*128*64 + (run)*128 + (level))
 
 typedef struct H261EncContext {
-    MpegEncContext s;
+    MPVMainEncContext s;
 
     H261Context common;
 
@@ -59,7 +59,7 @@ int ff_h261_get_picture_format(int width, int height)
         return AVERROR(EINVAL);
 }
 
-void ff_h261_encode_picture_header(MpegEncContext *s, int picture_number)
+void ff_h261_encode_picture_header(MPVMainEncContext *s, int picture_number)
 {
     H261EncContext *const h = (H261EncContext *)s;
     int format, temp_ref;
@@ -97,7 +97,7 @@ void ff_h261_encode_picture_header(MpegEncContext *s, int picture_number)
 /**
  * Encode a group of blocks header.
  */
-static void h261_encode_gob_header(MpegEncContext *s, int mb_line)
+static void h261_encode_gob_header(MPVEncContext *s, int mb_line)
 {
     H261EncContext *const h = (H261EncContext *)s;
     if (ff_h261_get_picture_format(s->width, s->height) == 0) {
@@ -114,7 +114,7 @@ static void h261_encode_gob_header(MpegEncContext *s, int mb_line)
     s->last_mv[0][0][1] = 0;
 }
 
-void ff_h261_reorder_mb_index(MpegEncContext *s)
+void ff_h261_reorder_mb_index(MPVEncContext *s)
 {
     int index = s->mb_x + s->mb_y * s->mb_width;
 
@@ -159,7 +159,7 @@ static void h261_encode_motion(PutBitContext *pb, int val)
     }
 }
 
-static inline int get_cbp(MpegEncContext *s, int16_t block[6][64])
+static inline int get_cbp(MPVEncContext *s, int16_t block[6][64])
 {
     int i, cbp;
     cbp = 0;
@@ -176,7 +176,7 @@ static inline int get_cbp(MpegEncContext *s, int16_t block[6][64])
  */
 static void h261_encode_block(H261EncContext *h, int16_t *block, int n)
 {
-    MpegEncContext *const s = &h->s;
+    MPVEncContext *const s = &h->s;
     int level, run, i, j, last_index, last_non_zero, sign, slevel, code;
     RLTable *rl;
 
@@ -242,7 +242,7 @@ static void h261_encode_block(H261EncContext *h, int16_t *block, int n)
         put_bits(&s->pb, rl->table_vlc[0][1], rl->table_vlc[0][0]); // EOB
 }
 
-void ff_h261_encode_mb(MpegEncContext *s, int16_t block[6][64],
+void ff_h261_encode_mb(MPVEncContext *s, int16_t block[6][64],
                        int motion_x, int motion_y)
 {
     /* The following is only allowed because this encoder
@@ -380,7 +380,7 @@ static av_cold void h261_encode_init_static(void)
     init_uni_h261_rl_tab(&ff_h261_rl_tcoeff, uni_h261_rl_len);
 }
 
-av_cold void ff_h261_encode_init(MpegEncContext *s)
+av_cold void ff_h261_encode_init(MPVMainEncContext *s)
 {
     H261EncContext *const h = (H261EncContext*)s;
     static AVOnce init_static_once = AV_ONCE_INIT;

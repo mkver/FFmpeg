@@ -27,6 +27,7 @@
 
 #include "get_bits.h"
 #include "mpegvideo.h"
+#include "mpegvideoenc.h"
 
 // shapes
 #define RECT_SHAPE       0
@@ -71,7 +72,7 @@
 #define MAX_NVOP_SIZE 19
 
 typedef struct Mpeg4DecContext {
-    MpegEncContext m;
+    MPVMainDecContext m;
 
     /// number of bits to represent the fractional part of time
     int time_increment_bits;
@@ -124,37 +125,37 @@ typedef struct Mpeg4DecContext {
 } Mpeg4DecContext;
 
 
-void ff_mpeg4_decode_studio(MpegEncContext *s, uint8_t *dest_y, uint8_t *dest_cb,
+void ff_mpeg4_decode_studio(MPVContext *s, uint8_t *dest_y, uint8_t *dest_cb,
                             uint8_t *dest_cr, int block_size, int uvlinesize,
                             int dct_linesize, int dct_offset);
-void ff_mpeg4_encode_mb(MpegEncContext *s,
+void ff_mpeg4_encode_mb(MPVEncContext *s,
                         int16_t block[6][64],
                         int motion_x, int motion_y);
-void ff_mpeg4_pred_ac(MpegEncContext *s, int16_t *block, int n,
+void ff_mpeg4_pred_ac(MPVDecContext *s, int16_t *block, int n,
                       int dir);
-void ff_set_mpeg4_time(MpegEncContext *s);
-int ff_mpeg4_encode_picture_header(MpegEncContext *s, int picture_number);
+void ff_set_mpeg4_time(MPVMainEncContext *m);
+int ff_mpeg4_encode_picture_header(MPVMainEncContext *m, int picture_number);
 
 int ff_mpeg4_decode_picture_header(Mpeg4DecContext *ctx, GetBitContext *gb,
                                    int header, int parse_only);
-void ff_mpeg4_encode_video_packet_header(MpegEncContext *s);
-void ff_mpeg4_clean_buffers(MpegEncContext *s);
+void ff_mpeg4_encode_video_packet_header(MPVEncContext *s);
+void ff_mpeg4_clean_buffers(MPVContext *s);
 void ff_mpeg4_stuffing(PutBitContext *pbc);
-void ff_mpeg4_init_partitions(MpegEncContext *s);
-void ff_mpeg4_merge_partitions(MpegEncContext *s);
-void ff_clean_mpeg4_qscales(MpegEncContext *s);
+void ff_mpeg4_init_partitions(MPVEncContext *s);
+void ff_mpeg4_merge_partitions(MPVEncContext *s);
+void ff_clean_mpeg4_qscales(MPVMainEncContext *m);
 int ff_mpeg4_decode_partitions(Mpeg4DecContext *ctx);
-int ff_mpeg4_get_video_packet_prefix_length(MpegEncContext *s);
+int ff_mpeg4_get_video_packet_prefix_length(MPVContext *s);
 int ff_mpeg4_decode_video_packet_header(Mpeg4DecContext *ctx);
 int ff_mpeg4_decode_studio_slice_header(Mpeg4DecContext *ctx);
-void ff_mpeg4_init_direct_mv(MpegEncContext *s);
+void ff_mpeg4_init_direct_mv(MPVContext *s);
 int ff_mpeg4_workaround_bugs(AVCodecContext *avctx);
 int ff_mpeg4_frame_end(AVCodecContext *avctx, const uint8_t *buf, int buf_size);
 
 /**
  * @return the mb_type
  */
-int ff_mpeg4_set_direct_mv(MpegEncContext *s, int mx, int my);
+int ff_mpeg4_set_direct_mv(MPVContext *s, int mx, int my);
 
 #if 0 //3IV1 is quite rare and it slows things down a tiny bit
 #define IS_3IV1 s->codec_tag == AV_RL32("3IV1")
@@ -169,7 +170,7 @@ int ff_mpeg4_set_direct_mv(MpegEncContext *s, int mx, int my);
  * @param n block index (0-3 are luma, 4-5 are chroma)
  * @param dir_ptr pointer to an integer where the prediction direction will be stored
  */
-static inline int ff_mpeg4_pred_dc(MpegEncContext *s, int n, int level,
+static inline int ff_mpeg4_pred_dc(MPVContext *s, int n, int level,
                                    int *dir_ptr, int encoding)
 {
     int a, b, c, wrap, pred, scale, ret;

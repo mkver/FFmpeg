@@ -24,6 +24,7 @@
 
 #include "mpeg12vlc.h"
 #include "mpegvideo.h"
+#include "mpegvideoenc.h"
 #include "rl.h"
 
 /* Start codes. */
@@ -36,7 +37,7 @@
 #define EXT_START_CODE          0x000001b5
 #define USER_START_CODE         0x000001b2
 
-void ff_mpeg12_common_init(MpegEncContext *s);
+void ff_mpeg12_common_init(MPVMainContext *m);
 
 #define INIT_2D_VLC_RL(rl, static_size, flags)\
 {\
@@ -70,16 +71,16 @@ int ff_mpeg1_decode_block_intra(GetBitContext *gb,
                                 uint8_t *const scantable, int last_dc[3],
                                 int16_t *block, int index, int qscale);
 
-void ff_mpeg1_clean_buffers(MpegEncContext *s);
+void ff_mpeg1_clean_buffers(MPVContext *s);
 #if FF_API_FLAG_TRUNCATED
 int ff_mpeg1_find_frame_end(ParseContext *pc, const uint8_t *buf, int buf_size, AVCodecParserContext *s);
 #endif
 
-void ff_mpeg1_encode_picture_header(MpegEncContext *s, int picture_number);
-void ff_mpeg1_encode_mb(MpegEncContext *s, int16_t block[8][64],
+void ff_mpeg1_encode_picture_header(MPVMainEncContext *m, int picture_number);
+void ff_mpeg1_encode_mb(MPVEncContext *s, int16_t block[8][64],
                         int motion_x, int motion_y);
-void ff_mpeg1_encode_init(MpegEncContext *s);
-void ff_mpeg1_encode_slice_header(MpegEncContext *s);
+void ff_mpeg1_encode_init(MPVMainEncContext *m);
+void ff_mpeg1_encode_slice_header(MPVEncContext *s);
 
 void ff_mpeg12_find_best_frame_rate(AVRational frame_rate,
                                     int *code, int *ext_n, int *ext_d,

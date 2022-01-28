@@ -60,9 +60,9 @@
 #define MAX_B_FRAMES 16
 
 /**
- * MpegEncContext.
+ * MPVContext.
  */
-typedef struct MpegEncContext {
+typedef struct MPVContext {
     AVClass *class;
 
     int y_dc_scale, c_dc_scale;
@@ -139,7 +139,7 @@ typedef struct MpegEncContext {
 
     int start_mb_y;            ///< start mb_y of this thread (so current thread should process start_mb_y <= row < end_mb_y)
     int end_mb_y;              ///< end   mb_y of this thread (so current thread should process start_mb_y <= row < end_mb_y)
-    struct MpegEncContext *thread_context[MAX_THREADS];
+    struct MPVContext *thread_context[MAX_THREADS];
     int slice_context_count;   ///< number of used thread_contexts
 
     /**
@@ -473,32 +473,32 @@ typedef struct MpegEncContext {
 
     int16_t (*block)[64]; ///< points to one of the following blocks
     int16_t (*blocks)[12][64]; // for HQ mode we need to keep the best block
-    int (*decode_mb)(struct MpegEncContext *s, int16_t block[12][64]); // used by some codecs to avoid a switch()
+    int (*decode_mb)(struct MPVContext *s, int16_t block[12][64]); // used by some codecs to avoid a switch()
 
 #define SLICE_OK         0
 #define SLICE_ERROR     -1
 #define SLICE_END       -2 ///<end marker found
 #define SLICE_NOEND     -3 ///<no end marker or error found but mb count exceeded
 
-    void (*dct_unquantize_mpeg1_intra)(struct MpegEncContext *s,
+    void (*dct_unquantize_mpeg1_intra)(struct MPVContext *s,
                            int16_t *block/*align 16*/, int n, int qscale);
-    void (*dct_unquantize_mpeg1_inter)(struct MpegEncContext *s,
+    void (*dct_unquantize_mpeg1_inter)(struct MPVContext *s,
                            int16_t *block/*align 16*/, int n, int qscale);
-    void (*dct_unquantize_mpeg2_intra)(struct MpegEncContext *s,
+    void (*dct_unquantize_mpeg2_intra)(struct MPVContext *s,
                            int16_t *block/*align 16*/, int n, int qscale);
-    void (*dct_unquantize_mpeg2_inter)(struct MpegEncContext *s,
+    void (*dct_unquantize_mpeg2_inter)(struct MPVContext *s,
                            int16_t *block/*align 16*/, int n, int qscale);
-    void (*dct_unquantize_h263_intra)(struct MpegEncContext *s,
+    void (*dct_unquantize_h263_intra)(struct MPVContext *s,
                            int16_t *block/*align 16*/, int n, int qscale);
-    void (*dct_unquantize_h263_inter)(struct MpegEncContext *s,
+    void (*dct_unquantize_h263_inter)(struct MPVContext *s,
                            int16_t *block/*align 16*/, int n, int qscale);
-    void (*dct_unquantize_intra)(struct MpegEncContext *s, // unquantizer to use (MPEG-4 can use both)
+    void (*dct_unquantize_intra)(struct MPVContext *s, // unquantizer to use (MPEG-4 can use both)
                            int16_t *block/*align 16*/, int n, int qscale);
-    void (*dct_unquantize_inter)(struct MpegEncContext *s, // unquantizer to use (MPEG-4 can use both)
+    void (*dct_unquantize_inter)(struct MPVContext *s, // unquantizer to use (MPEG-4 can use both)
                            int16_t *block/*align 16*/, int n, int qscale);
-    int (*dct_quantize)(struct MpegEncContext *s, int16_t *block/*align 16*/, int n, int qscale, int *overflow);
-    int (*fast_dct_quantize)(struct MpegEncContext *s, int16_t *block/*align 16*/, int n, int qscale, int *overflow);
-    void (*denoise_dct)(struct MpegEncContext *s, int16_t *block);
+    int (*dct_quantize)(struct MPVContext *s, int16_t *block/*align 16*/, int n, int qscale, int *overflow);
+    int (*fast_dct_quantize)(struct MPVContext *s, int16_t *block/*align 16*/, int n, int qscale, int *overflow);
+    void (*denoise_dct)(struct MPVContext *s, int16_t *block);
 
     int mpv_flags;      ///< flags set by private options
     int quantizer_noise_shaping;
@@ -548,79 +548,108 @@ typedef struct MpegEncContext {
 #if FF_API_MPEGVIDEO_OPTS || FF_API_MJPEG_PRED
     int dummy;               ///< used as target for deprecated options
 #endif
-} MpegEncContext;
-
+} MPVContext;
 
 /**
- * Set the given MpegEncContext to common defaults (same for encoding
- * and decoding).  The changed fields will not depend upon the prior
- * state of the MpegEncContext.
+ * MPVMainContext and MPVContext are intended to facilitate
+ * separating the data for the main thread and the slice threads
+ * for slice threading. MPVMainContext is typically part of
+ * an AVCodecContext's private data and can therefore easily
+ * be extended by other structures. Encoders generally extend
+ * it by MPVMainEncContext and decoders by MPVMainDecContext,
+ * potentially followed by other more codec-specific structures.
+ *
+ * Making MPVContext (and therefore making MPVDecContext and
+ * MPVEncContext separate structures) extensible is intended,
+ * but not implemented yet. Right now the only difference of
+ * using e.g. MPVDecContext instead of MPVContext is to convey
+ * the additional information that one is exclusively dealing
+ * with a decoder's slice context.
+ *
+ * Non slice-threaded codecs typically don't separate their
+ * structures according to what is only used by the main thread
+ * and what is used by slice threads. So modifications of
+ * the MPVMain*Context or of the codec-specific extensions thereof
+ * by a function that would be slice-threaded if slice-threading
+ * were supported (e.g. functions to decode/encode a macroblock)
+ * also show what needs to be resolved in order for a codec to
+ * support slice threading.
  */
-void ff_mpv_common_defaults(MpegEncContext *s);
+typedef MPVContext MPVDecContext;
+typedef MPVContext MPVMainContext;
+typedef MPVContext MPVMainDecContext;
 
-int ff_mpv_common_init(MpegEncContext *s);
-void ff_mpv_common_init_arm(MpegEncContext *s);
-void ff_mpv_common_init_axp(MpegEncContext *s);
-void ff_mpv_common_init_neon(MpegEncContext *s);
-void ff_mpv_common_init_ppc(MpegEncContext *s);
-void ff_mpv_common_init_x86(MpegEncContext *s);
-void ff_mpv_common_init_mips(MpegEncContext *s);
 /**
- * Initialize an MpegEncContext's thread contexts. Presumes that
+ * Set the given MPVMainContext to common defaults (same for encoding
+ * and decoding).  The changed fields will not depend upon the prior
+ * state of the MPVMainContext.
+ */
+void ff_mpv_common_defaults(MPVMainContext *m);
+
+int  ff_mpv_common_init(MPVMainContext *m);
+void ff_mpv_common_init_arm(MPVMainContext *m);
+void ff_mpv_common_init_axp(MPVMainContext *m);
+void ff_mpv_common_init_neon(MPVMainContext *m);
+void ff_mpv_common_init_ppc(MPVMainContext *m);
+void ff_mpv_common_init_x86(MPVMainContext *m);
+void ff_mpv_common_init_mips(MPVMainContext *m);
+/**
+ * Initialize an MPVMainContext's thread contexts. Presumes that
  * slice_context_count is already set and that all the fields
  * that are freed/reset in free_duplicate_context() are NULL.
  */
-int ff_mpv_init_duplicate_contexts(MpegEncContext *s);
+int ff_mpv_init_duplicate_contexts(MPVMainContext *m);
 /**
- * Initialize and allocates MpegEncContext fields dependent on the resolution.
+ * Initialize and allocates MPVContext fields dependent on the resolution.
  */
-int ff_mpv_init_context_frame(MpegEncContext *s);
+int ff_mpv_init_context_frame(MPVMainContext *m);
 /**
- * Frees and resets MpegEncContext fields depending on the resolution
+ * Frees and resets MPVMainContext fields depending on the resolution
  * as well as the slice thread contexts.
  * Is used during resolution changes to avoid a full reinitialization of the
  * codec.
  */
-void ff_mpv_free_context_frame(MpegEncContext *s);
+void ff_mpv_free_context_frame(MPVMainContext *m);
 
-int ff_mpv_common_frame_size_change(MpegEncContext *s);
-void ff_mpv_common_end(MpegEncContext *s);
+int  ff_mpv_common_frame_size_change(MPVMainDecContext *m);
+void ff_mpv_common_end(MPVMainContext *m);
 
 /**
- * Initialize the given MpegEncContext for decoding.
+ * Initialize the given MPVMainDecContext for decoding.
  * the changed fields will not depend upon
- * the prior state of the MpegEncContext.
+ * the prior state of the MPVMainDecContext.
  */
-void ff_mpv_decode_init(MpegEncContext *s, AVCodecContext *avctx);
-void ff_mpv_reconstruct_mb(MpegEncContext *s, int16_t block[12][64]);
-void ff_mpv_report_decode_progress(MpegEncContext *s);
+void ff_mpv_decode_init(MPVMainDecContext *m, AVCodecContext *avctx);
+void ff_mpv_reconstruct_mb(MPVContext *s, int16_t block[12][64]);
+void ff_mpv_report_decode_progress(MPVDecContext *s);
 
-int ff_mpv_frame_start(MpegEncContext *s, AVCodecContext *avctx);
-void ff_mpv_frame_end(MpegEncContext *s);
+int  ff_mpv_frame_start(MPVMainDecContext *m, AVCodecContext *avctx);
+void ff_mpv_frame_end(MPVMainDecContext *m);
 
-void ff_clean_intra_table_entries(MpegEncContext *s);
-void ff_mpeg_draw_horiz_band(MpegEncContext *s, int y, int h);
+void ff_clean_intra_table_entries(MPVContext *s);
+void ff_mpeg_draw_horiz_band(MPVDecContext *s, int y, int h);
 void ff_mpeg_flush(AVCodecContext *avctx);
 
-void ff_print_debug_info(MpegEncContext *s, Picture *p, AVFrame *pict);
+void ff_print_debug_info(MPVDecContext *s, Picture *p, AVFrame *pict);
 
-int ff_mpv_export_qp_table(MpegEncContext *s, AVFrame *f, Picture *p, int qp_type);
+int ff_mpv_export_qp_table(MPVMainDecContext *m, AVFrame *f, Picture *p, int qp_type);
 
-int ff_update_duplicate_context(MpegEncContext *dst, MpegEncContext *src);
+int ff_update_duplicate_context(MPVContext *dst, MPVContext *src);
 int ff_mpeg_update_thread_context(AVCodecContext *dst, const AVCodecContext *src);
-void ff_set_qscale(MpegEncContext * s, int qscale);
+void ff_set_qscale(MPVContext *s, int qscale);
 
-void ff_mpv_idct_init(MpegEncContext *s);
-void ff_init_block_index(MpegEncContext *s);
+void ff_mpv_idct_init(MPVContext *s);
+void ff_init_block_index(MPVContext *s);
 
-void ff_mpv_motion(MpegEncContext *s,
+void ff_mpv_motion(MPVContext *s,
                    uint8_t *dest_y, uint8_t *dest_cb,
                    uint8_t *dest_cr, int dir,
                    uint8_t **ref_picture,
                    op_pixels_func (*pix_op)[4],
                    qpel_mc_func (*qpix_op)[16]);
 
-static inline void ff_update_block_index(MpegEncContext *s){
+static inline void ff_update_block_index(MPVContext *s)
+{
     const int bytes_per_pixel = 1 + (s->avctx->bits_per_raw_sample > 8);
     const int block_size= (8*bytes_per_pixel) >> s->avctx->lowres;
 
@@ -635,7 +664,7 @@ static inline void ff_update_block_index(MpegEncContext *s){
     s->dest[2]+= (2 >> s->chroma_x_shift) * block_size;
 }
 
-static inline int mpeg_get_qscale(MpegEncContext *s)
+static inline int mpeg_get_qscale(MPVDecContext *s)
 {
     int qscale = get_bits(&s->gb, 5);
     if (s->q_scale_type)

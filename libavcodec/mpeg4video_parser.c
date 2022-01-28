@@ -91,7 +91,7 @@ static int mpeg4_decode_header(AVCodecParserContext *s1, AVCodecContext *avctx,
 {
     struct Mp4vParseContext *pc = s1->priv_data;
     Mpeg4DecContext *dec_ctx = &pc->dec_ctx;
-    MpegEncContext *s = &dec_ctx->m;
+    MPVDecContext *const s = &dec_ctx->m;
     GetBitContext gb1, *gb = &gb1;
     int ret;
 

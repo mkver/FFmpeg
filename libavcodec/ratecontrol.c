@@ -35,7 +35,7 @@
 #include "mpegvideoenc.h"
 #include "libavutil/eval.h"
 
-void ff_write_pass1_stats(MpegEncContext *s)
+void ff_write_pass1_stats(MPVMainEncContext *s)
 {
     snprintf(s->avctx->stats_out, 256,
              "in:%d out:%d type:%d q:%d itex:%d ptex:%d mv:%d misc:%d "
@@ -77,7 +77,7 @@ static inline double bits2qp(RateControlEntry *rce, double bits)
     return rce->qscale * (double)(rce->i_tex_bits + rce->p_tex_bits + 1) / bits;
 }
 
-static double get_diff_limited_q(MpegEncContext *s, RateControlEntry *rce, double q)
+static double get_diff_limited_q(MPVMainEncContext *s, RateControlEntry *rce, double q)
 {
     RateControlContext *rcc   = &s->rc_context;
     AVCodecContext *a         = s->avctx;
@@ -116,7 +116,7 @@ static double get_diff_limited_q(MpegEncContext *s, RateControlEntry *rce, doubl
 /**
  * Get the qmin & qmax for pict_type.
  */
-static void get_qminmax(int *qmin_ret, int *qmax_ret, MpegEncContext *s, int pict_type)
+static void get_qminmax(int *qmin_ret, int *qmax_ret, MPVMainEncContext *s, int pict_type)
 {
     int qmin = s->lmin;
     int qmax = s->lmax;
@@ -144,7 +144,7 @@ static void get_qminmax(int *qmin_ret, int *qmax_ret, MpegEncContext *s, int pic
     *qmax_ret = qmax;
 }
 
-static double modify_qscale(MpegEncContext *s, RateControlEntry *rce,
+static double modify_qscale(MPVMainEncContext *s, RateControlEntry *rce,
                             double q, int frame_num)
 {
     RateControlContext *rcc  = &s->rc_context;
@@ -235,7 +235,7 @@ static double modify_qscale(MpegEncContext *s, RateControlEntry *rce,
 /**
  * Modify the bitrate curve from pass1 for one frame.
  */
-static double get_qscale(MpegEncContext *s, RateControlEntry *rce,
+static double get_qscale(MPVMainEncContext *s, RateControlEntry *rce,
                          double rate_factor, int frame_num)
 {
     RateControlContext *rcc = &s->rc_context;
@@ -308,7 +308,7 @@ static double get_qscale(MpegEncContext *s, RateControlEntry *rce,
     return q;
 }
 
-static int init_pass2(MpegEncContext *s)
+static int init_pass2(MPVMainEncContext *s)
 {
     RateControlContext *rcc = &s->rc_context;
     AVCodecContext *a       = s->avctx;
@@ -469,7 +469,7 @@ static int init_pass2(MpegEncContext *s)
     return 0;
 }
 
-av_cold int ff_rate_control_init(MpegEncContext *s)
+av_cold int ff_rate_control_init(MPVMainEncContext *s)
 {
     RateControlContext *rcc = &s->rc_context;
     int i, res;
@@ -669,7 +669,7 @@ av_cold int ff_rate_control_init(MpegEncContext *s)
     return 0;
 }
 
-av_cold void ff_rate_control_uninit(MpegEncContext *s)
+av_cold void ff_rate_control_uninit(MPVMainEncContext *s)
 {
     RateControlContext *rcc = &s->rc_context;
     emms_c();
@@ -678,7 +678,7 @@ av_cold void ff_rate_control_uninit(MpegEncContext *s)
     av_freep(&rcc->entry);
 }
 
-int ff_vbv_update(MpegEncContext *s, int frame_size)
+int ff_vbv_update(MPVMainEncContext *s, int frame_size)
 {
     RateControlContext *rcc = &s->rc_context;
     const double fps        = get_fps(s->avctx);
@@ -737,7 +737,7 @@ static void update_predictor(Predictor *p, double q, double var, double size)
     p->coeff += new_coeff;
 }
 
-static void adaptive_quantization(MpegEncContext *s, double q)
+static void adaptive_quantization(MPVMainEncContext *s, double q)
 {
     int i;
     const float lumi_masking         = s->avctx->lumi_masking / (128.0 * 128.0);
@@ -854,7 +854,7 @@ static void adaptive_quantization(MpegEncContext *s, double q)
     }
 }
 
-void ff_get_2pass_fcode(MpegEncContext *s)
+void ff_get_2pass_fcode(MPVMainEncContext *s)
 {
     RateControlContext *rcc = &s->rc_context;
     RateControlEntry *rce   = &rcc->entry[s->picture_number];
@@ -865,7 +865,7 @@ void ff_get_2pass_fcode(MpegEncContext *s)
 
 // FIXME rd or at least approx for dquant
 
-float ff_rate_estimate_qscale(MpegEncContext *s, int dry_run)
+float ff_rate_estimate_qscale(MPVMainEncContext *s, int dry_run)
 {
     float q;
     int qmin, qmax;

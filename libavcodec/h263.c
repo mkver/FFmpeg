@@ -50,7 +50,8 @@ av_cold void ff_h263_init_rl_inter(void)
     ff_thread_once(&init_static_once, h263_init_rl_inter);
 }
 
-void ff_h263_update_motion_val(MpegEncContext * s){
+void ff_h263_update_motion_val(MPVContext *s)
+{
     const int mb_xy = s->mb_y * s->mb_stride + s->mb_x;
                //FIXME a lot of that is only needed for !low_delay
     const int wrap = s->b8_stride;
@@ -102,7 +103,8 @@ void ff_h263_update_motion_val(MpegEncContext * s){
     }
 }
 
-void ff_h263_loop_filter(MpegEncContext * s){
+void ff_h263_loop_filter(MPVContext *s)
+{
     int qp_c;
     const int linesize  = s->linesize;
     const int uvlinesize= s->uvlinesize;
@@ -187,7 +189,7 @@ void ff_h263_loop_filter(MpegEncContext * s){
     }
 }
 
-int16_t *ff_h263_pred_motion(MpegEncContext * s, int block, int dir,
+int16_t *ff_h263_pred_motion(MPVContext *s, int block, int dir,
                              int *px, int *py)
 {
     int wrap;

@@ -115,7 +115,7 @@ void dnxhd_10bit_get_pixels_8x4_sym(int16_t *av_restrict block,
     memcpy(block + 4 * 8, pixels + 3 * line_size, 8 * sizeof(*block));
 }
 
-static int dnxhd_10bit_dct_quantize_444(MpegEncContext *ctx, int16_t *block,
+static int dnxhd_10bit_dct_quantize_444(MPVEncContext *ctx, int16_t *block,
                                         int n, int qscale, int *overflow)
 {
     int i, j, level, last_non_zero, start_i;
@@ -174,7 +174,7 @@ static int dnxhd_10bit_dct_quantize_444(MpegEncContext *ctx, int16_t *block,
     return last_non_zero;
 }
 
-static int dnxhd_10bit_dct_quantize(MpegEncContext *ctx, int16_t *block,
+static int dnxhd_10bit_dct_quantize(MPVEncContext *ctx, int16_t *block,
                                     int n, int qscale, int *overflow)
 {
     const uint8_t *scantable= ctx->intra_scantable.scantable;

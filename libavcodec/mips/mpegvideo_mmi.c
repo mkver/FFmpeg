@@ -25,7 +25,7 @@
 #include "mpegvideo_mips.h"
 #include "libavutil/mips/mmiutils.h"
 
-void ff_dct_unquantize_h263_intra_mmi(MpegEncContext *s, int16_t *block,
+void ff_dct_unquantize_h263_intra_mmi(MPVContext *s, int16_t *block,
         int n, int qscale)
 {
     int64_t level, nCoeffs;
@@ -101,7 +101,7 @@ void ff_dct_unquantize_h263_intra_mmi(MpegEncContext *s, int16_t *block,
     block[0] = level;
 }
 
-void ff_dct_unquantize_h263_inter_mmi(MpegEncContext *s, int16_t *block,
+void ff_dct_unquantize_h263_inter_mmi(MPVContext *s, int16_t *block,
         int n, int qscale)
 {
     int64_t nCoeffs;
@@ -160,7 +160,7 @@ void ff_dct_unquantize_h263_inter_mmi(MpegEncContext *s, int16_t *block,
     );
 }
 
-void ff_dct_unquantize_mpeg1_intra_mmi(MpegEncContext *s, int16_t *block,
+void ff_dct_unquantize_mpeg1_intra_mmi(MPVContext *s, int16_t *block,
         int n, int qscale)
 {
     int64_t nCoeffs;
@@ -254,7 +254,7 @@ void ff_dct_unquantize_mpeg1_intra_mmi(MpegEncContext *s, int16_t *block,
     block[0] = block0;
 }
 
-void ff_dct_unquantize_mpeg1_inter_mmi(MpegEncContext *s, int16_t *block,
+void ff_dct_unquantize_mpeg1_inter_mmi(MPVContext *s, int16_t *block,
         int n, int qscale)
 {
     int64_t nCoeffs;
@@ -342,7 +342,7 @@ void ff_dct_unquantize_mpeg1_inter_mmi(MpegEncContext *s, int16_t *block,
     );
 }
 
-void ff_dct_unquantize_mpeg2_intra_mmi(MpegEncContext *s, int16_t *block,
+void ff_dct_unquantize_mpeg2_intra_mmi(MPVContext *s, int16_t *block,
         int n, int qscale)
 {
     uint64_t nCoeffs;
@@ -435,7 +435,7 @@ void ff_dct_unquantize_mpeg2_intra_mmi(MpegEncContext *s, int16_t *block,
     block[0]= block0;
 }
 
-void ff_denoise_dct_mmi(MpegEncContext *s, int16_t *block)
+void ff_denoise_dct_mmi(MPVContext *s, int16_t *block)
 {
     const int intra = s->mb_intra;
     int *sum = s->dct_error_sum[intra];

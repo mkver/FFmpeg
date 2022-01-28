@@ -171,7 +171,7 @@ enum Imode {
  * Many members are only used for Advanced Profile
  */
 typedef struct VC1Context{
-    MpegEncContext s;
+    MPVMainDecContext s;
     IntraX8Context x8;
     H264ChromaContext h264chroma;
     VC1DSPContext vc1dsp;

@@ -33,10 +33,9 @@
 #include "libavutil/attributes.h"
 #include "libavutil/avutil.h"
 #include "libavutil/thread.h"
-#include "mpegvideo.h"
 #include "mpegvideoenc.h"
 #include "h263.h"
-#include "h263enc.h"
+#include "h263data.h"
 #include "internal.h"
 #include "mpeg4video.h"
 #include "msmpeg4.h"
@@ -44,7 +43,6 @@
 #include "msmpeg4enc.h"
 #include "put_bits.h"
 #include "rl.h"
-#include "vc1data.h"
 
 static uint8_t rl_length[NB_RL_TABLES][MAX_LEVEL+1][MAX_RUN+1][2];
 
@@ -136,7 +134,7 @@ static av_cold void msmpeg4_encode_init_static(void)
     }
 }
 
-av_cold void ff_msmpeg4_encode_init(MpegEncContext *s)
+av_cold void ff_msmpeg4_encode_init(MPVMainEncContext *s)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
 
@@ -152,7 +150,7 @@ av_cold void ff_msmpeg4_encode_init(MpegEncContext *s)
 
 static void find_best_tables(MSMPEG4EncContext *ms)
 {
-    MpegEncContext *const s = &ms->s;
+    MPVEncContext *const s = &ms->s;
     int i;
     int best        = 0, best_size        = INT_MAX;
     int chroma_best = 0, best_chroma_size = INT_MAX;
@@ -216,7 +214,7 @@ static void find_best_tables(MSMPEG4EncContext *ms)
 }
 
 /* write MSMPEG4 compatible frame header */
-void ff_msmpeg4_encode_picture_header(MpegEncContext * s, int picture_number)
+void ff_msmpeg4_encode_picture_header(MPVMainEncContext *s, int picture_number)
 {
     MSMPEG4EncContext *const ms = (MSMPEG4EncContext*)s;
 
@@ -278,7 +276,7 @@ void ff_msmpeg4_encode_picture_header(MpegEncContext * s, int picture_number)
     s->esc3_run_length= 0;
 }
 
-void ff_msmpeg4_encode_ext_header(MpegEncContext * s)
+void ff_msmpeg4_encode_ext_header(MPVEncContext *s)
 {
         unsigned fps = s->avctx->time_base.den / s->avctx->time_base.num / FFMAX(s->avctx->ticks_per_frame, 1);
         put_bits(&s->pb, 5, FFMIN(fps, 31)); //yes 29.97 -> 29
@@ -291,7 +289,7 @@ void ff_msmpeg4_encode_ext_header(MpegEncContext * s)
             av_assert0(s->flipflop_rounding==0);
 }
 
-void ff_msmpeg4_encode_motion(MpegEncContext * s,
+void ff_msmpeg4_encode_motion(MPVEncContext *s,
                                   int mx, int my)
 {
     int code;
@@ -324,7 +322,8 @@ void ff_msmpeg4_encode_motion(MpegEncContext * s,
     }
 }
 
-void ff_msmpeg4_handle_slices(MpegEncContext *s){
+void ff_msmpeg4_handle_slices(MPVEncContext *s)
+{
     if (s->mb_x == 0) {
         if (s->slice_height && (s->mb_y % s->slice_height) == 0) {
             if(s->msmpeg4_version < 4){
@@ -337,7 +336,7 @@ void ff_msmpeg4_handle_slices(MpegEncContext *s){
     }
 }
 
-static void msmpeg4v2_encode_motion(MpegEncContext * s, int val)
+static void msmpeg4v2_encode_motion(MPVEncContext *s, int val)
 {
     int range, bit_size, sign, code, bits;
 
@@ -370,7 +369,7 @@ static void msmpeg4v2_encode_motion(MpegEncContext * s, int val)
     }
 }
 
-void ff_msmpeg4_encode_mb(MpegEncContext * s,
+void ff_msmpeg4_encode_mb(MPVEncContext *s,
                           int16_t block[6][64],
                           int motion_x, int motion_y)
 {
@@ -493,7 +492,7 @@ void ff_msmpeg4_encode_mb(MpegEncContext * s,
     }
 }
 
-static void msmpeg4_encode_dc(MpegEncContext * s, int level, int n, int *dir_ptr)
+static void msmpeg4_encode_dc(MPVEncContext *s, int level, int n, int *dir_ptr)
 {
     int sign, code;
     int pred;
@@ -556,7 +555,7 @@ static void msmpeg4_encode_dc(MpegEncContext * s, int level, int n, int *dir_ptr
 
 /* Encoding of a block; very similar to MPEG-4 except for a different
  * escape coding (same as H.263) and more VLC tables. */
-void ff_msmpeg4_encode_block(MpegEncContext * s, int16_t * block, int n)
+void ff_msmpeg4_encode_block(MPVEncContext *s, int16_t *block, int n)
 {
     MSMPEG4EncContext *const ms = (MSMPEG4EncContext*)s;
     int level, run, last, i, j, last_index;

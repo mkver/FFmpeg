@@ -29,7 +29,7 @@
 
 #if HAVE_MMX_INLINE
 
-static void dct_unquantize_h263_intra_mmx(MpegEncContext *s,
+static void dct_unquantize_h263_intra_mmx(MPVContext *s,
                                   int16_t *block, int n, int qscale)
 {
     x86_reg level, qmul, qadd, nCoeffs;
@@ -104,7 +104,7 @@ __asm__ volatile(
 }
 
 
-static void dct_unquantize_h263_inter_mmx(MpegEncContext *s,
+static void dct_unquantize_h263_inter_mmx(MPVContext *s,
                                   int16_t *block, int n, int qscale)
 {
     x86_reg qmul, qadd, nCoeffs;
@@ -165,7 +165,7 @@ __asm__ volatile(
         );
 }
 
-static void dct_unquantize_mpeg1_intra_mmx(MpegEncContext *s,
+static void dct_unquantize_mpeg1_intra_mmx(MPVContext *s,
                                      int16_t *block, int n, int qscale)
 {
     x86_reg nCoeffs;
@@ -234,7 +234,7 @@ __asm__ volatile(
     block[0]= block0;
 }
 
-static void dct_unquantize_mpeg1_inter_mmx(MpegEncContext *s,
+static void dct_unquantize_mpeg1_inter_mmx(MPVContext *s,
                                      int16_t *block, int n, int qscale)
 {
     x86_reg nCoeffs;
@@ -300,7 +300,7 @@ __asm__ volatile(
         );
 }
 
-static void dct_unquantize_mpeg2_intra_mmx(MpegEncContext *s,
+static void dct_unquantize_mpeg2_intra_mmx(MPVContext *s,
                                      int16_t *block, int n, int qscale)
 {
     x86_reg nCoeffs;
@@ -369,7 +369,7 @@ __asm__ volatile(
         //Note, we do not do mismatch control for intra as errors cannot accumulate
 }
 
-static void dct_unquantize_mpeg2_inter_mmx(MpegEncContext *s,
+static void dct_unquantize_mpeg2_inter_mmx(MPVContext *s,
                                      int16_t *block, int n, int qscale)
 {
     x86_reg nCoeffs;
@@ -451,7 +451,7 @@ __asm__ volatile(
 
 #endif /* HAVE_MMX_INLINE */
 
-av_cold void ff_mpv_common_init_x86(MpegEncContext *s)
+av_cold void ff_mpv_common_init_x86(MPVMainContext *s)
 {
 #if HAVE_MMX_INLINE
     int cpu_flags = av_get_cpu_flags();

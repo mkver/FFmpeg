@@ -58,7 +58,7 @@ static const int block_map[6] = {0, 2, 1, 3, 4, 5};
 
 static inline void init_block_index(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     ff_init_block_index(s);
     if (v->field_mode && !(v->second_field ^ v->tff)) {
         s->dest[0] += s->current_picture_ptr->f->linesize[0];
@@ -71,7 +71,7 @@ static inline void init_block_index(VC1Context *v)
 
 static void vc1_put_blocks_clamped(VC1Context *v, int put_signed)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     uint8_t *dest;
     int block_count = CONFIG_GRAY && (s->avctx->flags & AV_CODEC_FLAG_GRAY) ? 4 : 6;
     int fieldtx = 0;
@@ -329,14 +329,14 @@ static inline void vc1_b_mc(VC1Context *v, int dmv_x[2], int dmv_y[2],
 
 /** Get predicted DC value for I-frames only
  * prediction dir: left=0, top=1
- * @param s MpegEncContext
+ * @param s MPVDecContext
  * @param overlap flag indicating that overlap filtering is used
  * @param pq integer part of picture quantizer
  * @param[in] n block index in the current MB
  * @param dc_val_ptr Pointer to DC predictor
  * @param dir_ptr Prediction direction for use in AC prediction
  */
-static inline int vc1_i_pred_dc(MpegEncContext *s, int overlap, int pq, int n,
+static inline int vc1_i_pred_dc(MPVDecContext *s, int overlap, int pq, int n,
                                 int16_t **dc_val_ptr, int *dir_ptr)
 {
     int a, b, c, wrap, pred, scale;
@@ -392,7 +392,7 @@ static inline int vc1_i_pred_dc(MpegEncContext *s, int overlap, int pq, int n,
 
 /** Get predicted DC value
  * prediction dir: left=0, top=1
- * @param s MpegEncContext
+ * @param s MPVDecContext
  * @param overlap flag indicating that overlap filtering is used
  * @param pq integer part of picture quantizer
  * @param[in] n block index in the current MB
@@ -401,7 +401,7 @@ static inline int vc1_i_pred_dc(MpegEncContext *s, int overlap, int pq, int n,
  * @param dc_val_ptr Pointer to DC predictor
  * @param dir_ptr Prediction direction for use in AC prediction
  */
-static inline int ff_vc1_pred_dc(MpegEncContext *s, int overlap, int pq, int n,
+static inline int ff_vc1_pred_dc(MPVDecContext *s, int overlap, int pq, int n,
                               int a_avail, int c_avail,
                               int16_t **dc_val_ptr, int *dir_ptr)
 {
@@ -472,7 +472,7 @@ static inline int ff_vc1_pred_dc(MpegEncContext *s, int overlap, int pq, int n,
  * @{
  */
 
-static inline int vc1_coded_block_pred(MpegEncContext * s, int n,
+static inline int vc1_coded_block_pred(MPVDecContext * s, int n,
                                        uint8_t **coded_block_ptr)
 {
     int xy, wrap, pred, a, b, c;
@@ -578,8 +578,8 @@ static int vc1_decode_ac_coeff(VC1Context *v, int *last, int *skip,
 static int vc1_decode_i_block(VC1Context *v, int16_t block[64], int n,
                               int coded, int codingset)
 {
+    MPVDecContext *const s = &v->s;
     GetBitContext *gb = &v->s.gb;
-    MpegEncContext *s = &v->s;
     int dc_pred_dir = 0; /* Direction of the DC prediction used */
     int i;
     int16_t *dc_val;
@@ -716,8 +716,8 @@ static int vc1_decode_i_block(VC1Context *v, int16_t block[64], int n,
 static int vc1_decode_i_block_adv(VC1Context *v, int16_t block[64], int n,
                                   int coded, int codingset, int mquant)
 {
+    MPVDecContext *const s = &v->s;
     GetBitContext *gb = &v->s.gb;
-    MpegEncContext *s = &v->s;
     int dc_pred_dir = 0; /* Direction of the DC prediction used */
     int i;
     int16_t *dc_val = NULL;
@@ -907,8 +907,8 @@ static int vc1_decode_i_block_adv(VC1Context *v, int16_t block[64], int n,
 static int vc1_decode_intra_block(VC1Context *v, int16_t block[64], int n,
                                   int coded, int mquant, int codingset)
 {
+    MPVDecContext *const s = &v->s;
     GetBitContext *gb = &v->s.gb;
-    MpegEncContext *s = &v->s;
     int dc_pred_dir = 0; /* Direction of the DC prediction used */
     int i;
     int16_t *dc_val = NULL;
@@ -1116,7 +1116,7 @@ static int vc1_decode_p_block(VC1Context *v, int16_t block[64], int n,
                               uint8_t *dst, int linesize, int skip_block,
                               int *ttmb_out)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     GetBitContext *gb = &s->gb;
     int i, j;
     int subblkpat = 0;
@@ -1285,7 +1285,7 @@ static const uint8_t size_table[6] = { 0, 2, 3, 4,  5,  8 };
  */
 static int vc1_decode_p_mb(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     GetBitContext *gb = &s->gb;
     int i, j;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
@@ -1517,7 +1517,7 @@ end:
 
 static int vc1_decode_p_mb_intfr(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     GetBitContext *gb = &s->gb;
     int i;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
@@ -1727,7 +1727,7 @@ static int vc1_decode_p_mb_intfr(VC1Context *v)
 
 static int vc1_decode_p_mb_intfi(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     GetBitContext *gb = &s->gb;
     int i;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
@@ -1851,7 +1851,7 @@ static int vc1_decode_p_mb_intfi(VC1Context *v)
  */
 static int vc1_decode_b_mb(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     GetBitContext *gb = &s->gb;
     int i, j;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
@@ -2009,7 +2009,7 @@ static int vc1_decode_b_mb(VC1Context *v)
  */
 static int vc1_decode_b_mb_intfi(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     GetBitContext *gb = &s->gb;
     int i, j;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
@@ -2176,7 +2176,7 @@ static int vc1_decode_b_mb_intfi(VC1Context *v)
  */
 static int vc1_decode_b_mb_intfr(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     GetBitContext *gb = &s->gb;
     int i, j;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
@@ -2526,8 +2526,8 @@ static int vc1_decode_b_mb_intfr(VC1Context *v)
  */
 static void vc1_decode_i_blocks(VC1Context *v)
 {
+    MPVDecContext *const s = &v->s;
     int k, j;
-    MpegEncContext *s = &v->s;
     int cbp, val;
     uint8_t *coded_val;
     int mb_pos;
@@ -2651,8 +2651,8 @@ static void vc1_decode_i_blocks(VC1Context *v)
  */
 static int vc1_decode_i_blocks_adv(VC1Context *v)
 {
+    MPVDecContext *const s = &v->s;
     int k;
-    MpegEncContext *s = &v->s;
     int cbp, val;
     uint8_t *coded_val;
     int mb_pos;
@@ -2794,7 +2794,7 @@ static int vc1_decode_i_blocks_adv(VC1Context *v)
 
 static void vc1_decode_p_blocks(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int apply_loop_filter;
 
     /* select coding mode used for VLC tables selection */
@@ -2886,7 +2886,7 @@ static void vc1_decode_p_blocks(VC1Context *v)
 
 static void vc1_decode_b_blocks(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
 
     /* select coding mode used for VLC tables selection */
     switch (v->c_ac_table_index) {
@@ -2970,7 +2970,7 @@ static void vc1_decode_b_blocks(VC1Context *v)
 
 static void vc1_decode_skip_blocks(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
 
     if (!v->s.last_picture.f->data[0])
         return;

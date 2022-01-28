@@ -55,8 +55,8 @@
 #define A53_MAX_CC_COUNT 2000
 
 typedef struct Mpeg1Context {
-    MpegEncContext mpeg_enc_ctx;
-    int mpeg_enc_ctx_allocated; /* true if decoding context allocated */
+    MPVMainDecContext mpeg_ctx;
+    int mpeg_ctx_allocated;     /* true if decoding context allocated */
     int repeat_field;           /* true if we must repeat the field */
     AVPanScan pan_scan;         /* some temporary storage for the panscan */
     AVStereo3D stereo3d;
@@ -106,7 +106,7 @@ static const uint32_t btype2mb_type[11] = {
 };
 
 /* as H.263, but only 17 codes */
-static int mpeg_decode_motion(MpegEncContext *s, int fcode, int pred)
+static int mpeg_decode_motion(MPVDecContext *s, int fcode, int pred)
 {
     int code, sign, val, shift;
 
@@ -142,7 +142,7 @@ static int mpeg_decode_motion(MpegEncContext *s, int fcode, int pred)
         }                                                                     \
     } while (0)
 
-static inline int mpeg1_decode_block_inter(MpegEncContext *s,
+static inline int mpeg1_decode_block_inter(MPVDecContext *s,
                                            int16_t *block, int n)
 {
     int level, i, j, run;
@@ -231,7 +231,7 @@ end:
  * Changing this would eat up any speed benefits it has.
  * Do not use "fast" flag if you need the code to be robust.
  */
-static inline int mpeg1_fast_decode_block_inter(MpegEncContext *s,
+static inline int mpeg1_fast_decode_block_inter(MPVDecContext *s,
                                                 int16_t *block, int n)
 {
     int level, i, j, run;
@@ -316,7 +316,7 @@ end:
     return 0;
 }
 
-static inline int mpeg2_decode_block_non_intra(MpegEncContext *s,
+static inline int mpeg2_decode_block_non_intra(MPVDecContext *s,
                                                int16_t *block, int n)
 {
     int level, i, j, run;
@@ -406,7 +406,7 @@ end:
  * Changing this would eat up any speed benefits it has.
  * Do not use "fast" flag if you need the code to be robust.
  */
-static inline int mpeg2_fast_decode_block_non_intra(MpegEncContext *s,
+static inline int mpeg2_fast_decode_block_non_intra(MPVDecContext *s,
                                                     int16_t *block, int n)
 {
     int level, i, j, run;
@@ -478,7 +478,7 @@ end:
     return 0;
 }
 
-static inline int mpeg2_decode_block_intra(MpegEncContext *s,
+static inline int mpeg2_decode_block_intra(MPVDecContext *s,
                                            int16_t *block, int n)
 {
     int level, dc, diff, i, j, run;
@@ -564,7 +564,7 @@ static inline int mpeg2_decode_block_intra(MpegEncContext *s,
  * Changing this would eat up any speed benefits it has.
  * Do not use "fast" flag if you need the code to be robust.
  */
-static inline int mpeg2_fast_decode_block_intra(MpegEncContext *s,
+static inline int mpeg2_fast_decode_block_intra(MPVDecContext *s,
                                                 int16_t *block, int n)
 {
     int level, dc, diff, i, j, run;
@@ -640,7 +640,7 @@ static inline int mpeg2_fast_decode_block_intra(MpegEncContext *s,
 /******************************************/
 /* decoding */
 
-static inline int get_dmv(MpegEncContext *s)
+static inline int get_dmv(MPVDecContext *s)
 {
     if (get_bits1(&s->gb))
         return 1 - (get_bits1(&s->gb) << 1);
@@ -654,7 +654,7 @@ static inline int get_dmv(MpegEncContext *s)
 #define MT_16X8  2
 #define MT_DMV   3
 
-static int mpeg_decode_mb(MpegEncContext *s, int16_t block[12][64])
+static int mpeg_decode_mb(MPVDecContext *s, int16_t block[12][64])
 {
     int i, j, k, cbp, val, mb_type, motion_type;
     const int mb_block_count = 4 + (1 << s->chroma_format);
@@ -1054,7 +1054,7 @@ static int mpeg_decode_mb(MpegEncContext *s, int16_t block[12][64])
 static av_cold int mpeg_decode_init(AVCodecContext *avctx)
 {
     Mpeg1Context *s    = avctx->priv_data;
-    MpegEncContext *s2 = &s->mpeg_enc_ctx;
+    MPVMainDecContext *const s2 = &s->mpeg_ctx;
 
     if (   avctx->codec_tag != AV_RL32("VCR2")
         && avctx->codec_tag != AV_RL32("BW10"))
@@ -1064,11 +1064,11 @@ static av_cold int mpeg_decode_init(AVCodecContext *avctx)
     /* we need some permutation to store matrices,
      * until the decoder sets the real permutation. */
     ff_mpv_idct_init(s2);
-    ff_mpeg12_common_init(&s->mpeg_enc_ctx);
+    ff_mpeg12_common_init(&s->mpeg_ctx);
     ff_mpeg12_init_vlcs();
 
     s2->chroma_format              = 1;
-    s->mpeg_enc_ctx_allocated      = 0;
+    s->mpeg_ctx_allocated = 0;
     s->repeat_field                = 0;
     avctx->color_range             = AVCOL_RANGE_MPEG;
     return 0;
@@ -1079,11 +1079,12 @@ static int mpeg_decode_update_thread_context(AVCodecContext *avctx,
                                              const AVCodecContext *avctx_from)
 {
     Mpeg1Context *ctx = avctx->priv_data, *ctx_from = avctx_from->priv_data;
-    MpegEncContext *s = &ctx->mpeg_enc_ctx, *s1 = &ctx_from->mpeg_enc_ctx;
+    MPVMainDecContext *const s = &ctx->mpeg_ctx;
+    const MPVMainDecContext *const s1 = &ctx_from->mpeg_ctx;
     int err;
 
     if (avctx == avctx_from               ||
-        !ctx_from->mpeg_enc_ctx_allocated ||
+        !ctx_from->mpeg_ctx_allocated ||
         !s1->context_initialized)
         return 0;
 
@@ -1091,8 +1092,8 @@ static int mpeg_decode_update_thread_context(AVCodecContext *avctx,
     if (err)
         return err;
 
-    if (!ctx->mpeg_enc_ctx_allocated)
-        memcpy(s + 1, s1 + 1, sizeof(Mpeg1Context) - sizeof(MpegEncContext));
+    if (!ctx->mpeg_ctx_allocated)
+        memcpy(s + 1, s1 + 1, sizeof(Mpeg1Context) - sizeof(MPVMainDecContext));
 
     return 0;
 }
@@ -1164,7 +1165,7 @@ static const enum AVPixelFormat mpeg12_pixfmt_list_444[] = {
 static enum AVPixelFormat mpeg_get_pixelformat(AVCodecContext *avctx)
 {
     Mpeg1Context *s1  = avctx->priv_data;
-    MpegEncContext *s = &s1->mpeg_enc_ctx;
+    MPVMainDecContext *const s = &s1->mpeg_ctx;
     const enum AVPixelFormat *pix_fmts;
 
     if (CONFIG_GRAY && (avctx->flags & AV_CODEC_FLAG_GRAY))
@@ -1191,7 +1192,7 @@ static void setup_hwaccel_for_pixfmt(AVCodecContext *avctx)
 
     if (avctx->hwaccel && avctx->pix_fmt == AV_PIX_FMT_XVMC) {
         Mpeg1Context *s1 = avctx->priv_data;
-        MpegEncContext *s = &s1->mpeg_enc_ctx;
+        MPVMainDecContext *const s = &s1->mpeg_ctx;
 
         s->pack_pblocks = 1;
     }
@@ -1202,7 +1203,7 @@ static void setup_hwaccel_for_pixfmt(AVCodecContext *avctx)
 static int mpeg_decode_postinit(AVCodecContext *avctx)
 {
     Mpeg1Context *s1  = avctx->priv_data;
-    MpegEncContext *s = &s1->mpeg_enc_ctx;
+    MPVMainDecContext *const s = &s1->mpeg_ctx;
     uint8_t old_permutation[64];
     int ret;
 
@@ -1257,7 +1258,7 @@ static int mpeg_decode_postinit(AVCodecContext *avctx)
         avctx->sample_aspect_ratio = (AVRational){ 0, 1 };
     }
 
-    if ((s1->mpeg_enc_ctx_allocated == 0)                   ||
+    if (!s1->mpeg_ctx_allocated                   ||
         avctx->coded_width       != s->width                ||
         avctx->coded_height      != s->height               ||
         s1->save_width           != s->width                ||
@@ -1265,7 +1266,7 @@ static int mpeg_decode_postinit(AVCodecContext *avctx)
         av_cmp_q(s1->save_aspect, s->avctx->sample_aspect_ratio) ||
         (s1->save_progressive_seq != s->progressive_sequence && FFALIGN(s->height, 16) != FFALIGN(s->height, 32)) ||
         0) {
-        if (s1->mpeg_enc_ctx_allocated) {
+        if (s1->mpeg_ctx_allocated) {
 #if FF_API_FLAG_TRUNCATED
             ParseContext pc = s->parse_context;
             s->parse_context.buffer = 0;
@@ -1274,7 +1275,7 @@ static int mpeg_decode_postinit(AVCodecContext *avctx)
 #else
             ff_mpv_common_end(s);
 #endif
-            s1->mpeg_enc_ctx_allocated = 0;
+            s1->mpeg_ctx_allocated = 0;
         }
 
         ret = ff_set_dimensions(avctx, s->width, s->height);
@@ -1335,7 +1336,7 @@ static int mpeg_decode_postinit(AVCodecContext *avctx)
         quant_matrix_rebuild(s->chroma_intra_matrix, old_permutation, s->idsp.idct_permutation);
         quant_matrix_rebuild(s->chroma_inter_matrix, old_permutation, s->idsp.idct_permutation);
 
-        s1->mpeg_enc_ctx_allocated = 1;
+        s1->mpeg_ctx_allocated = 1;
     }
     return 0;
 }
@@ -1344,7 +1345,7 @@ static int mpeg1_decode_picture(AVCodecContext *avctx, const uint8_t *buf,
                                 int buf_size)
 {
     Mpeg1Context *s1  = avctx->priv_data;
-    MpegEncContext *s = &s1->mpeg_enc_ctx;
+    MPVMainDecContext *const s = &s1->mpeg_ctx;
     int ref, f_code, vbv_delay, ret;
 
     ret = init_get_bits8(&s->gb, buf, buf_size);
@@ -1391,7 +1392,7 @@ static int mpeg1_decode_picture(AVCodecContext *avctx, const uint8_t *buf,
 
 static void mpeg_decode_sequence_extension(Mpeg1Context *s1)
 {
-    MpegEncContext *s = &s1->mpeg_enc_ctx;
+    MPVMainDecContext *const s = &s1->mpeg_ctx;
     int horiz_size_ext, vert_size_ext;
     int bit_rate_ext;
     AVCPBProperties *cpb_props;
@@ -1441,7 +1442,7 @@ static void mpeg_decode_sequence_extension(Mpeg1Context *s1)
 
 static void mpeg_decode_sequence_display_extension(Mpeg1Context *s1)
 {
-    MpegEncContext *s = &s1->mpeg_enc_ctx;
+    MPVMainDecContext *const s = &s1->mpeg_ctx;
     int color_description, w, h;
 
     skip_bits(&s->gb, 3); /* video format */
@@ -1465,7 +1466,7 @@ static void mpeg_decode_sequence_display_extension(Mpeg1Context *s1)
 
 static void mpeg_decode_picture_display_extension(Mpeg1Context *s1)
 {
-    MpegEncContext *s = &s1->mpeg_enc_ctx;
+    MPVMainDecContext *const s = &s1->mpeg_ctx;
     int i, nofco;
 
     nofco = 1;
@@ -1497,7 +1498,7 @@ static void mpeg_decode_picture_display_extension(Mpeg1Context *s1)
                s1->pan_scan.position[2][0], s1->pan_scan.position[2][1]);
 }
 
-static int load_matrix(MpegEncContext *s, uint16_t matrix0[64],
+static int load_matrix(MPVMainDecContext *s, uint16_t matrix0[64],
                        uint16_t matrix1[64], int intra)
 {
     int i;
@@ -1520,7 +1521,7 @@ static int load_matrix(MpegEncContext *s, uint16_t matrix0[64],
     return 0;
 }
 
-static void mpeg_decode_quant_matrix_extension(MpegEncContext *s)
+static void mpeg_decode_quant_matrix_extension(MPVMainDecContext *s)
 {
     ff_dlog(s->avctx, "matrix extension\n");
 
@@ -1536,7 +1537,7 @@ static void mpeg_decode_quant_matrix_extension(MpegEncContext *s)
 
 static int mpeg_decode_picture_coding_extension(Mpeg1Context *s1)
 {
-    MpegEncContext *s = &s1->mpeg_enc_ctx;
+    MPVMainDecContext *const s = &s1->mpeg_ctx;
 
     s->full_pel[0]       = s->full_pel[1] = 0;
     s->mpeg_f_code[0][0] = get_bits(&s->gb, 4);
@@ -1547,7 +1548,7 @@ static int mpeg_decode_picture_coding_extension(Mpeg1Context *s1)
     s->mpeg_f_code[0][1] += !s->mpeg_f_code[0][1];
     s->mpeg_f_code[1][0] += !s->mpeg_f_code[1][0];
     s->mpeg_f_code[1][1] += !s->mpeg_f_code[1][1];
-    if (!s->pict_type && s1->mpeg_enc_ctx_allocated) {
+    if (!s->pict_type && s1->mpeg_ctx_allocated) {
         av_log(s->avctx, AV_LOG_ERROR, "Missing picture start code\n");
         if (s->avctx->err_recognition & AV_EF_EXPLODE)
             return AVERROR_INVALIDDATA;
@@ -1597,7 +1598,7 @@ static int mpeg_decode_picture_coding_extension(Mpeg1Context *s1)
     return 0;
 }
 
-static int mpeg_field_start(MpegEncContext *s, const uint8_t *buf, int buf_size)
+static int mpeg_field_start(MPVMainDecContext *s, const uint8_t *buf, int buf_size)
 {
     AVCodecContext *avctx = s->avctx;
     Mpeg1Context *s1      = (Mpeg1Context *) s;
@@ -1705,11 +1706,11 @@ static int mpeg_field_start(MpegEncContext *s, const uint8_t *buf, int buf_size)
 
 /**
  * Decode a slice.
- * MpegEncContext.mb_y must be set to the MB row from the startcode.
+ * MPVDecContext.mb_y must be set to the MB row from the startcode.
  * @return DECODE_SLICE_ERROR if the slice is damaged,
  *         DECODE_SLICE_OK if this slice is OK
  */
-static int mpeg_decode_slice(MpegEncContext *s, int mb_y,
+static int mpeg_decode_slice(MPVDecContext *s, int mb_y,
                              const uint8_t **buf, int buf_size)
 {
     AVCodecContext *avctx = s->avctx;
@@ -1988,7 +1989,7 @@ eos: // end of slice
 
 static int slice_decode_thread(AVCodecContext *c, void *arg)
 {
-    MpegEncContext *s   = *(void **) arg;
+    MPVDecContext *const s = *(void **) arg;
     const uint8_t *buf  = s->gb.buffer;
     int mb_y            = s->start_mb_y;
     const int field_pic = s->picture_structure != PICT_FRAME;
@@ -2042,9 +2043,9 @@ static int slice_decode_thread(AVCodecContext *c, void *arg)
 static int slice_end(AVCodecContext *avctx, AVFrame *pict)
 {
     Mpeg1Context *s1  = avctx->priv_data;
-    MpegEncContext *s = &s1->mpeg_enc_ctx;
+    MPVMainDecContext *const s = &s1->mpeg_ctx;
 
-    if (!s1->mpeg_enc_ctx_allocated || !s->current_picture_ptr)
+    if (!s1->mpeg_ctx_allocated || !s->current_picture_ptr)
         return 0;
 
     if (s->avctx->hwaccel) {
@@ -2091,7 +2092,7 @@ static int mpeg1_decode_sequence(AVCodecContext *avctx,
                                  const uint8_t *buf, int buf_size)
 {
     Mpeg1Context *s1  = avctx->priv_data;
-    MpegEncContext *s = &s1->mpeg_enc_ctx;
+    MPVMainDecContext *const s = &s1->mpeg_ctx;
     int width, height;
     int i, v, j;
 
@@ -2179,14 +2180,14 @@ static int mpeg1_decode_sequence(AVCodecContext *avctx,
 static int vcr2_init_sequence(AVCodecContext *avctx)
 {
     Mpeg1Context *s1  = avctx->priv_data;
-    MpegEncContext *s = &s1->mpeg_enc_ctx;
+    MPVMainDecContext *const s = &s1->mpeg_ctx;
     int i, v, ret;
 
     /* start new MPEG-1 context decoding */
     s->out_format = FMT_MPEG1;
-    if (s1->mpeg_enc_ctx_allocated) {
+    if (s1->mpeg_ctx_allocated) {
         ff_mpv_common_end(s);
-        s1->mpeg_enc_ctx_allocated = 0;
+        s1->mpeg_ctx_allocated = 0;
     }
     s->width            = avctx->coded_width;
     s->height           = avctx->coded_height;
@@ -2199,7 +2200,7 @@ static int vcr2_init_sequence(AVCodecContext *avctx)
     ff_mpv_idct_init(s);
     if ((ret = ff_mpv_common_init(s)) < 0)
         return ret;
-    s1->mpeg_enc_ctx_allocated = 1;
+    s1->mpeg_ctx_allocated = 1;
 
     for (i = 0; i < 64; i++) {
         int j = s->idsp.idct_permutation[i];
@@ -2290,7 +2291,7 @@ static int mpeg_decode_a53_cc(AVCodecContext *avctx,
                         cap[0] = cap[1] = cap[2] = 0x00;
                     } else {
                         field = (field == 2 ? 1 : 0);
-                        if (!s1->mpeg_enc_ctx.top_field_first) field = !field;
+                        if (!s1->mpeg_ctx.top_field_first) field = !field;
                         cap[0] = 0x04 | field;
                         cap[1] = ff_reverse[cc1];
                         cap[2] = ff_reverse[cc2];
@@ -2439,7 +2440,7 @@ static void mpeg_decode_gop(AVCodecContext *avctx,
                             const uint8_t *buf, int buf_size)
 {
     Mpeg1Context *s1  = avctx->priv_data;
-    MpegEncContext *s = &s1->mpeg_enc_ctx;
+    MPVMainDecContext *const s = &s1->mpeg_ctx;
     int broken_link;
     int64_t tc;
 
@@ -2466,7 +2467,7 @@ static int decode_chunks(AVCodecContext *avctx, AVFrame *picture,
                          int *got_output, const uint8_t *buf, int buf_size)
 {
     Mpeg1Context *s = avctx->priv_data;
-    MpegEncContext *s2 = &s->mpeg_enc_ctx;
+    MPVMainDecContext *const s2 = &s->mpeg_ctx;
     const uint8_t *buf_ptr = buf;
     const uint8_t *buf_end = buf + buf_size;
     int ret, input_size;
@@ -2721,7 +2722,7 @@ static int decode_chunks(AVCodecContext *avctx, AVFrame *picture,
                     break;
                 }
 
-                if (!s->mpeg_enc_ctx_allocated)
+                if (!s->mpeg_ctx_allocated)
                     break;
 
                 if (s2->codec_id == AV_CODEC_ID_MPEG2VIDEO) {
@@ -2757,7 +2758,7 @@ static int decode_chunks(AVCodecContext *avctx, AVFrame *picture,
                                     s2->slice_context_count;
                     av_assert0(avctx->thread_count > 1);
                     if (threshold <= mb_y) {
-                        MpegEncContext *thread_context = s2->thread_context[s->slice_count];
+                        MPVDecContext *const thread_context = s2->thread_context[s->slice_count];
 
                         thread_context->start_mb_y = mb_y;
                         thread_context->end_mb_y   = s2->mb_height;
@@ -2802,7 +2803,7 @@ static int mpeg_decode_frame(AVCodecContext *avctx, void *data,
     int buf_size = avpkt->size;
     Mpeg1Context *s = avctx->priv_data;
     AVFrame *picture = data;
-    MpegEncContext *s2 = &s->mpeg_enc_ctx;
+    MPVMainDecContext *const s2 = &s->mpeg_ctx;
 
     if (buf_size == 0 || (buf_size == 4 && AV_RB32(buf) == SEQ_END_CODE)) {
         /* special case for last picture */
@@ -2830,7 +2831,7 @@ static int mpeg_decode_frame(AVCodecContext *avctx, void *data,
 #endif
 
     s2->codec_tag = ff_toupper4(avctx->codec_tag);
-    if (s->mpeg_enc_ctx_allocated == 0 && (   s2->codec_tag == AV_RL32("VCR2")
+    if (!s->mpeg_ctx_allocated && (s2->codec_tag == AV_RL32("VCR2")
                                            || s2->codec_tag == AV_RL32("BW10")
                                           ))
         vcr2_init_sequence(avctx);
@@ -2889,8 +2890,8 @@ static av_cold int mpeg_decode_end(AVCodecContext *avctx)
 {
     Mpeg1Context *s = avctx->priv_data;
 
-    if (s->mpeg_enc_ctx_allocated)
-        ff_mpv_common_end(&s->mpeg_enc_ctx);
+    if (s->mpeg_ctx_allocated)
+        ff_mpv_common_end(&s->mpeg_ctx);
     av_buffer_unref(&s->a53_buf_ref);
     return 0;
 }
@@ -3001,7 +3002,7 @@ const AVCodec ff_mpegvideo_decoder = {
 };
 
 typedef struct IPUContext {
-    MpegEncContext m;
+    MPVMainDecContext m;
 
     int flags;
     DECLARE_ALIGNED(32, int16_t, block)[6][64];
@@ -3011,7 +3012,7 @@ static int ipu_decode_frame(AVCodecContext *avctx, void *data,
                             int *got_frame, AVPacket *avpkt)
 {
     IPUContext *s = avctx->priv_data;
-    MpegEncContext *m = &s->m;
+    MPVMainDecContext *const m = &s->m;
     GetBitContext *gb = &m->gb;
     AVFrame * const frame = data;
     int ret;
@@ -3111,7 +3112,7 @@ static int ipu_decode_frame(AVCodecContext *avctx, void *data,
 static av_cold int ipu_decode_init(AVCodecContext *avctx)
 {
     IPUContext *s = avctx->priv_data;
-    MpegEncContext *m = &s->m;
+    MPVMainDecContext *const m = &s->m;
 
     avctx->pix_fmt = AV_PIX_FMT_YUV420P;
 

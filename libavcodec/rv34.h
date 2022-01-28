@@ -84,7 +84,7 @@ typedef struct SliceInfo{
 
 /** decoder context */
 typedef struct RV34DecContext{
-    MpegEncContext s;
+    MPVMainDecContext s;
     RV34DSPContext rdsp;
     int8_t *intra_types_hist;///< old block types, used for prediction
     int8_t *intra_types;     ///< block types

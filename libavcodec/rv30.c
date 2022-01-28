@@ -116,7 +116,7 @@ static int rv30_decode_mb_info(RV34DecContext *r)
 {
     static const int rv30_p_types[6] = { RV34_MB_SKIP, RV34_MB_P_16x16, RV34_MB_P_8x8, -1, RV34_MB_TYPE_INTRA, RV34_MB_TYPE_INTRA16x16 };
     static const int rv30_b_types[6] = { RV34_MB_SKIP, RV34_MB_B_DIRECT, RV34_MB_B_FORWARD, RV34_MB_B_BACKWARD, RV34_MB_TYPE_INTRA, RV34_MB_TYPE_INTRA16x16 };
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     GetBitContext *gb = &s->gb;
     unsigned code = get_interleaved_ue_golomb(gb);
 
@@ -151,7 +151,7 @@ static inline void rv30_weak_loop_filter(uint8_t *src, const int step,
 
 static void rv30_loop_filter(RV34DecContext *r, int row)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     int mb_pos, mb_x;
     int i, j, k;
     uint8_t *Y, *C;

@@ -51,7 +51,7 @@
 #define DC_VLC_BITS        9
 
 typedef struct RVDecContext {
-    MpegEncContext m;
+    MPVMainDecContext m;
     int sub_id;
     int orig_width, orig_height;
 } RVDecContext;
@@ -79,7 +79,7 @@ static const uint16_t rv_chrom_len_count[15] = {
 
 static VLC rv_dc_lum, rv_dc_chrom;
 
-int ff_rv_decode_dc(MpegEncContext *s, int n)
+int ff_rv_decode_dc(MPVDecContext *s, int n)
 {
     int code;
 
@@ -96,7 +96,7 @@ int ff_rv_decode_dc(MpegEncContext *s, int n)
 }
 
 /* read RV 1.0 compatible frame header */
-static int rv10_decode_picture_header(MpegEncContext *s)
+static int rv10_decode_picture_header(MPVDecContext *s)
 {
     int mb_count, pb_frame, marker, mb_xy;
 
@@ -156,7 +156,7 @@ static int rv10_decode_picture_header(MpegEncContext *s)
 
 static int rv20_decode_picture_header(RVDecContext *rv, int whole_size)
 {
-    MpegEncContext *s = &rv->m;
+    MPVMainDecContext *const s = &rv->m;
     int seq, mb_pos, i, ret;
     int rpr_max;
 
@@ -366,7 +366,7 @@ static av_cold int rv10_decode_init(AVCodecContext *avctx)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
     RVDecContext *rv = avctx->priv_data;
-    MpegEncContext *s = &rv->m;
+    MPVMainDecContext *const s = &rv->m;
     int major_ver, minor_ver, micro_ver, ret;
 
     if (avctx->extradata_size < 8) {
@@ -432,7 +432,7 @@ static av_cold int rv10_decode_init(AVCodecContext *avctx)
 
 static av_cold int rv10_decode_end(AVCodecContext *avctx)
 {
-    MpegEncContext *s = avctx->priv_data;
+    MPVMainDecContext *const s = avctx->priv_data;
 
     ff_mpv_common_end(s);
     return 0;
@@ -442,7 +442,7 @@ static int rv10_decode_packet(AVCodecContext *avctx, const uint8_t *buf,
                               int buf_size, int buf_size2, int whole_size)
 {
     RVDecContext *rv = avctx->priv_data;
-    MpegEncContext *s = &rv->m;
+    MPVDecContext *const s = &rv->m;
     int mb_count, mb_pos, left, start_mb_x, active_bits_size, ret;
 
     active_bits_size = buf_size * 8;
@@ -596,7 +596,7 @@ static int rv10_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
 {
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;
-    MpegEncContext *s = avctx->priv_data;
+    MPVMainDecContext *const s = avctx->priv_data;
     AVFrame *pict = data;
     int i, ret;
     int slice_count;

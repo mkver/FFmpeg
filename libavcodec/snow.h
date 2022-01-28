@@ -32,7 +32,7 @@
 #include "rangecoder.h"
 #include "mathops.h"
 
-#include "mpegvideo.h"
+#include "mpegvideoenc.h"
 #include "h264qpel.h"
 
 #define SNOW_MAX_PLANES 4
@@ -182,7 +182,7 @@ typedef struct SnowContext{
     int iterative_dia_size;
     int scenechange_threshold;
 
-    MpegEncContext m; // needed for motion estimation, should not be used for anything else, the idea is to eventually make the motion estimation independent of MpegEncContext, so this will be removed then (FIXME/XXX)
+    MPVMainEncContext m; // needed for motion estimation, should not be used for anything else, the idea is to eventually make the motion estimation independent of mpegvideo, so this will be removed then (FIXME/XXX)
 
     uint8_t *scratchbuf;
     uint8_t *emu_edge_buffer;

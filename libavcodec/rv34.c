@@ -345,7 +345,7 @@ static inline RV34VLC* choose_vlc_set(int quant, int mod, int type)
  */
 static int rv34_decode_intra_mb_header(RV34DecContext *r, int8_t *intra_types)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     GetBitContext *gb = &s->gb;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
     int t;
@@ -380,7 +380,7 @@ static int rv34_decode_intra_mb_header(RV34DecContext *r, int8_t *intra_types)
  */
 static int rv34_decode_inter_mb_header(RV34DecContext *r, int8_t *intra_types)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     GetBitContext *gb = &s->gb;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
     int i, t;
@@ -458,7 +458,7 @@ static const uint8_t avail_indexes[4] = { 6, 7, 10, 11 };
  */
 static void rv34_pred_mv(RV34DecContext *r, int block_type, int subblock_no, int dmv_no)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     int mv_pos = s->mb_x * 2 + s->mb_y * 2 * s->b8_stride;
     int A[2] = {0}, B[2], C[2];
     int i, j;
@@ -542,7 +542,7 @@ static inline void rv34_pred_b_vector(int A[2], int B[2], int C[2],
  */
 static void rv34_pred_mv_b(RV34DecContext *r, int block_type, int dir)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
     int mv_pos = s->mb_x * 2 + s->mb_y * 2 * s->b8_stride;
     int A[2] = { 0 }, B[2] = { 0 }, C[2] = { 0 };
@@ -594,7 +594,7 @@ static void rv34_pred_mv_b(RV34DecContext *r, int block_type, int dir)
  */
 static void rv34_pred_mv_rv3(RV34DecContext *r, int block_type, int dir)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     int mv_pos = s->mb_x * 2 + s->mb_y * 2 * s->b8_stride;
     int A[2] = {0}, B[2], C[2];
     int i, j, k;
@@ -662,7 +662,7 @@ static inline void rv34_mc(RV34DecContext *r, const int block_type,
                           qpel_mc_func (*qpel_mc)[16],
                           h264_chroma_mc_func (*chroma_mc))
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     uint8_t *Y, *U, *V, *srcY, *srcU, *srcV;
     int dxy, mx, my, umx, umy, lx, ly, uvmx, uvmy, src_x, src_y, uvsrc_x, uvsrc_y;
     int mv_pos = s->mb_x * 2 + s->mb_y * 2 * s->b8_stride + mv_off;
@@ -850,7 +850,7 @@ static const int num_mvs[RV34_MB_TYPES] = { 0, 0, 1, 4, 1, 1, 0, 0, 2, 2, 2, 1 }
  */
 static int rv34_decode_mv(RV34DecContext *r, int block_type)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     GetBitContext *gb = &s->gb;
     int i, j, k, l;
     int mv_pos = s->mb_x * 2 + s->mb_y * 2 * s->b8_stride;
@@ -1009,7 +1009,7 @@ static inline void rv34_process_block(RV34DecContext *r,
                                       uint8_t *pdst, int stride,
                                       int fc, int sc, int q_dc, int q_ac)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     int16_t *ptr = s->block[0];
     int has_ac = rv34_decode_block(ptr, &s->gb, r->cur_vlcs,
                                    fc, sc, q_dc, q_ac, q_ac);
@@ -1024,7 +1024,7 @@ static inline void rv34_process_block(RV34DecContext *r,
 static void rv34_output_i16x16(RV34DecContext *r, int8_t *intra_types, int cbp)
 {
     LOCAL_ALIGNED_16(int16_t, block16, [16]);
-    MpegEncContext *s    = &r->s;
+    MPVDecContext *const s = &r->s;
     GetBitContext  *gb   = &s->gb;
     int             q_dc = rv34_qscale_tab[ r->luma_dc_quant_i[s->qscale] ],
                     q_ac = rv34_qscale_tab[s->qscale];
@@ -1086,7 +1086,7 @@ static void rv34_output_i16x16(RV34DecContext *r, int8_t *intra_types, int cbp)
 
 static void rv34_output_intra(RV34DecContext *r, int8_t *intra_types, int cbp)
 {
-    MpegEncContext *s   = &r->s;
+    MPVDecContext *const s = &r->s;
     uint8_t        *dst = s->dest[0];
     int      avail[6*8] = {0};
     int i, j, k;
@@ -1162,7 +1162,7 @@ static int is_mv_diff_gt_3(int16_t (*motion_val)[2], int step)
 
 static int rv34_set_deblock_coef(RV34DecContext *r)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     int hmvmask = 0, vmvmask = 0, i, j;
     int midx = s->mb_x * 2 + s->mb_y * 2 * s->b8_stride;
     int16_t (*motion_val)[2] = &s->current_picture_ptr->motion_val[0][midx];
@@ -1192,7 +1192,7 @@ static int rv34_set_deblock_coef(RV34DecContext *r)
 
 static int rv34_decode_inter_macroblock(RV34DecContext *r, int8_t *intra_types)
 {
-    MpegEncContext *s   = &r->s;
+    MPVDecContext *const s = &r->s;
     GetBitContext  *gb  = &s->gb;
     uint8_t        *dst = s->dest[0];
     int16_t        *ptr = s->block[0];
@@ -1300,7 +1300,7 @@ static int rv34_decode_inter_macroblock(RV34DecContext *r, int8_t *intra_types)
 
 static int rv34_decode_intra_macroblock(RV34DecContext *r, int8_t *intra_types)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     int cbp, dist;
     int mb_pos = s->mb_x + s->mb_y * s->mb_stride;
 
@@ -1338,7 +1338,7 @@ static int rv34_decode_intra_macroblock(RV34DecContext *r, int8_t *intra_types)
     return 0;
 }
 
-static int check_slice_end(RV34DecContext *r, MpegEncContext *s)
+static int check_slice_end(RV34DecContext *r, MPVDecContext *s)
 {
     int bits;
     if(s->mb_y >= s->mb_height)
@@ -1403,7 +1403,7 @@ static int rv34_decoder_realloc(RV34DecContext *r)
 
 static int rv34_decode_slice(RV34DecContext *r, int end, const uint8_t* buf, int buf_size)
 {
-    MpegEncContext *s = &r->s;
+    MPVDecContext *const s = &r->s;
     GetBitContext *gb = &s->gb;
     int mb_pos, slice_type;
     int res;
@@ -1487,7 +1487,7 @@ av_cold int ff_rv34_decode_init(AVCodecContext *avctx)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
     RV34DecContext *r = avctx->priv_data;
-    MpegEncContext *s = &r->s;
+    MPVMainDecContext *const s = &r->s;
     int ret;
 
     ff_mpv_decode_init(s, avctx);
@@ -1516,7 +1516,8 @@ av_cold int ff_rv34_decode_init(AVCodecContext *avctx)
 int ff_rv34_decode_update_thread_context(AVCodecContext *dst, const AVCodecContext *src)
 {
     RV34DecContext *r = dst->priv_data, *r1 = src->priv_data;
-    MpegEncContext * const s = &r->s, * const s1 = &r1->s;
+    MPVMainDecContext *const s = &r->s;
+    const MPVMainDecContext *const s1 = &r1->s;
     int err;
 
     if (dst == src || !s1->context_initialized)
@@ -1557,7 +1558,7 @@ static int get_slice_offset(AVCodecContext *avctx, const uint8_t *buf, int n, in
 static int finish_frame(AVCodecContext *avctx, AVFrame *pict)
 {
     RV34DecContext *r = avctx->priv_data;
-    MpegEncContext *s = &r->s;
+    MPVMainDecContext *const s = &r->s;
     int got_picture = 0, ret;
 
     ff_er_frame_end(&s->er);
@@ -1601,7 +1602,7 @@ int ff_rv34_decode_frame(AVCodecContext *avctx,
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
     RV34DecContext *r = avctx->priv_data;
-    MpegEncContext *s = &r->s;
+    MPVMainDecContext *const s = &r->s;
     AVFrame *pict = data;
     SliceInfo si;
     int i, ret;

@@ -32,6 +32,9 @@
 #include "internal.h"
 #include "mpegvideo.h"
 
+typedef MPVContext MPVEncContext;
+typedef MPVContext MPVMainEncContext;
+
 #define UNI_AC_ENC_INDEX(run,level) ((run)*128 + (level))
 
 /* mpegvideo_enc common options */
@@ -59,7 +62,7 @@
 { "chroma", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = FF_CMP_CHROMA }, INT_MIN, INT_MAX, FF_MPV_OPT_FLAGS, "cmp_func" }, \
 { "msad",   "Sum of absolute differences, median predicted", 0, AV_OPT_TYPE_CONST, {.i64 = FF_CMP_MEDIAN_SAD }, INT_MIN, INT_MAX, FF_MPV_OPT_FLAGS, "cmp_func" }
 
-#define FF_MPV_OFFSET(x) offsetof(MpegEncContext, x)
+#define FF_MPV_OFFSET(x) offsetof(MPVMainEncContext, x)
 #define FF_MPV_OPT_FLAGS (AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM)
 #define FF_MPV_COMMON_OPTS \
 FF_MPV_OPT_CMP_FUNC, \
@@ -129,26 +132,26 @@ FF_MPV_OPT_CMP_FUNC, \
 extern const AVClass ff_mpv_enc_class;
 
 int ff_mpv_encode_init(AVCodecContext *avctx);
-void ff_mpv_encode_init_x86(MpegEncContext *s);
+void ff_mpv_encode_init_x86(MPVMainEncContext *m);
 
 int ff_mpv_encode_end(AVCodecContext *avctx);
 int ff_mpv_encode_picture(AVCodecContext *avctx, AVPacket *pkt,
                           const AVFrame *frame, int *got_packet);
-int ff_mpv_reallocate_putbitbuffer(MpegEncContext *s, size_t threshold, size_t size_increase);
+int ff_mpv_reallocate_putbitbuffer(MPVEncContext *s, size_t threshold, size_t size_increase);
 
 void ff_write_quant_matrix(PutBitContext *pb, uint16_t *matrix);
 
-int ff_dct_encode_init(MpegEncContext *s);
-void ff_dct_encode_init_x86(MpegEncContext *s);
+int ff_dct_encode_init(MPVEncContext *s);
+void ff_dct_encode_init_x86(MPVEncContext *s);
 
-int ff_dct_quantize_c(MpegEncContext *s, int16_t *block, int n, int qscale, int *overflow);
-void ff_convert_matrix(MpegEncContext *s, int (*qmat)[64], uint16_t (*qmat16)[2][64],
+int ff_dct_quantize_c(MPVEncContext *s, int16_t *block, int n, int qscale, int *overflow);
+void ff_convert_matrix(MPVEncContext *s, int (*qmat)[64], uint16_t (*qmat16)[2][64],
                        const uint16_t *quant_matrix, int bias, int qmin, int qmax, int intra);
 
 void ff_block_permute(int16_t *block, uint8_t *permutation,
                       const uint8_t *scantable, int last);
 
-static inline int get_bits_diff(MpegEncContext *s)
+static inline int get_bits_diff(MPVEncContext *s)
 {
     const int bits = put_bits_count(&s->pb);
     const int last = s->last_bits;

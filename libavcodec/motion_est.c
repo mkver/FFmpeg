@@ -47,7 +47,7 @@
 #define ME_MAP_SHIFT 3
 #define ME_MAP_MV_BITS 11
 
-static int sad_hpel_motion_search(MpegEncContext * s,
+static int sad_hpel_motion_search(MPVEncContext *s,
                                   int *mx_ptr, int *my_ptr, int dmin,
                                   int src_index, int ref_index,
                                   int size, int h);
@@ -104,7 +104,7 @@ static int get_flags(MotionEstContext *c, int direct, int chroma){
            + (chroma ? FLAG_CHROMA : 0);
 }
 
-static av_always_inline int cmp_direct_inline(MpegEncContext *s, const int x, const int y, const int subx, const int suby,
+static av_always_inline int cmp_direct_inline(MPVEncContext *s, const int x, const int y, const int subx, const int suby,
                       const int size, const int h, int ref_index, int src_index,
                       me_cmp_func cmp_func, me_cmp_func chroma_cmp_func, int qpel){
     MotionEstContext * const c= &s->me;
@@ -176,7 +176,7 @@ static av_always_inline int cmp_direct_inline(MpegEncContext *s, const int x, co
     return d;
 }
 
-static av_always_inline int cmp_inline(MpegEncContext *s, const int x, const int y, const int subx, const int suby,
+static av_always_inline int cmp_inline(MPVEncContext *s, const int x, const int y, const int subx, const int suby,
                       const int size, const int h, int ref_index, int src_index,
                       me_cmp_func cmp_func, me_cmp_func chroma_cmp_func, int qpel, int chroma){
     MotionEstContext * const c= &s->me;
@@ -228,13 +228,13 @@ static av_always_inline int cmp_inline(MpegEncContext *s, const int x, const int
     return d;
 }
 
-static int cmp_simple(MpegEncContext *s, const int x, const int y,
+static int cmp_simple(MPVEncContext *s, const int x, const int y,
                       int ref_index, int src_index,
                       me_cmp_func cmp_func, me_cmp_func chroma_cmp_func){
     return cmp_inline(s,x,y,0,0,0,16,ref_index,src_index, cmp_func, chroma_cmp_func, 0, 0);
 }
 
-static int cmp_fpel_internal(MpegEncContext *s, const int x, const int y,
+static int cmp_fpel_internal(MPVEncContext *s, const int x, const int y,
                       const int size, const int h, int ref_index, int src_index,
                       me_cmp_func cmp_func, me_cmp_func chroma_cmp_func, const int flags){
     if(flags&FLAG_DIRECT){
@@ -244,7 +244,7 @@ static int cmp_fpel_internal(MpegEncContext *s, const int x, const int y,
     }
 }
 
-static int cmp_internal(MpegEncContext *s, const int x, const int y, const int subx, const int suby,
+static int cmp_internal(MPVEncContext *s, const int x, const int y, const int subx, const int suby,
                       const int size, const int h, int ref_index, int src_index,
                       me_cmp_func cmp_func, me_cmp_func chroma_cmp_func, const int flags){
     if(flags&FLAG_DIRECT){
@@ -257,7 +257,7 @@ static int cmp_internal(MpegEncContext *s, const int x, const int y, const int s
 /** @brief compares a block (either a full macroblock or a partition thereof)
     against a proposed motion-compensated prediction of that block
  */
-static av_always_inline int cmp(MpegEncContext *s, const int x, const int y, const int subx, const int suby,
+static av_always_inline int cmp(MPVEncContext *s, const int x, const int y, const int subx, const int suby,
                       const int size, const int h, int ref_index, int src_index,
                       me_cmp_func cmp_func, me_cmp_func chroma_cmp_func, const int flags){
     if(av_builtin_constant_p(flags) && av_builtin_constant_p(h) && av_builtin_constant_p(size)
@@ -272,7 +272,7 @@ static av_always_inline int cmp(MpegEncContext *s, const int x, const int y, con
     }
 }
 
-static int cmp_hpel(MpegEncContext *s, const int x, const int y, const int subx, const int suby,
+static int cmp_hpel(MPVEncContext *s, const int x, const int y, const int subx, const int suby,
                       const int size, const int h, int ref_index, int src_index,
                       me_cmp_func cmp_func, me_cmp_func chroma_cmp_func, const int flags){
     if(flags&FLAG_DIRECT){
@@ -282,7 +282,7 @@ static int cmp_hpel(MpegEncContext *s, const int x, const int y, const int subx,
     }
 }
 
-static int cmp_qpel(MpegEncContext *s, const int x, const int y, const int subx, const int suby,
+static int cmp_qpel(MPVEncContext *s, const int x, const int y, const int subx, const int suby,
                       const int size, const int h, int ref_index, int src_index,
                       me_cmp_func cmp_func, me_cmp_func chroma_cmp_func, const int flags){
     if(flags&FLAG_DIRECT){
@@ -294,7 +294,7 @@ static int cmp_qpel(MpegEncContext *s, const int x, const int y, const int subx,
 
 #include "motion_est_template.c"
 
-static int zero_cmp(MpegEncContext *s, uint8_t *a, uint8_t *b,
+static int zero_cmp(MPVEncContext *s, uint8_t *a, uint8_t *b,
                     ptrdiff_t stride, int h)
 {
     return 0;
@@ -303,7 +303,7 @@ static int zero_cmp(MpegEncContext *s, uint8_t *a, uint8_t *b,
 static void zero_hpel(uint8_t *a, const uint8_t *b, ptrdiff_t stride, int h){
 }
 
-int ff_init_me(MpegEncContext *s){
+int ff_init_me(MPVEncContext *s){
     MotionEstContext * const c= &s->me;
     int cache_size= FFMIN(ME_MAP_SIZE>>ME_MAP_SHIFT, 1<<ME_MAP_SHIFT);
     int dia_size= FFMAX(FFABS(s->avctx->dia_size)&255, FFABS(s->avctx->pre_dia_size)&255);
@@ -389,7 +389,7 @@ int ff_init_me(MpegEncContext *s){
     COPY3_IF_LT(dminh, d, dx, x, dy, y)\
 }
 
-static int sad_hpel_motion_search(MpegEncContext * s,
+static int sad_hpel_motion_search(MPVEncContext *s,
                                   int *mx_ptr, int *my_ptr, int dmin,
                                   int src_index, int ref_index,
                                   int size, int h)
@@ -494,7 +494,7 @@ static int sad_hpel_motion_search(MpegEncContext * s,
     return dminh;
 }
 
-static inline void set_p_mv_tables(MpegEncContext * s, int mx, int my, int mv4)
+static inline void set_p_mv_tables(MPVEncContext *s, int mx, int my, int mv4)
 {
     const int xy= s->mb_x + s->mb_y*s->mb_stride;
 
@@ -521,7 +521,7 @@ static inline void set_p_mv_tables(MpegEncContext * s, int mx, int my, int mv4)
 /**
  * get fullpel ME search limits.
  */
-static inline void get_limits(MpegEncContext *s, int x, int y)
+static inline void get_limits(MPVEncContext *s, int x, int y)
 {
     MotionEstContext * const c= &s->me;
     int range= c->avctx->me_range >> (1 + !!(c->flags&FLAG_QPEL));
@@ -568,7 +568,7 @@ static inline void init_mv4_ref(MotionEstContext *c){
     c->src[3][0] = c->src[2][0] + 8;
 }
 
-static inline int h263_mv4_search(MpegEncContext *s, int mx, int my, int shift)
+static inline int h263_mv4_search(MPVEncContext *s, int mx, int my, int shift)
 {
     MotionEstContext * const c= &s->me;
     const int size= 1;
@@ -722,7 +722,7 @@ static inline int h263_mv4_search(MpegEncContext *s, int mx, int my, int shift)
     }
 }
 
-static inline void init_interlaced_ref(MpegEncContext *s, int ref_index){
+static inline void init_interlaced_ref(MPVEncContext *s, int ref_index){
     MotionEstContext * const c= &s->me;
 
     c->ref[1+ref_index][0] = c->ref[0+ref_index][0] + s->linesize;
@@ -735,7 +735,7 @@ static inline void init_interlaced_ref(MpegEncContext *s, int ref_index){
     }
 }
 
-static int interlaced_search(MpegEncContext *s, int ref_index,
+static int interlaced_search(MPVEncContext *s, int ref_index,
                              int16_t (*mv_tables[2][2])[2], uint8_t *field_select_tables[2], int mx, int my, int user_field_select)
 {
     MotionEstContext * const c= &s->me;
@@ -882,7 +882,7 @@ static inline int get_penalty_factor(int lambda, int lambda2, int type){
     }
 }
 
-void ff_estimate_p_frame_motion(MpegEncContext * s,
+void ff_estimate_p_frame_motion(MPVEncContext *s,
                                 int mb_x, int mb_y)
 {
     MotionEstContext * const c= &s->me;
@@ -1058,7 +1058,7 @@ void ff_estimate_p_frame_motion(MpegEncContext * s,
     s->mb_type[mb_y*s->mb_stride + mb_x]= mb_type;
 }
 
-int ff_pre_estimate_p_frame_motion(MpegEncContext * s,
+int ff_pre_estimate_p_frame_motion(MPVEncContext *s,
                                     int mb_x, int mb_y)
 {
     MotionEstContext * const c= &s->me;
@@ -1111,7 +1111,7 @@ int ff_pre_estimate_p_frame_motion(MpegEncContext * s,
     return dmin;
 }
 
-static int estimate_motion_b(MpegEncContext *s, int mb_x, int mb_y,
+static int estimate_motion_b(MPVEncContext *s, int mb_x, int mb_y,
                              int16_t (*mv_table)[2], int ref_index, int f_code)
 {
     MotionEstContext * const c= &s->me;
@@ -1173,7 +1173,7 @@ static int estimate_motion_b(MpegEncContext *s, int mb_x, int mb_y,
     return dmin;
 }
 
-static inline int check_bidir_mv(MpegEncContext * s,
+static inline int check_bidir_mv(MPVEncContext *s,
                    int motion_fx, int motion_fy,
                    int motion_bx, int motion_by,
                    int pred_fx, int pred_fy,
@@ -1238,7 +1238,7 @@ static inline int check_bidir_mv(MpegEncContext * s,
 }
 
 /* refine the bidir vectors in hq mode and return the score in both lq & hq mode*/
-static inline int bidir_refine(MpegEncContext * s, int mb_x, int mb_y)
+static inline int bidir_refine(MPVEncContext *s, int mb_x, int mb_y)
 {
     MotionEstContext * const c= &s->me;
     const int mot_stride = s->mb_stride;
@@ -1385,7 +1385,7 @@ CHECK_BIDIR(-(a),-(b),-(c),-(d))
     return fbmin;
 }
 
-static inline int direct_search(MpegEncContext * s, int mb_x, int mb_y)
+static inline int direct_search(MPVEncContext *s, int mb_x, int mb_y)
 {
     MotionEstContext * const c= &s->me;
     int P[10][2];
@@ -1487,7 +1487,7 @@ static inline int direct_search(MpegEncContext * s, int mb_x, int mb_y)
     return dmin;
 }
 
-void ff_estimate_b_frame_motion(MpegEncContext * s,
+void ff_estimate_b_frame_motion(MPVEncContext *s,
                              int mb_x, int mb_y)
 {
     MotionEstContext * const c= &s->me;
@@ -1595,7 +1595,7 @@ void ff_estimate_b_frame_motion(MpegEncContext * s,
 }
 
 /* find best f_code for ME which do unlimited searches */
-int ff_get_best_fcode(MpegEncContext * s, int16_t (*mv_table)[2], int type)
+int ff_get_best_fcode(MPVEncContext *s, int16_t (*mv_table)[2], int type)
 {
     if (s->motion_est != FF_ME_ZERO) {
         int score[8];
@@ -1648,7 +1648,7 @@ int ff_get_best_fcode(MpegEncContext * s, int16_t (*mv_table)[2], int type)
     }
 }
 
-void ff_fix_long_p_mvs(MpegEncContext * s, int type)
+void ff_fix_long_p_mvs(MPVEncContext *s, int type)
 {
     MotionEstContext * const c= &s->me;
     const int f_code= s->f_code;
@@ -1697,7 +1697,7 @@ void ff_fix_long_p_mvs(MpegEncContext * s, int type)
 /**
  * @param truncate 1 for truncation, 0 for using intra
  */
-void ff_fix_long_mvs(MpegEncContext * s, uint8_t *field_select_table, int field_select,
+void ff_fix_long_mvs(MPVEncContext *s, uint8_t *field_select_table, int field_select,
                      int16_t (*mv_table)[2], int f_code, int type, int truncate)
 {
     MotionEstContext * const c= &s->me;

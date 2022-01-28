@@ -237,7 +237,8 @@ static int encode_block(SVQ1EncContext *s, uint8_t *src, uint8_t *ref,
     return best_score;
 }
 
-static void init_block_index(MpegEncContext *s){
+static void init_block_index(MPVEncContext *s)
+{
     s->block_index[0]= s->b8_stride*(s->mb_y*2    )     + s->mb_x*2;
     s->block_index[1]= s->b8_stride*(s->mb_y*2    ) + 1 + s->mb_x*2;
     s->block_index[2]= s->b8_stride*(s->mb_y*2 + 1)     + s->mb_x*2;

@@ -21,7 +21,7 @@
 #ifndef AVCODEC_ARM_ASM_OFFSETS_H
 #define AVCODEC_ARM_ASM_OFFSETS_H
 
-/* MpegEncContext */
+/* MPVContext */
 #define Y_DC_SCALE               0x04
 #define C_DC_SCALE               0x08
 #define AC_PRED                  0x0c

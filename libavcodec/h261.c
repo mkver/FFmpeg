@@ -58,7 +58,7 @@ static void h261_loop_filter(uint8_t *src, int stride)
     }
 }
 
-void ff_h261_loop_filter(MpegEncContext *s)
+void ff_h261_loop_filter(MPVContext *s)
 {
     H261Context *const h = s->private_ctx;
     const int linesize   = s->linesize;

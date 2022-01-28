@@ -46,7 +46,7 @@ static int mpeg4_get_intra_dc_vlc_thr(Mpeg4DecContext *s)
 static int vaapi_mpeg4_start_frame(AVCodecContext *avctx, av_unused const uint8_t *buffer, av_unused uint32_t size)
 {
     Mpeg4DecContext *ctx = avctx->priv_data;
-    MpegEncContext *s = &ctx->m;
+    MPVDecContext *const s = &ctx->m;
     VAAPIDecodePicture *pic = s->current_picture_ptr->hwaccel_picture_private;
     VAPictureParameterBufferMPEG4 pic_param;
     int i, err;
@@ -136,7 +136,7 @@ fail:
 
 static int vaapi_mpeg4_end_frame(AVCodecContext *avctx)
 {
-    MpegEncContext *s = avctx->priv_data;
+    MPVDecContext *const s = avctx->priv_data;
     VAAPIDecodePicture *pic = s->current_picture_ptr->hwaccel_picture_private;
     int ret;
 
@@ -152,7 +152,7 @@ fail:
 
 static int vaapi_mpeg4_decode_slice(AVCodecContext *avctx, const uint8_t *buffer, uint32_t size)
 {
-    MpegEncContext *s = avctx->priv_data;
+    MPVDecContext *const s = avctx->priv_data;
     VAAPIDecodePicture *pic = s->current_picture_ptr->hwaccel_picture_private;
     VASliceParameterBufferMPEG4 slice_param;
     int err;

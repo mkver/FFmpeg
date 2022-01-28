@@ -587,79 +587,79 @@ static int32_t hadamard_intra_8x8_msa(uint8_t *src, int32_t src_stride,
     return sum_res;
 }
 
-int ff_pix_abs16_msa(MpegEncContext *v, uint8_t *src, uint8_t *ref,
+int ff_pix_abs16_msa(MPVEncContext *v, uint8_t *src, uint8_t *ref,
                      ptrdiff_t stride, int height)
 {
     return sad_16width_msa(src, stride, ref, stride, height);
 }
 
-int ff_pix_abs8_msa(MpegEncContext *v, uint8_t *src, uint8_t *ref,
+int ff_pix_abs8_msa(MPVEncContext *v, uint8_t *src, uint8_t *ref,
                     ptrdiff_t stride, int height)
 {
     return sad_8width_msa(src, stride, ref, stride, height);
 }
 
-int ff_pix_abs16_x2_msa(MpegEncContext *v, uint8_t *pix1, uint8_t *pix2,
+int ff_pix_abs16_x2_msa(MPVEncContext *v, uint8_t *pix1, uint8_t *pix2,
                         ptrdiff_t stride, int h)
 {
     return sad_horiz_bilinear_filter_16width_msa(pix1, stride, pix2, stride, h);
 }
 
-int ff_pix_abs16_y2_msa(MpegEncContext *v, uint8_t *pix1, uint8_t *pix2,
+int ff_pix_abs16_y2_msa(MPVEncContext *v, uint8_t *pix1, uint8_t *pix2,
                         ptrdiff_t stride, int h)
 {
     return sad_vert_bilinear_filter_16width_msa(pix1, stride, pix2, stride, h);
 }
 
-int ff_pix_abs16_xy2_msa(MpegEncContext *v, uint8_t *pix1, uint8_t *pix2,
+int ff_pix_abs16_xy2_msa(MPVEncContext *v, uint8_t *pix1, uint8_t *pix2,
                          ptrdiff_t stride, int h)
 {
     return sad_hv_bilinear_filter_16width_msa(pix1, stride, pix2, stride, h);
 }
 
-int ff_pix_abs8_x2_msa(MpegEncContext *v, uint8_t *pix1, uint8_t *pix2,
+int ff_pix_abs8_x2_msa(MPVEncContext *v, uint8_t *pix1, uint8_t *pix2,
                        ptrdiff_t stride, int h)
 {
     return sad_horiz_bilinear_filter_8width_msa(pix1, stride, pix2, stride, h);
 }
 
-int ff_pix_abs8_y2_msa(MpegEncContext *v, uint8_t *pix1, uint8_t *pix2,
+int ff_pix_abs8_y2_msa(MPVEncContext *v, uint8_t *pix1, uint8_t *pix2,
                        ptrdiff_t stride, int h)
 {
     return sad_vert_bilinear_filter_8width_msa(pix1, stride, pix2, stride, h);
 }
 
-int ff_pix_abs8_xy2_msa(MpegEncContext *v, uint8_t *pix1, uint8_t *pix2,
+int ff_pix_abs8_xy2_msa(MPVEncContext *v, uint8_t *pix1, uint8_t *pix2,
                         ptrdiff_t stride, int h)
 {
     return sad_hv_bilinear_filter_8width_msa(pix1, stride, pix2, stride, h);
 }
 
-int ff_sse16_msa(MpegEncContext *v, uint8_t *src, uint8_t *ref,
+int ff_sse16_msa(MPVEncContext *v, uint8_t *src, uint8_t *ref,
                  ptrdiff_t stride, int height)
 {
     return sse_16width_msa(src, stride, ref, stride, height);
 }
 
-int ff_sse8_msa(MpegEncContext *v, uint8_t *src, uint8_t *ref,
+int ff_sse8_msa(MPVEncContext *v, uint8_t *src, uint8_t *ref,
                 ptrdiff_t stride, int height)
 {
     return sse_8width_msa(src, stride, ref, stride, height);
 }
 
-int ff_sse4_msa(MpegEncContext *v, uint8_t *src, uint8_t *ref,
+int ff_sse4_msa(MPVEncContext *v, uint8_t *src, uint8_t *ref,
                 ptrdiff_t stride, int height)
 {
     return sse_4width_msa(src, stride, ref, stride, height);
 }
 
-int ff_hadamard8_diff8x8_msa(MpegEncContext *s, uint8_t *dst, uint8_t *src,
+int ff_hadamard8_diff8x8_msa(MPVEncContext *s, uint8_t *dst, uint8_t *src,
                              ptrdiff_t stride, int h)
 {
     return hadamard_diff_8x8_msa(src, stride, dst, stride);
 }
 
-int ff_hadamard8_intra8x8_msa(MpegEncContext *s, uint8_t *dst, uint8_t *src,
+int ff_hadamard8_intra8x8_msa(MPVEncContext *s, uint8_t *dst, uint8_t *src,
                               ptrdiff_t stride, int h)
 {
     return hadamard_intra_8x8_msa(src, stride, dst, stride);
@@ -667,7 +667,7 @@ int ff_hadamard8_intra8x8_msa(MpegEncContext *s, uint8_t *dst, uint8_t *src,
 
 /* Hadamard Transform functions */
 #define WRAPPER8_16_SQ(name8, name16)                      \
-int name16(MpegEncContext *s, uint8_t *dst, uint8_t *src,  \
+int name16(MPVEncContext *s, uint8_t *dst, uint8_t *src,   \
            ptrdiff_t stride, int h)                        \
 {                                                          \
     int score = 0;                                         \

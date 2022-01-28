@@ -381,7 +381,7 @@ static int decode_wmv9(AVCodecContext *avctx, const uint8_t *buf, int buf_size,
     MSS2Context *ctx  = avctx->priv_data;
     MSS12Context *c   = &ctx->c;
     VC1Context *v     = avctx->priv_data;
-    MpegEncContext *s = &v->s;
+    MPVMainDecContext *const s = &v->s;
     AVFrame *f;
     int ret;
 

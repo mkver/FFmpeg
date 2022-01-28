@@ -112,7 +112,7 @@ static av_cold void msmpeg4_common_init_static(void)
     init_h263_dc_for_msmpeg4();
 }
 
-av_cold void ff_msmpeg4_common_init(MpegEncContext *s)
+av_cold void ff_msmpeg4_common_init(MPVMainContext *s)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
 
@@ -158,7 +158,7 @@ av_cold void ff_msmpeg4_common_init(MpegEncContext *s)
 }
 
 /* predict coded block */
-int ff_msmpeg4_coded_block_pred(MpegEncContext * s, int n, uint8_t **coded_block_ptr)
+int ff_msmpeg4_coded_block_pred(MPVContext *s, int n, uint8_t **coded_block_ptr)
 {
     int xy, wrap, pred, a, b, c;
 
@@ -198,7 +198,7 @@ static int get_dc(uint8_t *src, int stride, int scale, int block_size)
 }
 
 /* dir = 0: left, dir = 1: top prediction */
-int ff_msmpeg4_pred_dc(MpegEncContext *s, int n,
+int ff_msmpeg4_pred_dc(MPVContext *s, int n,
                        int16_t **dc_val_ptr, int *dir_ptr)
 {
     int a, b, c, wrap, pred, scale;

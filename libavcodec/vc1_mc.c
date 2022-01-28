@@ -107,7 +107,7 @@ static const uint8_t popcount4[16] = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3,
 
 static av_always_inline int get_luma_mv(VC1Context *v, int dir, int16_t *tx, int16_t *ty)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int idx = v->mv_f[dir][s->block_index[0] + v->blocks_off] |
              (v->mv_f[dir][s->block_index[1] + v->blocks_off] << 1) |
              (v->mv_f[dir][s->block_index[2] + v->blocks_off] << 2) |
@@ -139,7 +139,7 @@ static av_always_inline int get_luma_mv(VC1Context *v, int dir, int16_t *tx, int
 
 static av_always_inline int get_chroma_mv(VC1Context *v, int dir, int16_t *tx, int16_t *ty)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     int idx = !v->mb_type[0][s->block_index[0]] |
              (!v->mb_type[0][s->block_index[1]] << 1) |
              (!v->mb_type[0][s->block_index[2]] << 2) |
@@ -171,7 +171,7 @@ static av_always_inline int get_chroma_mv(VC1Context *v, int dir, int16_t *tx, i
  */
 void ff_vc1_mc_1mv(VC1Context *v, int dir)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     H264ChromaContext *h264chroma = &v->h264chroma;
     uint8_t *srcY, *srcU, *srcV;
     int dxy, mx, my, uvmx, uvmy, src_x, src_y, uvsrc_x, uvsrc_y;
@@ -451,7 +451,7 @@ void ff_vc1_mc_1mv(VC1Context *v, int dir)
  */
 void ff_vc1_mc_4mv_luma(VC1Context *v, int n, int dir, int avg)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     uint8_t *srcY;
     int dxy, mx, my, src_x, src_y;
     int off;
@@ -633,7 +633,7 @@ void ff_vc1_mc_4mv_luma(VC1Context *v, int n, int dir, int avg)
  */
 void ff_vc1_mc_4mv_chroma(VC1Context *v, int dir)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     H264ChromaContext *h264chroma = &v->h264chroma;
     uint8_t *srcU, *srcV;
     int uvmx, uvmy, uvsrc_x, uvsrc_y;
@@ -838,7 +838,7 @@ void ff_vc1_mc_4mv_chroma(VC1Context *v, int dir)
  */
 void ff_vc1_mc_4mv_chroma4(VC1Context *v, int dir, int dir2, int avg)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     H264ChromaContext *h264chroma = &v->h264chroma;
     uint8_t *srcU, *srcV;
     int uvsrc_x, uvsrc_y;
@@ -1003,7 +1003,7 @@ void ff_vc1_mc_4mv_chroma4(VC1Context *v, int dir, int dir2, int avg)
  */
 void ff_vc1_interp_mc(VC1Context *v)
 {
-    MpegEncContext *s = &v->s;
+    MPVDecContext *const s = &v->s;
     H264ChromaContext *h264chroma = &v->h264chroma;
     uint8_t *srcY, *srcU, *srcV;
     int dxy, mx, my, uvmx, uvmy, src_x, src_y, uvsrc_x, uvsrc_y;

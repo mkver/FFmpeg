@@ -80,11 +80,11 @@
 #define QMAT_SHIFT_MMX 16
 #define QMAT_SHIFT 21
 
-static int encode_picture(MpegEncContext *s, int picture_number);
-static int dct_quantize_refine(MpegEncContext *s, int16_t *block, int16_t *weight, int16_t *orig, int n, int qscale);
-static int sse_mb(MpegEncContext *s);
-static void denoise_dct_c(MpegEncContext *s, int16_t *block);
-static int dct_quantize_trellis_c(MpegEncContext *s, int16_t *block, int n, int qscale, int *overflow);
+static int encode_picture(MPVMainEncContext *s, int picture_number);
+static int dct_quantize_refine(MPVEncContext *s, int16_t *block, int16_t *weight, int16_t *orig, int n, int qscale);
+static int sse_mb(MPVEncContext *s);
+static void denoise_dct_c(MPVEncContext *s, int16_t *block);
+static int dct_quantize_trellis_c(MPVEncContext *s, int16_t *block, int n, int qscale, int *overflow);
 
 static uint8_t default_mv_penalty[MAX_FCODE + 1][MAX_DMV * 2 + 1];
 static uint8_t default_fcode_tab[MAX_MV * 2 + 1];
@@ -107,7 +107,7 @@ const AVClass ff_mpv_enc_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-void ff_convert_matrix(MpegEncContext *s, int (*qmat)[64],
+void ff_convert_matrix(MPVEncContext *s, int (*qmat)[64],
                        uint16_t (*qmat16)[2][64],
                        const uint16_t *quant_matrix,
                        int bias, int qmin, int qmax, int intra)
@@ -191,7 +191,7 @@ void ff_convert_matrix(MpegEncContext *s, int (*qmat)[64],
     }
 }
 
-static inline void update_qscale(MpegEncContext *s)
+static inline void update_qscale(MPVEncContext *s)
 {
     if (s->q_scale_type == 1 && 0) {
         int i;
@@ -235,7 +235,7 @@ void ff_write_quant_matrix(PutBitContext *pb, uint16_t *matrix)
 /**
  * init s->current_picture.qscale_table from s->lambda_table
  */
-void ff_init_qscale_tab(MpegEncContext *s)
+void ff_init_qscale_tab(MPVMainEncContext *s)
 {
     int8_t * const qscale_table = s->current_picture.qscale_table;
     int i;
@@ -248,8 +248,8 @@ void ff_init_qscale_tab(MpegEncContext *s)
     }
 }
 
-static void update_duplicate_context_after_me(MpegEncContext *dst,
-                                              MpegEncContext *src)
+static void update_duplicate_context_after_me(MPVEncContext *dst,
+                                              MPVEncContext *src)
 {
 #define COPY(a) dst->a= src->a
     COPY(pict_type);
@@ -273,10 +273,10 @@ static void mpv_encode_init_static(void)
 }
 
 /**
- * Set the given MpegEncContext to defaults for encoding.
- * the changed fields will not depend upon the prior state of the MpegEncContext.
+ * Set the given MPVMainEncContext to defaults for encoding.
+ * the changed fields will not depend upon the prior state of the MPVMainEncContext.
  */
-static void mpv_encode_defaults(MpegEncContext *s)
+static void mpv_encode_defaults(MPVMainEncContext *s)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
 
@@ -291,7 +291,7 @@ static void mpv_encode_defaults(MpegEncContext *s)
     s->picture_in_gop_number = 0;
 }
 
-av_cold int ff_dct_encode_init(MpegEncContext *s)
+av_cold int ff_dct_encode_init(MPVEncContext *s)
 {
     if (ARCH_X86)
         ff_dct_encode_init_x86(s);
@@ -312,7 +312,7 @@ av_cold int ff_dct_encode_init(MpegEncContext *s)
 /* init video encoder */
 av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
 {
-    MpegEncContext *s = avctx->priv_data;
+    MPVMainEncContext *const s = avctx->priv_data;
     AVCPBProperties *cpb_props;
     int i, ret;
 
@@ -927,7 +927,7 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
 
 av_cold int ff_mpv_encode_end(AVCodecContext *avctx)
 {
-    MpegEncContext *s = avctx->priv_data;
+    MPVMainEncContext *const s = avctx->priv_data;
     int i;
 
     ff_rate_control_uninit(s);
@@ -970,7 +970,7 @@ static int get_sae(uint8_t *src, int ref, int stride)
     return acc;
 }
 
-static int get_intra_count(MpegEncContext *s, uint8_t *src,
+static int get_intra_count(MPVMainEncContext *s, uint8_t *src,
                            uint8_t *ref, int stride)
 {
     int x, y, w, h;
@@ -993,7 +993,7 @@ static int get_intra_count(MpegEncContext *s, uint8_t *src,
     return acc;
 }
 
-static int alloc_picture(MpegEncContext *s, Picture *pic, int shared)
+static int alloc_picture(MPVMainEncContext *s, Picture *pic, int shared)
 {
     return ff_alloc_picture(s->avctx, pic, &s->me, &s->sc, shared, 1,
                             s->chroma_x_shift, s->chroma_y_shift, s->out_format,
@@ -1001,7 +1001,7 @@ static int alloc_picture(MpegEncContext *s, Picture *pic, int shared)
                             &s->linesize, &s->uvlinesize);
 }
 
-static int load_input_picture(MpegEncContext *s, const AVFrame *pic_arg)
+static int load_input_picture(MPVMainEncContext *s, const AVFrame *pic_arg)
 {
     Picture *pic = NULL;
     int64_t pts;
@@ -1152,7 +1152,7 @@ static int load_input_picture(MpegEncContext *s, const AVFrame *pic_arg)
     return 0;
 }
 
-static int skip_check(MpegEncContext *s, Picture *p, Picture *ref)
+static int skip_check(MPVMainEncContext *s, Picture *p, Picture *ref)
 {
     int x, y, plane;
     int score = 0;
@@ -1214,7 +1214,7 @@ static int encode_frame(AVCodecContext *c, AVFrame *frame, AVPacket *pkt)
     return size;
 }
 
-static int estimate_best_b_count(MpegEncContext *s)
+static int estimate_best_b_count(MPVMainEncContext *s)
 {
     const AVCodec *codec = avcodec_find_encoder(s->avctx->codec_id);
     AVPacket *pkt;
@@ -1361,7 +1361,7 @@ fail:
     return best_b_count;
 }
 
-static int select_input_picture(MpegEncContext *s)
+static int select_input_picture(MPVMainEncContext *s)
 {
     int i, ret;
 
@@ -1538,7 +1538,7 @@ no_output_pic:
     return 0;
 }
 
-static void frame_end(MpegEncContext *s)
+static void frame_end(MPVMainEncContext *s)
 {
     if (s->unrestricted_mv &&
         s->current_picture.reference &&
@@ -1575,7 +1575,7 @@ static void frame_end(MpegEncContext *s)
         s->last_non_b_pict_type = s->pict_type;
 }
 
-static void update_noise_reduction(MpegEncContext *s)
+static void update_noise_reduction(MPVMainEncContext *s)
 {
     int intra, i;
 
@@ -1596,7 +1596,7 @@ static void update_noise_reduction(MpegEncContext *s)
     }
 }
 
-static int frame_start(MpegEncContext *s)
+static int frame_start(MPVMainEncContext *s)
 {
     int ret;
 
@@ -1670,7 +1670,7 @@ static int frame_start(MpegEncContext *s)
 int ff_mpv_encode_picture(AVCodecContext *avctx, AVPacket *pkt,
                           const AVFrame *pic_arg, int *got_packet)
 {
-    MpegEncContext *s = avctx->priv_data;
+    MPVMainEncContext *const s = avctx->priv_data;
     int i, stuffing_count, ret;
     int context_count = s->slice_context_count;
 
@@ -1903,7 +1903,7 @@ vbv_retry:
     return 0;
 }
 
-static inline void dct_single_coeff_elimination(MpegEncContext *s,
+static inline void dct_single_coeff_elimination(MPVEncContext *s,
                                                 int n, int threshold)
 {
     static const char tab[64] = {
@@ -1959,7 +1959,7 @@ static inline void dct_single_coeff_elimination(MpegEncContext *s,
         s->block_last_index[n] = -1;
 }
 
-static inline void clip_coeffs(MpegEncContext *s, int16_t *block,
+static inline void clip_coeffs(MPVEncContext *s, int16_t *block,
                                int last_index)
 {
     int i;
@@ -2017,7 +2017,7 @@ static void get_visual_weight(int16_t *weight, uint8_t *ptr, int stride)
     }
 }
 
-static av_always_inline void encode_mb_internal(MpegEncContext *s,
+static av_always_inline void encode_mb_internal(MPVEncContext *s,
                                                 int motion_x, int motion_y,
                                                 int mb_block_height,
                                                 int mb_block_width,
@@ -2409,7 +2409,7 @@ static av_always_inline void encode_mb_internal(MpegEncContext *s,
     }
 }
 
-static av_always_inline void encode_mb(MpegEncContext *s, int motion_x, int motion_y)
+static av_always_inline void encode_mb(MPVEncContext *s, int motion_x, int motion_y)
 {
     if (s->chroma_format == CHROMA_420)
         encode_mb_internal(s, motion_x, motion_y,  8, 8, 6, 1, 1, CHROMA_420);
@@ -2419,7 +2419,9 @@ static av_always_inline void encode_mb(MpegEncContext *s, int motion_x, int moti
         encode_mb_internal(s, motion_x, motion_y, 16, 16, 12, 0, 0, CHROMA_444);
 }
 
-static inline void copy_context_before_encode(MpegEncContext *d, MpegEncContext *s, int type){
+static inline void copy_context_before_encode(MPVEncContext *d,
+                                              const MPVEncContext *s, int type)
+{
     int i;
 
     memcpy(d->last_mv, s->last_mv, 2*2*2*sizeof(int)); //FIXME is memcpy faster than a loop?
@@ -2447,7 +2449,9 @@ static inline void copy_context_before_encode(MpegEncContext *d, MpegEncContext 
     d->esc3_level_length= s->esc3_level_length;
 }
 
-static inline void copy_context_after_encode(MpegEncContext *d, MpegEncContext *s, int type){
+static inline void copy_context_after_encode(MPVEncContext *d,
+                                             const MPVEncContext *s, int type)
+{
     int i;
 
     memcpy(d->mv, s->mv, 2*4*2*sizeof(int));
@@ -2486,7 +2490,7 @@ static inline void copy_context_after_encode(MpegEncContext *d, MpegEncContext *
     d->esc3_level_length= s->esc3_level_length;
 }
 
-static inline void encode_mb_hq(MpegEncContext *s, MpegEncContext *backup, MpegEncContext *best, int type,
+static inline void encode_mb_hq(MPVEncContext *s, MPVEncContext *backup, MPVEncContext *best, int type,
                            PutBitContext pb[2], PutBitContext pb2[2], PutBitContext tex_pb[2],
                            int *dmin, int *next_block, int motion_x, int motion_y)
 {
@@ -2537,7 +2541,9 @@ static inline void encode_mb_hq(MpegEncContext *s, MpegEncContext *backup, MpegE
     }
 }
 
-static int sse(MpegEncContext *s, uint8_t *src1, uint8_t *src2, int w, int h, int stride){
+static int sse(MPVEncContext *s, uint8_t *src1, uint8_t *src2,
+               int w, int h, int stride)
+{
     const uint32_t *sq = ff_square_tab + 256;
     int acc=0;
     int x,y;
@@ -2558,7 +2564,8 @@ static int sse(MpegEncContext *s, uint8_t *src1, uint8_t *src2, int w, int h, in
     return acc;
 }
 
-static int sse_mb(MpegEncContext *s){
+static int sse_mb(MPVEncContext *s)
+{
     int w= 16;
     int h= 16;
 
@@ -2582,7 +2589,7 @@ static int sse_mb(MpegEncContext *s){
 }
 
 static int pre_estimate_motion_thread(AVCodecContext *c, void *arg){
-    MpegEncContext *s= *(void**)arg;
+    MPVEncContext *const s = *(void**)arg;
 
 
     s->me.pre_pass=1;
@@ -2601,7 +2608,7 @@ static int pre_estimate_motion_thread(AVCodecContext *c, void *arg){
 }
 
 static int estimate_motion_thread(AVCodecContext *c, void *arg){
-    MpegEncContext *s= *(void**)arg;
+    MPVEncContext *const s = *(void**)arg;
 
     s->me.dia_size= s->avctx->dia_size;
     s->first_slice_line=1;
@@ -2626,7 +2633,7 @@ static int estimate_motion_thread(AVCodecContext *c, void *arg){
 }
 
 static int mb_var_thread(AVCodecContext *c, void *arg){
-    MpegEncContext *s= *(void**)arg;
+    MPVEncContext *const s = *(void**)arg;
     int mb_x, mb_y;
 
     for(mb_y=s->start_mb_y; mb_y < s->end_mb_y; mb_y++) {
@@ -2648,7 +2655,8 @@ static int mb_var_thread(AVCodecContext *c, void *arg){
     return 0;
 }
 
-static void write_slice_end(MpegEncContext *s){
+static void write_slice_end(MPVEncContext *s)
+{
     if(CONFIG_MPEG4_ENCODER && s->codec_id==AV_CODEC_ID_MPEG4){
         if(s->partitioned_frame){
             ff_mpeg4_merge_partitions(s);
@@ -2668,7 +2676,7 @@ static void write_slice_end(MpegEncContext *s){
         s->misc_bits+= get_bits_diff(s);
 }
 
-static void write_mb_info(MpegEncContext *s)
+static void write_mb_info(MPVEncContext *s)
 {
     uint8_t *ptr = s->mb_info_ptr + s->mb_info_size - 12;
     int offset = put_bits_count(&s->pb);
@@ -2688,7 +2696,7 @@ static void write_mb_info(MpegEncContext *s)
     bytestream_put_byte(&ptr, 0); /* vmv2 */
 }
 
-static void update_mb_info(MpegEncContext *s, int startcode)
+static void update_mb_info(MPVEncContext *s, int startcode)
 {
     if (!s->mb_info)
         return;
@@ -2711,7 +2719,7 @@ static void update_mb_info(MpegEncContext *s, int startcode)
     write_mb_info(s);
 }
 
-int ff_mpv_reallocate_putbitbuffer(MpegEncContext *s, size_t threshold, size_t size_increase)
+int ff_mpv_reallocate_putbitbuffer(MPVEncContext *s, size_t threshold, size_t size_increase)
 {
     if (put_bytes_left(&s->pb, 0) < threshold
         && s->slice_context_count == 1
@@ -2746,11 +2754,11 @@ int ff_mpv_reallocate_putbitbuffer(MpegEncContext *s, size_t threshold, size_t s
 }
 
 static int encode_thread(AVCodecContext *c, void *arg){
-    MpegEncContext *s= *(void**)arg;
+    MPVEncContext *const s = *(void**)arg;
     int mb_x, mb_y, mb_y_order;
     int chr_h= 16>>s->chroma_y_shift;
     int i, j;
-    MpegEncContext best_s = { 0 }, backup_s;
+    MPVEncContext best_s = { 0 }, backup_s;
     uint8_t bit_buf[2][MAX_MB_BYTES];
     uint8_t bit_buf2[2][MAX_MB_BYTES];
     uint8_t bit_buf_tex[2][MAX_MB_BYTES];
@@ -3384,13 +3392,15 @@ static int encode_thread(AVCodecContext *c, void *arg){
 }
 
 #define MERGE(field) dst->field += src->field; src->field=0
-static void merge_context_after_me(MpegEncContext *dst, MpegEncContext *src){
+static void merge_context_after_me(MPVEncContext *dst, MPVEncContext *src)
+{
     MERGE(me.scene_change_score);
     MERGE(me.mc_mb_var_sum_temp);
     MERGE(me.mb_var_sum_temp);
 }
 
-static void merge_context_after_encode(MpegEncContext *dst, MpegEncContext *src){
+static void merge_context_after_encode(MPVEncContext *dst, MPVEncContext *src)
+{
     int i;
 
     MERGE(dct_count[0]); //note, the other dct vars are not part of the context
@@ -3420,7 +3430,8 @@ static void merge_context_after_encode(MpegEncContext *dst, MpegEncContext *src)
     flush_put_bits(&dst->pb);
 }
 
-static int estimate_qp(MpegEncContext *s, int dry_run){
+static int estimate_qp(MPVMainEncContext *s, int dry_run)
+{
     if (s->next_lambda){
         s->current_picture_ptr->f->quality =
         s->current_picture.f->quality = s->next_lambda;
@@ -3458,7 +3469,8 @@ static int estimate_qp(MpegEncContext *s, int dry_run){
 }
 
 /* must be called before writing the header */
-static void set_frame_distances(MpegEncContext * s){
+static void set_frame_distances(MPVMainEncContext *s)
+{
     av_assert1(s->current_picture_ptr->f->pts != AV_NOPTS_VALUE);
     s->time = s->current_picture_ptr->f->pts * s->avctx->time_base.num;
 
@@ -3472,7 +3484,7 @@ static void set_frame_distances(MpegEncContext * s){
     }
 }
 
-static int encode_picture(MpegEncContext *s, int picture_number)
+static int encode_picture(MPVMainEncContext *s, int picture_number)
 {
     int i, ret;
     int bits;
@@ -3753,7 +3765,8 @@ static int encode_picture(MpegEncContext *s, int picture_number)
     return 0;
 }
 
-static void denoise_dct_c(MpegEncContext *s, int16_t *block){
+static void denoise_dct_c(MPVEncContext *s, int16_t *block)
+{
     const int intra= s->mb_intra;
     int i;
 
@@ -3777,7 +3790,7 @@ static void denoise_dct_c(MpegEncContext *s, int16_t *block){
     }
 }
 
-static int dct_quantize_trellis_c(MpegEncContext *s,
+static int dct_quantize_trellis_c(MPVEncContext *s,
                                   int16_t *block, int n,
                                   int qscale, int *overflow){
     const int *qmat;
@@ -4111,7 +4124,7 @@ static void build_basis(uint8_t *perm){
     }
 }
 
-static int dct_quantize_refine(MpegEncContext *s, //FIXME breaks denoise?
+static int dct_quantize_refine(MPVEncContext *s, //FIXME breaks denoise?
                         int16_t *block, int16_t *weight, int16_t *orig,
                         int n, int qscale){
     int16_t rem[64];
@@ -4463,7 +4476,7 @@ void ff_block_permute(int16_t *block, uint8_t *permutation,
     }
 }
 
-int ff_dct_quantize_c(MpegEncContext *s,
+int ff_dct_quantize_c(MPVEncContext *s,
                         int16_t *block, int n,
                         int qscale, int *overflow)
 {
