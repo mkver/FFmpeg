@@ -352,10 +352,10 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
     }
     s->gop_size     = avctx->gop_size;
     s->avctx        = avctx;
-    if (avctx->max_b_frames > MAX_B_FRAMES) {
+    if (avctx->max_b_frames > MPVENC_MAX_B_FRAMES) {
         av_log(avctx, AV_LOG_ERROR, "Too many B-frames requested, maximum "
-               "is %d.\n", MAX_B_FRAMES);
-        avctx->max_b_frames = MAX_B_FRAMES;
+               "is " AV_STRINGIFY(MPVENC_MAX_B_FRAMES) ".\n");
+        avctx->max_b_frames = MPVENC_MAX_B_FRAMES;
     } else if (avctx->max_b_frames < 0) {
         av_log(avctx, AV_LOG_ERROR,
                "max b frames must be 0 or positive for mpegvideo based encoders\n");
@@ -610,10 +610,10 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
         return AVERROR(EINVAL);
     }
 
-    if (s->b_frame_strategy && (avctx->flags & AV_CODEC_FLAG_PASS2)) {
+    if (m->b_frame_strategy && (avctx->flags & AV_CODEC_FLAG_PASS2)) {
         av_log(avctx, AV_LOG_INFO,
                "notice: b_frame_strategy only affects the first pass\n");
-        s->b_frame_strategy = 0;
+        m->b_frame_strategy = 0;
     }
 
     i = av_gcd(avctx->time_base.den, avctx->time_base.num);
@@ -902,17 +902,17 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
     if ((ret = ff_rate_control_init(m)) < 0)
         return ret;
 
-    if (s->b_frame_strategy == 2) {
+    if (m->b_frame_strategy == 2) {
         for (i = 0; i < s->max_b_frames + 2; i++) {
-            s->tmp_frames[i] = av_frame_alloc();
-            if (!s->tmp_frames[i])
+            m->tmp_frames[i] = av_frame_alloc();
+            if (!m->tmp_frames[i])
                 return AVERROR(ENOMEM);
 
-            s->tmp_frames[i]->format = AV_PIX_FMT_YUV420P;
-            s->tmp_frames[i]->width  = s->width  >> s->brd_scale;
-            s->tmp_frames[i]->height = s->height >> s->brd_scale;
+            m->tmp_frames[i]->format = AV_PIX_FMT_YUV420P;
+            m->tmp_frames[i]->width  = s->width  >> s->brd_scale;
+            m->tmp_frames[i]->height = s->height >> s->brd_scale;
 
-            ret = av_frame_get_buffer(s->tmp_frames[i], 0);
+            ret = av_frame_get_buffer(m->tmp_frames[i], 0);
             if (ret < 0)
                 return ret;
         }
@@ -933,14 +933,13 @@ av_cold int ff_mpv_encode_end(AVCodecContext *avctx)
 {
     MPVMainEncContext *const m = avctx->priv_data;
     MPVMainContext  *const s = &m->common;
-    int i;
 
     ff_rate_control_uninit(m);
 
     ff_mpv_common_end(&m->common);
 
-    for (i = 0; i < FF_ARRAY_ELEMS(s->tmp_frames); i++)
-        av_frame_free(&s->tmp_frames[i]);
+    for (int i = 0; i < FF_ARRAY_ELEMS(m->tmp_frames); i++)
+        av_frame_free(&m->tmp_frames[i]);
 
     ff_mpv_picture_free(avctx, &s->new_picture);
 
@@ -1265,18 +1264,18 @@ static int estimate_best_b_count(MPVMainEncContext *m)
                 data[2] += INPLACE_OFFSET;
             }
 
-            s->mpvencdsp.shrink[scale](s->tmp_frames[i]->data[0],
-                                       s->tmp_frames[i]->linesize[0],
+            s->mpvencdsp.shrink[scale](m->tmp_frames[i]->data[0],
+                                       m->tmp_frames[i]->linesize[0],
                                        data[0],
                                        pre_input.f->linesize[0],
                                        width, height);
-            s->mpvencdsp.shrink[scale](s->tmp_frames[i]->data[1],
-                                       s->tmp_frames[i]->linesize[1],
+            s->mpvencdsp.shrink[scale](m->tmp_frames[i]->data[1],
+                                       m->tmp_frames[i]->linesize[1],
                                        data[1],
                                        pre_input.f->linesize[1],
                                        width >> 1, height >> 1);
-            s->mpvencdsp.shrink[scale](s->tmp_frames[i]->data[2],
-                                       s->tmp_frames[i]->linesize[2],
+            s->mpvencdsp.shrink[scale](m->tmp_frames[i]->data[2],
+                                       m->tmp_frames[i]->linesize[2],
                                        data[2],
                                        pre_input.f->linesize[2],
                                        width >> 1, height >> 1);
@@ -1313,10 +1312,10 @@ static int estimate_best_b_count(MPVMainEncContext *m)
             goto fail;
 
 
-        s->tmp_frames[0]->pict_type = AV_PICTURE_TYPE_I;
-        s->tmp_frames[0]->quality   = 1 * FF_QP2LAMBDA;
+        m->tmp_frames[0]->pict_type = AV_PICTURE_TYPE_I;
+        m->tmp_frames[0]->quality   = 1 * FF_QP2LAMBDA;
 
-        out_size = encode_frame(c, s->tmp_frames[0], pkt);
+        out_size = encode_frame(c, m->tmp_frames[0], pkt);
         if (out_size < 0) {
             ret = out_size;
             goto fail;
@@ -1327,11 +1326,11 @@ static int estimate_best_b_count(MPVMainEncContext *m)
         for (i = 0; i < s->max_b_frames + 1; i++) {
             int is_p = i % (j + 1) == j || i == s->max_b_frames;
 
-            s->tmp_frames[i + 1]->pict_type = is_p ?
+            m->tmp_frames[i + 1]->pict_type = is_p ?
                                      AV_PICTURE_TYPE_P : AV_PICTURE_TYPE_B;
-            s->tmp_frames[i + 1]->quality   = is_p ? p_lambda : b_lambda;
+            m->tmp_frames[i + 1]->quality   = is_p ? p_lambda : b_lambda;
 
-            out_size = encode_frame(c, s->tmp_frames[i + 1], pkt);
+            out_size = encode_frame(c, m->tmp_frames[i + 1], pkt);
             if (out_size < 0) {
                 ret = out_size;
                 goto fail;
@@ -1418,11 +1417,11 @@ static int select_input_picture(MPVMainEncContext *m)
                 }
             }
 
-            if (s->b_frame_strategy == 0) {
+            if (m->b_frame_strategy == 0) {
                 b_frames = s->max_b_frames;
                 while (b_frames && !s->input_picture[b_frames])
                     b_frames--;
-            } else if (s->b_frame_strategy == 1) {
+            } else if (m->b_frame_strategy == 1) {
                 for (i = 1; i < s->max_b_frames + 1; i++) {
                     if (s->input_picture[i] &&
                         s->input_picture[i]->b_frame_score == 0) {
@@ -1436,7 +1435,7 @@ static int select_input_picture(MPVMainEncContext *m)
                 for (i = 0; i < s->max_b_frames + 1; i++) {
                     if (!s->input_picture[i] ||
                         s->input_picture[i]->b_frame_score - 1 >
-                            s->mb_num / s->b_sensitivity)
+                            s->mb_num / m->b_sensitivity)
                         break;
                 }
 
@@ -1446,7 +1445,7 @@ static int select_input_picture(MPVMainEncContext *m)
                 for (i = 0; i < b_frames + 1; i++) {
                     s->input_picture[i]->b_frame_score = 0;
                 }
-            } else if (s->b_frame_strategy == 2) {
+            } else if (m->b_frame_strategy == 2) {
                 b_frames = estimate_best_b_count(m);
                 if (b_frames < 0)
                     return b_frames;

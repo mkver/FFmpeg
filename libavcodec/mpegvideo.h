@@ -57,8 +57,6 @@
 
 #define MAX_THREADS 32
 
-#define MAX_B_FRAMES 16
-
 /**
  * MPVContext.
  */
@@ -528,11 +526,6 @@ typedef struct MPVContext {
     ERContext er;
 
     int error_rate;
-
-    /* temporary frames used by b_frame_strategy = 2 */
-    AVFrame *tmp_frames[MAX_B_FRAMES + 2];
-    int b_frame_strategy;
-    int b_sensitivity;
 
     /* frame skip options for encoding */
     int frame_skip_threshold;

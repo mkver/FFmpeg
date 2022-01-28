@@ -32,9 +32,16 @@
 #include "internal.h"
 #include "mpegvideo.h"
 
+#define MPVENC_MAX_B_FRAMES 16
+
 typedef MPVContext MPVEncContext;
 typedef struct MPVMainEncContext {
     MPVMainContext common;
+
+    /* temporary frames used by b_frame_strategy == 2 */
+    AVFrame *tmp_frames[MPVENC_MAX_B_FRAMES + 2];
+    int b_frame_strategy;
+    int b_sensitivity;
 } MPVMainEncContext;
 
 #define UNI_AC_ENC_INDEX(run,level) ((run)*128 + (level))
@@ -115,8 +122,8 @@ FF_MPV_OPT_CMP_FUNC, \
 {"intra_penalty", "Penalty for intra blocks in block decision", FF_MPV_OFFSET(intra_penalty), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, INT_MAX/2, FF_MPV_OPT_FLAGS }, \
 
 #define FF_MPV_COMMON_BFRAME_OPTS \
-{"b_strategy", "Strategy to choose between I/P/B-frames",      FF_MPV_OFFSET(b_frame_strategy), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 2, FF_MPV_OPT_FLAGS }, \
-{"b_sensitivity", "Adjust sensitivity of b_frame_strategy 1",  FF_MPV_OFFSET(b_sensitivity), AV_OPT_TYPE_INT, {.i64 = 40 }, 1, INT_MAX, FF_MPV_OPT_FLAGS }, \
+{"b_strategy", "Strategy to choose between I/P/B-frames",      FF_MPV_MAIN_OFFSET(b_frame_strategy), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 2, FF_MPV_OPT_FLAGS }, \
+{"b_sensitivity", "Adjust sensitivity of b_frame_strategy 1",  FF_MPV_MAIN_OFFSET(b_sensitivity), AV_OPT_TYPE_INT, {.i64 = 40 }, 1, INT_MAX, FF_MPV_OPT_FLAGS }, \
 {"brd_scale", "Downscale frames for dynamic B-frame decision", FF_MPV_OFFSET(brd_scale), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 3, FF_MPV_OPT_FLAGS },
 
 #if FF_API_MPEGVIDEO_OPTS
@@ -127,8 +134,8 @@ FF_MPV_OPT_CMP_FUNC, \
 #define FF_MPV_DEPRECATED_MATRIX_OPT \
    { "force_duplicated_matrix", "Deprecated, does nothing", FF_MPV_OFFSET(dummy), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED },
 #define FF_MPV_DEPRECATED_BFRAME_OPTS \
-   { "b_strategy",    "Deprecated, does nothing", FF_MPV_OFFSET(b_frame_strategy), AV_OPT_TYPE_INT, { .i64 =  0 }, 0, 2, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED }, \
-   { "b_sensitivity", "Deprecated, does nothing", FF_MPV_OFFSET(b_sensitivity),    AV_OPT_TYPE_INT, { .i64 = 40 }, 1, INT_MAX, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED }, \
+   { "b_strategy",    "Deprecated, does nothing", FF_MPV_MAIN_OFFSET(b_frame_strategy), AV_OPT_TYPE_INT, { .i64 =  0 }, 0, 2, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED }, \
+   { "b_sensitivity", "Deprecated, does nothing", FF_MPV_MAIN_OFFSET(b_sensitivity),    AV_OPT_TYPE_INT, { .i64 = 40 }, 1, INT_MAX, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED }, \
    { "brd_scale",     "Deprecated, does nothing", FF_MPV_OFFSET(brd_scale),        AV_OPT_TYPE_INT, { .i64 =  0 }, 0, 3, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED },
 #endif
 
