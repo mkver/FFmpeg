@@ -168,8 +168,9 @@ static int ff_xvmc_field_end(AVCodecContext *avctx)
  * Synthesize the data needed by XvMC to render one macroblock of data.
  * Fill all relevant fields, if necessary do IDCT.
  */
-static void ff_xvmc_decode_mb(struct MpegEncContext *s)
+static void ff_xvmc_decode_mb(void *opaque)
 {
+    MpegEncContext *const s = opaque;
     XvMCMacroBlock *mv_block;
     struct xvmc_pix_fmt *render;
     int i, cbp, blocks_per_mb;

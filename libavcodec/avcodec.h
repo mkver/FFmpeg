@@ -2026,8 +2026,6 @@ typedef struct AVCodecContext {
     int (*get_encode_buffer)(struct AVCodecContext *s, AVPacket *pkt, int flags);
 } AVCodecContext;
 
-struct MpegEncContext;
-
 /**
  * @defgroup lavc_hwaccel AVHWAccel
  *
@@ -2154,10 +2152,8 @@ typedef struct AVHWAccel {
      * XvMC uses it to replace the ff_mpv_reconstruct_mb().
      * Instead of decoding to raw picture, MB parameters are
      * stored in an array provided by the video driver.
-     *
-     * @param s the mpeg context
      */
-    void (*decode_mb)(struct MpegEncContext *s);
+    void (*decode_mb)(void *opaque);
 
     /**
      * Initialize the hwaccel private data.
