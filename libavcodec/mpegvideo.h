@@ -237,8 +237,6 @@ typedef struct MPVContext {
     uint8_t (*p_field_select_table[2]);  ///< Only the first element is allocated
     uint8_t (*b_field_select_table[2][2]); ///< Only the first element is allocated
     int motion_est;                      ///< ME algorithm
-    int me_penalty_compensation;
-    int me_pre;                          ///< prepass for motion estimation
     int mv_dir;
 #define MV_DIR_FORWARD   1
 #define MV_DIR_BACKWARD  2

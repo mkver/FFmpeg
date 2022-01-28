@@ -3561,11 +3561,11 @@ static int encode_picture(MPVMainEncContext *m, int picture_number)
 
     /* Estimate motion for every MB */
     if(s->pict_type != AV_PICTURE_TYPE_I){
-        s->lambda  = (s->lambda  * s->me_penalty_compensation + 128) >> 8;
-        s->lambda2 = (s->lambda2 * (int64_t) s->me_penalty_compensation + 128) >> 8;
+        s->lambda  = (s->lambda  * m->me_penalty_compensation + 128) >> 8;
+        s->lambda2 = (s->lambda2 * (int64_t) m->me_penalty_compensation + 128) >> 8;
         if (s->pict_type != AV_PICTURE_TYPE_B) {
-            if ((s->me_pre && s->last_non_b_pict_type == AV_PICTURE_TYPE_I) ||
-                s->me_pre == 2) {
+            if ((m->me_pre && s->last_non_b_pict_type == AV_PICTURE_TYPE_I) ||
+                m->me_pre == 2) {
                 s->avctx->execute(s->avctx, pre_estimate_motion_thread, &s->thread_context[0], NULL, context_count, sizeof(void*));
             }
         }
