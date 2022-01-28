@@ -34,6 +34,7 @@
 #include "mpeg12.h"
 #include "mpeg12data.h"
 #include "mpegvideo.h"
+#include "mpegvideoenc.h"
 #include "speedhqenc.h"
 
 extern RLTable ff_rl_speedhq;

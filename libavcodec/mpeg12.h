@@ -24,6 +24,7 @@
 
 #include "mpeg12vlc.h"
 #include "mpegvideo.h"
+#include "rl.h"
 
 /* Start codes. */
 #define SEQ_END_CODE            0x000001b7

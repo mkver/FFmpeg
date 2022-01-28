@@ -34,6 +34,7 @@
 #include "avcodec.h"
 #include "mpegvideo.h"
 #include "mpegvideodata.h"
+#include "mpegvideoenc.h"
 #include "h263.h"
 #include "h263enc.h"
 #include "h263data.h"

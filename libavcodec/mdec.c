@@ -33,6 +33,7 @@
 #include "blockdsp.h"
 #include "bswapdsp.h"
 #include "idctdsp.h"
+#include "internal.h"
 #include "mpeg12.h"
 #include "mpeg12data.h"
 #include "thread.h"
