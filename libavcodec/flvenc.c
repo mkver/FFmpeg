@@ -23,8 +23,9 @@
 #include "mpegvideodata.h"
 #include "mpegvideoenc.h"
 
-void ff_flv_encode_picture_header(MPVMainEncContext *s, int picture_number)
+void ff_flv_encode_picture_header(MPVMainEncContext *m, int picture_number)
 {
+    MPVEncContext *const s = &m->common;
     int format;
 
     align_put_bits(&s->pb);

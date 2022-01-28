@@ -102,8 +102,9 @@ av_const int ff_h263_aspect_to_info(AVRational aspect){
     return FF_ASPECT_EXTENDED;
 }
 
-void ff_h263_encode_picture_header(MPVMainEncContext *s, int picture_number)
+void ff_h263_encode_picture_header(MPVMainEncContext *m, int picture_number)
 {
+    MPVEncContext *const s = &m->common;
     int format, coded_frame_rate, coded_frame_rate_base, i, temp_ref;
     int best_clock_code=1;
     int best_divisor=60;
@@ -266,12 +267,13 @@ void ff_h263_encode_gob_header(MPVEncContext *s, int mb_line)
 /**
  * modify qscale so that encoding is actually possible in H.263 (limit difference to -2..2)
  */
-void ff_clean_h263_qscales(MPVMainEncContext *s)
+void ff_clean_h263_qscales(MPVMainEncContext *m)
 {
+    MPVEncContext *const s = &m->common;
     int i;
     int8_t * const qscale_table = s->current_picture.qscale_table;
 
-    ff_init_qscale_tab(s);
+    ff_init_qscale_tab(m);
 
     for(i=1; i<s->mb_num; i++){
         if(qscale_table[ s->mb_index2xy[i] ] - qscale_table[ s->mb_index2xy[i-1] ] >2)
@@ -812,8 +814,9 @@ static av_cold void h263_encode_init_static(void)
     init_mv_penalty_and_fcode();
 }
 
-av_cold void ff_h263_encode_init(MPVMainEncContext *s)
+av_cold void ff_h263_encode_init(MPVMainEncContext *m)
 {
+    MPVEncContext *const s = &m->common;
     static AVOnce init_static_once = AV_ONCE_INIT;
 
     s->me.mv_penalty= mv_penalty; // FIXME exact table for MSMPEG4 & H.263+
@@ -878,7 +881,7 @@ void ff_h263_encode_mba(MPVEncContext *s)
     put_bits(&s->pb, ff_mba_length[i], mb_pos);
 }
 
-#define OFFSET(x) offsetof(MPVMainEncContext, x)
+#define OFFSET(x) offsetof(MPVMainEncContext, common.x)
 #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption h263_options[] = {
     { "obmc",         "use overlapped block motion compensation.", OFFSET(obmc), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },

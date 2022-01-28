@@ -42,7 +42,7 @@ typedef struct WMV2EncContext {
 
 static int encode_ext_header(WMV2EncContext *w)
 {
-    MPVMainEncContext *const s = &w->msmpeg4.s;
+    MPVEncContext *const s = &w->msmpeg4.s.common;
     PutBitContext pb;
     int code;
 
@@ -69,13 +69,14 @@ static int encode_ext_header(WMV2EncContext *w)
 static av_cold int wmv2_encode_init(AVCodecContext *avctx)
 {
     WMV2EncContext *const w = avctx->priv_data;
-    MPVMainEncContext *const s = &w->msmpeg4.s;
+    MPVMainEncContext *const m = &w->msmpeg4.s;
+    MPVEncContext     *const s = &m->common;
 
     s->private_ctx = &w->common;
     if (ff_mpv_encode_init(avctx) < 0)
         return -1;
 
-    ff_wmv2_common_init(s);
+    ff_wmv2_common_init(&m->common);
 
     avctx->extradata_size = 4;
     avctx->extradata      = av_mallocz(avctx->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
@@ -87,9 +88,10 @@ static av_cold int wmv2_encode_init(AVCodecContext *avctx)
     return 0;
 }
 
-int ff_wmv2_encode_picture_header(MPVMainEncContext *s, int picture_number)
+int ff_wmv2_encode_picture_header(MPVMainEncContext *m, int picture_number)
 {
-    WMV2EncContext *const w = (WMV2EncContext *) s;
+    WMV2EncContext *const w = (WMV2EncContext *) m;
+    MPVEncContext  *const s = &m->common;
 
     put_bits(&s->pb, 1, s->pict_type - 1);
     if (s->pict_type == AV_PICTURE_TYPE_I)

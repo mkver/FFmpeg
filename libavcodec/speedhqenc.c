@@ -90,8 +90,9 @@ static av_cold void speedhq_init_static_data(void)
     ff_mpeg1_init_uni_ac_vlc(&ff_rl_speedhq, uni_speedhq_ac_vlc_len);
 }
 
-av_cold int ff_speedhq_encode_init(MPVMainEncContext *s)
+av_cold int ff_speedhq_encode_init(MPVMainEncContext *m)
 {
+    MPVEncContext *const s = &m->common;
     static AVOnce init_static_once = AV_ONCE_INIT;
 
     av_assert0(s->slice_context_count == 1);
@@ -128,9 +129,10 @@ av_cold int ff_speedhq_encode_init(MPVMainEncContext *s)
     return 0;
 }
 
-void ff_speedhq_encode_picture_header(MPVMainEncContext *s)
+void ff_speedhq_encode_picture_header(MPVMainEncContext *m)
 {
-    SpeedHQEncContext *ctx = (SpeedHQEncContext*)s;
+    SpeedHQEncContext *ctx = (SpeedHQEncContext*)m;
+    MPVEncContext *const s = &m->common;
 
     put_bits_le(&s->pb, 8, 100 - s->qscale * 2);  /* FIXME why doubled */
     put_bits_le(&s->pb, 24, 4);  /* no second field */

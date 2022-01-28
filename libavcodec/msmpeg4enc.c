@@ -134,11 +134,12 @@ static av_cold void msmpeg4_encode_init_static(void)
     }
 }
 
-av_cold void ff_msmpeg4_encode_init(MPVMainEncContext *s)
+av_cold void ff_msmpeg4_encode_init(MPVMainEncContext *m)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
+    MPVEncContext *const s = &m->common;
 
-    ff_msmpeg4_common_init(s);
+    ff_msmpeg4_common_init(&m->common);
     if (s->msmpeg4_version >= 4) {
         s->min_qcoeff = -255;
         s->max_qcoeff =  255;
@@ -150,7 +151,7 @@ av_cold void ff_msmpeg4_encode_init(MPVMainEncContext *s)
 
 static void find_best_tables(MSMPEG4EncContext *ms)
 {
-    MPVEncContext *const s = &ms->s;
+    MPVEncContext *const s = &ms->s.common;
     int i;
     int best        = 0, best_size        = INT_MAX;
     int chroma_best = 0, best_chroma_size = INT_MAX;
@@ -214,9 +215,10 @@ static void find_best_tables(MSMPEG4EncContext *ms)
 }
 
 /* write MSMPEG4 compatible frame header */
-void ff_msmpeg4_encode_picture_header(MPVMainEncContext *s, int picture_number)
+void ff_msmpeg4_encode_picture_header(MPVMainEncContext *m, int picture_number)
 {
-    MSMPEG4EncContext *const ms = (MSMPEG4EncContext*)s;
+    MSMPEG4EncContext *const ms = (MSMPEG4EncContext*)m;
+    MPVEncContext     *const  s = &m->common;
 
     find_best_tables(ms);
 

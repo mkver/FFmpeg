@@ -35,8 +35,9 @@
 #include "mpegvideoenc.h"
 #include "libavutil/eval.h"
 
-void ff_write_pass1_stats(MPVMainEncContext *s)
+void ff_write_pass1_stats(MPVMainEncContext *m)
 {
+    MPVEncContext *const s = &m->common;
     snprintf(s->avctx->stats_out, 256,
              "in:%d out:%d type:%d q:%d itex:%d ptex:%d mv:%d misc:%d "
              "fcode:%d bcode:%d mc-var:%"PRId64" var:%"PRId64" icount:%d skipcount:%d hbits:%d;\n",
@@ -77,8 +78,9 @@ static inline double bits2qp(RateControlEntry *rce, double bits)
     return rce->qscale * (double)(rce->i_tex_bits + rce->p_tex_bits + 1) / bits;
 }
 
-static double get_diff_limited_q(MPVMainEncContext *s, RateControlEntry *rce, double q)
+static double get_diff_limited_q(MPVMainEncContext *m, RateControlEntry *rce, double q)
 {
+    MPVEncContext    *const s = &m->common;
     RateControlContext *rcc   = &s->rc_context;
     AVCodecContext *a         = s->avctx;
     const int pict_type       = rce->new_pict_type;
@@ -116,7 +118,7 @@ static double get_diff_limited_q(MPVMainEncContext *s, RateControlEntry *rce, do
 /**
  * Get the qmin & qmax for pict_type.
  */
-static void get_qminmax(int *qmin_ret, int *qmax_ret, MPVMainEncContext *s, int pict_type)
+static void get_qminmax(int *qmin_ret, int *qmax_ret, MPVEncContext *s, int pict_type)
 {
     int qmin = s->lmin;
     int qmax = s->lmax;
@@ -144,9 +146,10 @@ static void get_qminmax(int *qmin_ret, int *qmax_ret, MPVMainEncContext *s, int 
     *qmax_ret = qmax;
 }
 
-static double modify_qscale(MPVMainEncContext *s, RateControlEntry *rce,
+static double modify_qscale(MPVMainEncContext *m, RateControlEntry *rce,
                             double q, int frame_num)
 {
+    MPVEncContext   *const s = &m->common;
     RateControlContext *rcc  = &s->rc_context;
     const double buffer_size = s->avctx->rc_buffer_size;
     const double fps         = get_fps(s->avctx);
@@ -235,9 +238,10 @@ static double modify_qscale(MPVMainEncContext *s, RateControlEntry *rce,
 /**
  * Modify the bitrate curve from pass1 for one frame.
  */
-static double get_qscale(MPVMainEncContext *s, RateControlEntry *rce,
+static double get_qscale(MPVMainEncContext *m, RateControlEntry *rce,
                          double rate_factor, int frame_num)
 {
+    MPVEncContext  *const s = &m->common;
     RateControlContext *rcc = &s->rc_context;
     AVCodecContext *a       = s->avctx;
     const int pict_type     = rce->new_pict_type;
@@ -308,8 +312,9 @@ static double get_qscale(MPVMainEncContext *s, RateControlEntry *rce,
     return q;
 }
 
-static int init_pass2(MPVMainEncContext *s)
+static int init_pass2(MPVMainEncContext *m)
 {
+    MPVEncContext  *const s = &m->common;
     RateControlContext *rcc = &s->rc_context;
     AVCodecContext *a       = s->avctx;
     int i, toobig;
@@ -368,7 +373,7 @@ static int init_pass2(MPVMainEncContext *s)
         for (i = 0; i < rcc->num_entries; i++) {
             RateControlEntry *rce = &rcc->entry[i];
 
-            qscale[i] = get_qscale(s, &rcc->entry[i], rate_factor, i);
+            qscale[i] = get_qscale(m, &rcc->entry[i], rate_factor, i);
             rcc->last_qscale_for[rce->pict_type] = qscale[i];
         }
         av_assert0(filter_size % 2 == 1);
@@ -377,13 +382,13 @@ static int init_pass2(MPVMainEncContext *s)
         for (i = FFMAX(0, rcc->num_entries - 300); i < rcc->num_entries; i++) {
             RateControlEntry *rce = &rcc->entry[i];
 
-            qscale[i] = get_diff_limited_q(s, rce, qscale[i]);
+            qscale[i] = get_diff_limited_q(m, rce, qscale[i]);
         }
 
         for (i = rcc->num_entries - 1; i >= 0; i--) {
             RateControlEntry *rce = &rcc->entry[i];
 
-            qscale[i] = get_diff_limited_q(s, rce, qscale[i]);
+            qscale[i] = get_diff_limited_q(m, rce, qscale[i]);
         }
 
         /* smooth curve */
@@ -413,10 +418,10 @@ static int init_pass2(MPVMainEncContext *s)
             RateControlEntry *rce = &rcc->entry[i];
             double bits;
 
-            rce->new_qscale = modify_qscale(s, rce, blurred_qscale[i], i);
+            rce->new_qscale = modify_qscale(m, rce, blurred_qscale[i], i);
 
             bits  = qp2bits(rce, rce->new_qscale) + rce->mv_bits + rce->misc_bits;
-            bits += 8 * ff_vbv_update(s, bits);
+            bits += 8 * ff_vbv_update(m, bits);
 
             rce->expected_bits = expected_bits;
             expected_bits     += bits;
@@ -469,8 +474,9 @@ static int init_pass2(MPVMainEncContext *s)
     return 0;
 }
 
-av_cold int ff_rate_control_init(MPVMainEncContext *s)
+av_cold int ff_rate_control_init(MPVMainEncContext *m)
 {
+    MPVEncContext  *const s = &m->common;
     RateControlContext *rcc = &s->rc_context;
     int i, res;
     static const char * const const_names[] = {
@@ -603,8 +609,8 @@ av_cold int ff_rate_control_init(MPVMainEncContext *s)
             p = next;
         }
 
-        if (init_pass2(s) < 0) {
-            ff_rate_control_uninit(s);
+        if (init_pass2(m) < 0) {
+            ff_rate_control_uninit(m);
             return -1;
         }
     }
@@ -658,7 +664,7 @@ av_cold int ff_rate_control_init(MPVMainEncContext *s)
                 rcc->mv_bits_sum[rce.pict_type] += rce.mv_bits;
                 rcc->frame_count[rce.pict_type]++;
 
-                get_qscale(s, &rce, rcc->pass1_wanted_bits / rcc->pass1_rc_eq_output_sum, i);
+                get_qscale(m, &rce, rcc->pass1_wanted_bits / rcc->pass1_rc_eq_output_sum, i);
 
                 // FIXME misbehaves a little for variable fps
                 rcc->pass1_wanted_bits += s->bit_rate / get_fps(s->avctx);
@@ -669,8 +675,9 @@ av_cold int ff_rate_control_init(MPVMainEncContext *s)
     return 0;
 }
 
-av_cold void ff_rate_control_uninit(MPVMainEncContext *s)
+av_cold void ff_rate_control_uninit(MPVMainEncContext *m)
 {
+    MPVEncContext  *const s = &m->common;
     RateControlContext *rcc = &s->rc_context;
     emms_c();
 
@@ -678,8 +685,9 @@ av_cold void ff_rate_control_uninit(MPVMainEncContext *s)
     av_freep(&rcc->entry);
 }
 
-int ff_vbv_update(MPVMainEncContext *s, int frame_size)
+int ff_vbv_update(MPVMainEncContext *m, int frame_size)
 {
+    MPVEncContext  *const s = &m->common;
     RateControlContext *rcc = &s->rc_context;
     const double fps        = get_fps(s->avctx);
     const int buffer_size   = s->avctx->rc_buffer_size;
@@ -737,8 +745,9 @@ static void update_predictor(Predictor *p, double q, double var, double size)
     p->coeff += new_coeff;
 }
 
-static void adaptive_quantization(MPVMainEncContext *s, double q)
+static void adaptive_quantization(MPVMainEncContext *m, double q)
 {
+    MPVEncContext *const s = &m->common;
     int i;
     const float lumi_masking         = s->avctx->lumi_masking / (128.0 * 128.0);
     const float dark_masking         = s->avctx->dark_masking / (128.0 * 128.0);
@@ -854,8 +863,9 @@ static void adaptive_quantization(MPVMainEncContext *s, double q)
     }
 }
 
-void ff_get_2pass_fcode(MPVMainEncContext *s)
+void ff_get_2pass_fcode(MPVMainEncContext *m)
 {
+    MPVEncContext  *const s = &m->common;
     RateControlContext *rcc = &s->rc_context;
     RateControlEntry *rce   = &rcc->entry[s->picture_number];
 
@@ -865,8 +875,9 @@ void ff_get_2pass_fcode(MPVMainEncContext *s)
 
 // FIXME rd or at least approx for dquant
 
-float ff_rate_estimate_qscale(MPVMainEncContext *s, int dry_run)
+float ff_rate_estimate_qscale(MPVMainEncContext *m, int dry_run)
 {
+    MPVEncContext *const s = &m->common;
     float q;
     int qmin, qmax;
     float br_compensation;
@@ -971,12 +982,12 @@ float ff_rate_estimate_qscale(MPVMainEncContext *s, int dry_run)
         rate_factor = rcc->pass1_wanted_bits /
                       rcc->pass1_rc_eq_output_sum * br_compensation;
 
-        q = get_qscale(s, rce, rate_factor, picture_number);
+        q = get_qscale(m, rce, rate_factor, picture_number);
         if (q < 0)
             return -1;
 
         av_assert0(q > 0.0);
-        q = get_diff_limited_q(s, rce, q);
+        q = get_diff_limited_q(m, rce, q);
         av_assert0(q > 0.0);
 
         // FIXME type dependent blur like in 2-pass
@@ -990,7 +1001,7 @@ float ff_rate_estimate_qscale(MPVMainEncContext *s, int dry_run)
         }
         av_assert0(q > 0.0);
 
-        q = modify_qscale(s, rce, q, picture_number);
+        q = modify_qscale(m, rce, q, picture_number);
 
         rcc->pass1_wanted_bits += s->bit_rate / fps;
 
@@ -1015,7 +1026,7 @@ float ff_rate_estimate_qscale(MPVMainEncContext *s, int dry_run)
         q = qmax;
 
     if (s->adaptive_quant)
-        adaptive_quantization(s, q);
+        adaptive_quantization(m, q);
     else
         q = (int)(q + 0.5);
 

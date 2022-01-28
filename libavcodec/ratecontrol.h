@@ -86,7 +86,6 @@ typedef struct RateControlContext{
     AVExpr * rc_eq_eval;
 }RateControlContext;
 
-#define MPVMainEncContext MPVContext
 struct MPVMainEncContext;
 
 /* rate control */
@@ -96,6 +95,5 @@ void ff_write_pass1_stats(struct MPVMainEncContext *m);
 void ff_rate_control_uninit(struct MPVMainEncContext *m);
 int ff_vbv_update(struct MPVMainEncContext *m, int frame_size);
 void ff_get_2pass_fcode(struct MPVMainEncContext *m);
-#undef MPVMainEncContext
 
 #endif /* AVCODEC_RATECONTROL_H */

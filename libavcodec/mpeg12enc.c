@@ -122,7 +122,8 @@ av_cold void ff_mpeg1_init_uni_ac_vlc(const RLTable *rl, uint8_t *uni_ac_vlc_len
 #if CONFIG_MPEG1VIDEO_ENCODER || CONFIG_MPEG2VIDEO_ENCODER
 static int find_frame_rate_index(MPEG12EncContext *mpeg12)
 {
-    MPVMainEncContext *const s = &mpeg12->mpeg;
+    MPVMainEncContext *const m = &mpeg12->mpeg;
+    MPVEncContext     *const s = &m->common;
     int i;
     AVRational bestq = (AVRational) {0, 0};
     AVRational ext;
@@ -163,7 +164,8 @@ static int find_frame_rate_index(MPEG12EncContext *mpeg12)
 static av_cold int encode_init(AVCodecContext *avctx)
 {
     MPEG12EncContext *const mpeg12 = avctx->priv_data;
-    MPVMainEncContext *const s = &mpeg12->mpeg;
+    MPVMainEncContext *const m = &mpeg12->mpeg;
+    MPVEncContext     *const s = &m->common;
     int ret;
     int max_size = avctx->codec_id == AV_CODEC_ID_MPEG2VIDEO ? 16383 : 4095;
 
@@ -263,9 +265,10 @@ static void put_header(MPVEncContext *s, int header)
 }
 
 /* put sequence header if needed */
-static void mpeg1_encode_sequence_header(MPVMainEncContext *s)
+static void mpeg1_encode_sequence_header(MPVMainEncContext *m)
 {
-    MPEG12EncContext *const mpeg12 = (MPEG12EncContext*)s;
+    MPEG12EncContext *const mpeg12 = (MPEG12EncContext*)m;
+    MPVEncContext    *const      s = &m->common;
     unsigned int vbv_buffer_size, fps, v;
     int constraint_parameter_flag;
     AVRational framerate = ff_mpeg12_frame_rate_tab[mpeg12->frame_rate_index];
@@ -451,11 +454,12 @@ void ff_mpeg1_encode_slice_header(MPVEncContext *s)
     put_bits(&s->pb, 1, 0);
 }
 
-void ff_mpeg1_encode_picture_header(MPVMainEncContext *s, int picture_number)
+void ff_mpeg1_encode_picture_header(MPVMainEncContext *m, int picture_number)
 {
-    MPEG12EncContext *const mpeg12 = (MPEG12EncContext*)s;
+    MPEG12EncContext *const mpeg12 = (MPEG12EncContext*)m;
+    MPVEncContext    *const      s = &m->common;
     AVFrameSideData *side_data;
-    mpeg1_encode_sequence_header(s);
+    mpeg1_encode_sequence_header(m);
 
     /* MPEG-1 picture header */
     put_header(s, PICTURE_START_CODE);
@@ -1131,11 +1135,12 @@ static av_cold void mpeg12_encode_init_static(void)
             fcode_tab[mv + MAX_MV] = f_code;
 }
 
-av_cold void ff_mpeg1_encode_init(MPVMainEncContext *s)
+av_cold void ff_mpeg1_encode_init(MPVMainEncContext *m)
 {
+    MPVEncContext *const s = &m->common;
     static AVOnce init_static_once = AV_ONCE_INIT;
 
-    ff_mpeg12_common_init(s);
+    ff_mpeg12_common_init(&m->common);
 
     s->me.mv_penalty = mv_penalty;
     s->fcode_tab     = fcode_tab;

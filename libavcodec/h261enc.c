@@ -59,9 +59,10 @@ int ff_h261_get_picture_format(int width, int height)
         return AVERROR(EINVAL);
 }
 
-void ff_h261_encode_picture_header(MPVMainEncContext *s, int picture_number)
+void ff_h261_encode_picture_header(MPVMainEncContext *m, int picture_number)
 {
-    H261EncContext *const h = (H261EncContext *)s;
+    H261EncContext *const h = (H261EncContext *)m;
+    MPVEncContext  *const s = &m->common;
     int format, temp_ref;
 
     align_put_bits(&s->pb);
@@ -174,9 +175,8 @@ static inline int get_cbp(MPVEncContext *s, int16_t block[6][64])
  * @param block the 8x8 block
  * @param n block index (0-3 are luma, 4-5 are chroma)
  */
-static void h261_encode_block(H261EncContext *h, int16_t *block, int n)
+static void h261_encode_block(MPVEncContext *s, int16_t *block, int n)
 {
-    MPVEncContext *const s = &h->s;
     int level, run, i, j, last_index, last_non_zero, sign, slevel, code;
     RLTable *rl;
 
@@ -325,7 +325,7 @@ void ff_h261_encode_mb(MPVEncContext *s, int16_t block[6][64],
     }
     for (i = 0; i < 6; i++)
         /* encode each block */
-        h261_encode_block(h, block[i], i);
+        h261_encode_block(s, block[i], i);
 
     if (!IS_16X16(com->mtype)) {
         s->last_mv[0][0][0] = 0;
@@ -380,9 +380,10 @@ static av_cold void h261_encode_init_static(void)
     init_uni_h261_rl_tab(&ff_h261_rl_tcoeff, uni_h261_rl_len);
 }
 
-av_cold void ff_h261_encode_init(MPVMainEncContext *s)
+av_cold void ff_h261_encode_init(MPVMainEncContext *m)
 {
-    H261EncContext *const h = (H261EncContext*)s;
+    H261EncContext *const h = (H261EncContext*)m;
+    MPVEncContext  *const s = &m->common;
     static AVOnce init_static_once = AV_ONCE_INIT;
 
     s->private_ctx = &h->common;

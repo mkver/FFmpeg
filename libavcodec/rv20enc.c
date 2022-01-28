@@ -32,8 +32,9 @@
 #include "put_bits.h"
 #include "rv10.h"
 
-void ff_rv20_encode_picture_header(MPVMainEncContext *s, int picture_number)
+void ff_rv20_encode_picture_header(MPVMainEncContext *m, int picture_number)
 {
+    MPVEncContext *const s = &m->common;
     put_bits(&s->pb, 2, s->pict_type); //I 0 vs. 1 ?
     put_bits(&s->pb, 1, 0);     /* unknown bit */
     put_bits(&s->pb, 5, s->qscale);

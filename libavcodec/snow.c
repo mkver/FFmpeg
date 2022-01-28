@@ -689,6 +689,7 @@ int ff_snow_frame_start(SnowContext *s){
 av_cold void ff_snow_common_end(SnowContext *s)
 {
     int plane_index, level, orientation, i;
+    MPVEncContext *const m = &s->m.common;
 
     av_freep(&s->spatial_dwt_buffer);
     av_freep(&s->temp_dwt_buffer);
@@ -696,11 +697,11 @@ av_cold void ff_snow_common_end(SnowContext *s)
     av_freep(&s->temp_idwt_buffer);
     av_freep(&s->run_buffer);
 
-    s->m.me.temp= NULL;
-    av_freep(&s->m.me.scratchpad);
-    av_freep(&s->m.me.map);
-    av_freep(&s->m.me.score_map);
-    av_freep(&s->m.sc.obmc_scratchpad);
+    m->me.temp = NULL;
+    av_freep(&m->me.scratchpad);
+    av_freep(&m->me.map);
+    av_freep(&m->me.score_map);
+    av_freep(&m->sc.obmc_scratchpad);
 
     av_freep(&s->block);
     av_freep(&s->scratchbuf);

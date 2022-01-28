@@ -75,8 +75,9 @@ static av_cold void init_uni_ac_vlc(const uint8_t huff_size_ac[256],
     }
 }
 
-static void mjpeg_encode_picture_header(MPVMainEncContext *s)
+static void mjpeg_encode_picture_header(MPVMainEncContext *m)
 {
+    MPVEncContext *const s = &m->common;
     ff_mjpeg_encode_picture_header(s->avctx, &s->pb, s->mjpeg_ctx,
                                    &s->intra_scantable, 0,
                                    s->intra_matrix, s->chroma_intra_matrix,
@@ -87,13 +88,13 @@ static void mjpeg_encode_picture_header(MPVMainEncContext *s)
         s->thread_context[i]->esc_pos = 0;
 }
 
-void ff_mjpeg_amv_encode_picture_header(MPVMainEncContext *s)
+void ff_mjpeg_amv_encode_picture_header(MPVMainEncContext *main)
 {
-    MJPEGEncContext *const m = (MJPEGEncContext*)s;
-    av_assert2(s->mjpeg_ctx == &m->mjpeg);
+    MJPEGEncContext *const m = (MJPEGEncContext*)main;
+    av_assert2(main->common.mjpeg_ctx == &m->mjpeg);
     /* s->huffman == HUFFMAN_TABLE_OPTIMAL can only be true for MJPEG. */
     if (!CONFIG_MJPEG_ENCODER || m->mjpeg.huffman != HUFFMAN_TABLE_OPTIMAL)
-        mjpeg_encode_picture_header(s);
+        mjpeg_encode_picture_header(main);
 }
 
 #if CONFIG_MJPEG_ENCODER
@@ -235,7 +236,9 @@ int ff_mjpeg_encode_stuffing(MPVEncContext *s)
         s->intra_chroma_ac_vlc_length      =
         s->intra_chroma_ac_vlc_last_length = m->uni_chroma_ac_vlc_len;
 
-        mjpeg_encode_picture_header(s);
+        /* HUFFMAN_TABLE_OPTIMAL is incompatible with slice threading,
+         * therefore the following cast is allowed. */
+        mjpeg_encode_picture_header((MPVMainEncContext*)s);
         mjpeg_encode_picture_frame(s);
     }
 #endif
@@ -260,7 +263,7 @@ fail:
     return ret;
 }
 
-static int alloc_huffman(MPVMainEncContext *s)
+static int alloc_huffman(MPVEncContext *s)
 {
     MJpegContext *m = s->mjpeg_ctx;
     size_t num_mbs, num_blocks, num_codes;
@@ -288,9 +291,10 @@ static int alloc_huffman(MPVMainEncContext *s)
     return 0;
 }
 
-av_cold int ff_mjpeg_encode_init(MPVMainEncContext *s)
+av_cold int ff_mjpeg_encode_init(MPVMainEncContext *main)
 {
-    MJpegContext *const m = &((MJPEGEncContext*)s)->mjpeg;
+    MJpegContext *const m = &((MJPEGEncContext*)main)->mjpeg;
+    MPVEncContext *const s = &main->common;
     int ret, use_slices;
 
     s->mjpeg_ctx = m;
@@ -589,7 +593,7 @@ void ff_mjpeg_encode_mb(MPVEncContext *s, int16_t block[12][64])
 static int amv_encode_picture(AVCodecContext *avctx, AVPacket *pkt,
                               const AVFrame *pic_arg, int *got_packet)
 {
-    MPVMainEncContext *const s = avctx->priv_data;
+    MPVEncContext *const s = avctx->priv_data;
     AVFrame *pic;
     int i, ret;
     int chroma_h_shift, chroma_v_shift;

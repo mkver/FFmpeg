@@ -33,7 +33,9 @@
 #include "mpegvideo.h"
 
 typedef MPVContext MPVEncContext;
-typedef MPVContext MPVMainEncContext;
+typedef struct MPVMainEncContext {
+    MPVMainContext common;
+} MPVMainEncContext;
 
 #define UNI_AC_ENC_INDEX(run,level) ((run)*128 + (level))
 
@@ -62,7 +64,8 @@ typedef MPVContext MPVMainEncContext;
 { "chroma", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = FF_CMP_CHROMA }, INT_MIN, INT_MAX, FF_MPV_OPT_FLAGS, "cmp_func" }, \
 { "msad",   "Sum of absolute differences, median predicted", 0, AV_OPT_TYPE_CONST, {.i64 = FF_CMP_MEDIAN_SAD }, INT_MIN, INT_MAX, FF_MPV_OPT_FLAGS, "cmp_func" }
 
-#define FF_MPV_OFFSET(x) offsetof(MPVMainEncContext, x)
+#define FF_MPV_MAIN_OFFSET(x) offsetof(MPVMainEncContext, x)
+#define FF_MPV_OFFSET(x) FF_MPV_MAIN_OFFSET(common.x)
 #define FF_MPV_OPT_FLAGS (AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM)
 #define FF_MPV_COMMON_OPTS \
 FF_MPV_OPT_CMP_FUNC, \

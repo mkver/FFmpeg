@@ -215,12 +215,13 @@ static inline int decide_ac_pred(MPVEncContext *s, int16_t block[6][64],
 /**
  * modify mb_type & qscale so that encoding is actually possible in MPEG-4
  */
-void ff_clean_mpeg4_qscales(MPVMainEncContext *s)
+void ff_clean_mpeg4_qscales(MPVMainEncContext *m)
 {
+    MPVEncContext *const s = &m->common;
     int i;
     int8_t *const qscale_table = s->current_picture.qscale_table;
 
-    ff_clean_h263_qscales(s);
+    ff_clean_h263_qscales(m);
 
     if (s->pict_type == AV_PICTURE_TYPE_B) {
         int odd = 0;
@@ -875,8 +876,9 @@ void ff_mpeg4_stuffing(PutBitContext *pbc)
 }
 
 /* must be called before writing the header */
-void ff_set_mpeg4_time(MPVMainEncContext *s)
+void ff_set_mpeg4_time(MPVMainEncContext *m)
 {
+    MPVEncContext *const s = &m->common;
     if (s->pict_type == AV_PICTURE_TYPE_B) {
         ff_mpeg4_init_direct_mv(s);
     } else {
@@ -885,8 +887,9 @@ void ff_set_mpeg4_time(MPVMainEncContext *s)
     }
 }
 
-static void mpeg4_encode_gop_header(MPVMainEncContext *s)
+static void mpeg4_encode_gop_header(MPVMainEncContext *m)
 {
+    MPVEncContext *const s = &m->common;
     int64_t hours, minutes, seconds;
     int64_t time;
 
@@ -915,8 +918,9 @@ static void mpeg4_encode_gop_header(MPVMainEncContext *s)
     ff_mpeg4_stuffing(&s->pb);
 }
 
-static void mpeg4_encode_visual_object_header(MPVMainEncContext *s)
+static void mpeg4_encode_visual_object_header(MPVMainEncContext *m)
 {
+    MPVEncContext *const s = &m->common;
     int profile_and_level_indication;
     int vo_ver_id;
 
@@ -959,10 +963,11 @@ static void mpeg4_encode_visual_object_header(MPVMainEncContext *s)
     ff_mpeg4_stuffing(&s->pb);
 }
 
-static void mpeg4_encode_vol_header(MPVMainEncContext *s,
+static void mpeg4_encode_vol_header(MPVMainEncContext *m,
                                     int vo_number,
                                     int vol_number)
 {
+    MPVEncContext *const s = &m->common;
     int vo_ver_id, vo_type, aspect_ratio_info;
 
     if (s->max_b_frames || s->quarter_sample) {
@@ -1060,20 +1065,21 @@ static void mpeg4_encode_vol_header(MPVMainEncContext *s,
 }
 
 /* write MPEG-4 VOP header */
-int ff_mpeg4_encode_picture_header(MPVMainEncContext *s, int picture_number)
+int ff_mpeg4_encode_picture_header(MPVMainEncContext *m, int picture_number)
 {
+    MPVEncContext *const s = &m->common;
     uint64_t time_incr;
     int64_t time_div, time_mod;
 
     if (s->pict_type == AV_PICTURE_TYPE_I) {
         if (!(s->avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER)) {
             if (s->strict_std_compliance < FF_COMPLIANCE_VERY_STRICT)  // HACK, the reference sw is buggy
-                mpeg4_encode_visual_object_header(s);
+                mpeg4_encode_visual_object_header(m);
             if (s->strict_std_compliance < FF_COMPLIANCE_VERY_STRICT || picture_number == 0)  // HACK, the reference sw is buggy
-                mpeg4_encode_vol_header(s, 0, 0);
+                mpeg4_encode_vol_header(m, 0, 0);
         }
         if (!(s->workaround_bugs & FF_BUG_MS))
-            mpeg4_encode_gop_header(s);
+            mpeg4_encode_gop_header(m);
     }
 
     s->partitioned_frame = s->data_partitioning && s->pict_type != AV_PICTURE_TYPE_B;
@@ -1283,7 +1289,8 @@ static av_cold void mpeg4_encode_init_static(void)
 static av_cold int encode_init(AVCodecContext *avctx)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
-    MPVMainEncContext *const s = avctx->priv_data;
+    MPVMainEncContext *const m = avctx->priv_data;
+    MPVEncContext     *const s = &m->common;
     int ret;
 
     if (avctx->width >= (1<<13) || avctx->height >= (1<<13)) {
@@ -1314,8 +1321,8 @@ static av_cold int encode_init(AVCodecContext *avctx)
         init_put_bits(&s->pb, s->avctx->extradata, 1024);
 
         if (!(s->workaround_bugs & FF_BUG_MS))
-            mpeg4_encode_visual_object_header(s);
-        mpeg4_encode_vol_header(s, 0, 0);
+            mpeg4_encode_visual_object_header(m);
+        mpeg4_encode_vol_header(m, 0, 0);
 
 //            ff_mpeg4_stuffing(&s->pb); ?
         flush_put_bits(&s->pb);
@@ -1375,7 +1382,7 @@ void ff_mpeg4_encode_video_packet_header(MPVEncContext *s)
     put_bits(&s->pb, 1, 0); /* no HEC */
 }
 
-#define OFFSET(x) offsetof(MPVMainEncContext, x)
+#define OFFSET(x) offsetof(MPVMainEncContext, common.x)
 #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption options[] = {
     { "data_partitioning", "Use data partitioning.",      OFFSET(data_partitioning), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
