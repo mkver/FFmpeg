@@ -31,12 +31,20 @@
 #include "libavutil/opt.h"
 #include "internal.h"
 #include "mpegvideo.h"
+#include "ratecontrol.h"
 
 #define MPVENC_MAX_B_FRAMES 16
 
 typedef MPVContext MPVEncContext;
 typedef struct MPVMainEncContext {
     MPVMainContext common;
+
+    /* bit rate control */
+    int64_t total_bits;
+    int frame_bits;                ///< bits used for the current frame
+    int stuffing_bits;             ///< bits used for stuffing
+    int next_lambda;               ///< next lambda used for retrying to encode a frame
+    RateControlContext rc_context; ///< contains stuff only accessed in ratecontrol.c
 
     /* temporary frames used by b_frame_strategy == 2 */
     AVFrame *tmp_frames[MPVENC_MAX_B_FRAMES + 2];

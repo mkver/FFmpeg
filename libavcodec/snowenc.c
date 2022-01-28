@@ -1597,7 +1597,7 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
     mpv->picture_number= avctx->frame_number;
     if(avctx->flags&AV_CODEC_FLAG_PASS2){
-        mpv->pict_type = pic->pict_type = mpv->rc_context.entry[avctx->frame_number].new_pict_type;
+        mpv->pict_type = pic->pict_type = s->m.rc_context.entry[avctx->frame_number].new_pict_type;
         s->keyframe = pic->pict_type == AV_PICTURE_TYPE_I;
         if(!(avctx->flags&AV_CODEC_FLAG_QSCALE)) {
             pic->quality = ff_rate_estimate_qscale(&s->m, 0);
@@ -1847,12 +1847,12 @@ redo_frame:
     s->current_picture->coded_picture_number = avctx->frame_number;
     s->current_picture->pict_type = pic->pict_type;
     s->current_picture->quality = pic->quality;
-    mpv->frame_bits = 8*(s->c.bytestream - s->c.bytestream_start);
-    mpv->p_tex_bits = mpv->frame_bits - mpv->misc_bits - mpv->mv_bits;
+    s->m.frame_bits = 8*(s->c.bytestream - s->c.bytestream_start);
+    mpv->p_tex_bits = s->m.frame_bits - mpv->misc_bits - mpv->mv_bits;
     mpv->current_picture.f->display_picture_number =
     mpv->current_picture.f->coded_picture_number   = avctx->frame_number;
     mpv->current_picture.f->quality                = pic->quality;
-    mpv->total_bits += 8*(s->c.bytestream - s->c.bytestream_start);
+    s->m.total_bits += 8*(s->c.bytestream - s->c.bytestream_start);
     if(s->pass1_rc)
         if (ff_rate_estimate_qscale(&s->m, 0) < 0)
             return -1;
