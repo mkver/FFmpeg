@@ -869,12 +869,6 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
     }
 
     if (!(avctx->stats_out = av_mallocz(256))               ||
-        !FF_ALLOCZ_TYPED_ARRAY(s->q_intra_matrix,          32) ||
-        !FF_ALLOCZ_TYPED_ARRAY(s->q_chroma_intra_matrix,   32) ||
-        !FF_ALLOCZ_TYPED_ARRAY(s->q_inter_matrix,          32) ||
-        !FF_ALLOCZ_TYPED_ARRAY(s->q_intra_matrix16,        32) ||
-        !FF_ALLOCZ_TYPED_ARRAY(s->q_chroma_intra_matrix16, 32) ||
-        !FF_ALLOCZ_TYPED_ARRAY(s->q_inter_matrix16,        32) ||
         !FF_ALLOCZ_TYPED_ARRAY(s->reordered_input_picture, MAX_PICTURE_COUNT))
         return AVERROR(ENOMEM);
 
@@ -936,6 +930,11 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
             s->inter_matrix[j] = avctx->inter_matrix[i];
     }
 
+    s->q_inter_matrix   = m->q_inter_matrix;
+    s->q_intra_matrix   = m->q_intra_matrix;
+    s->q_inter_matrix16 = m->q_inter_matrix16;
+    s->q_intra_matrix16 = m->q_intra_matrix16;
+
     /* precompute matrix */
     /* for mjpeg, we do include qscale in the matrix */
     if (s->out_format != FMT_MJPEG) {
@@ -945,10 +944,11 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
         ff_convert_matrix(s, s->q_inter_matrix, s->q_inter_matrix16,
                           s->inter_matrix, s->inter_quant_bias, avctx->qmin,
                           31, 0);
-        av_freep(&s->q_chroma_intra_matrix);
-        av_freep(&s->q_chroma_intra_matrix16);
         s->q_chroma_intra_matrix   = s->q_intra_matrix;
         s->q_chroma_intra_matrix16 = s->q_intra_matrix16;
+    } else {
+        s->q_chroma_intra_matrix   = m->q_chroma_intra_matrix;
+        s->q_chroma_intra_matrix16 = m->q_chroma_intra_matrix16;
     }
 
     if ((ret = ff_rate_control_init(m)) < 0)
@@ -1013,14 +1013,6 @@ av_cold int ff_mpv_encode_end(AVCodecContext *avctx)
     av_freep(&m->cplx_tab);
     av_freep(&m->bits_tab);
 
-    if(s->q_chroma_intra_matrix   != s->q_intra_matrix  ) av_freep(&s->q_chroma_intra_matrix);
-    if(s->q_chroma_intra_matrix16 != s->q_intra_matrix16) av_freep(&s->q_chroma_intra_matrix16);
-    s->q_chroma_intra_matrix=   NULL;
-    s->q_chroma_intra_matrix16= NULL;
-    av_freep(&s->q_intra_matrix);
-    av_freep(&s->q_inter_matrix);
-    av_freep(&s->q_intra_matrix16);
-    av_freep(&s->q_inter_matrix16);
     av_freep(&s->reordered_input_picture);
     av_freep(&s->dct_offset);
 

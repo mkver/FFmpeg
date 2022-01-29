@@ -100,6 +100,13 @@ typedef struct MPVMainEncContext {
     int16_t (*b_bidir_back_mv_table_base)[2];
     int16_t (*b_direct_mv_table_base)[2];
     int16_t (*b_field_mv_table_base)[2];
+
+    int q_inter_matrix[32][64];
+    int q_intra_matrix[32][64];
+    int q_chroma_intra_matrix[32][64];
+    uint16_t q_inter_matrix16[32][2][64];
+    uint16_t q_intra_matrix16[32][2][64];
+    uint16_t q_chroma_intra_matrix16[32][2][64];
 } MPVMainEncContext;
 
 #define UNI_AC_ENC_INDEX(run,level) ((run)*128 + (level))
