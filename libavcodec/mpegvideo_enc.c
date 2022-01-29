@@ -290,7 +290,7 @@ static void mpv_encode_defaults(MPVMainEncContext *m)
     s->fcode_tab     = default_fcode_tab;
 
     s->input_picture_number  = 0;
-    s->picture_in_gop_number = 0;
+    m->picture_in_gop_number = 0;
 }
 
 av_cold int ff_dct_encode_init(MPVEncContext *s)
@@ -1379,7 +1379,7 @@ static int select_input_picture(MPVMainEncContext *m)
     /* set next picture type & ordering */
     if (!s->reordered_input_picture[0] && s->input_picture[0]) {
         if (s->frame_skip_threshold || s->frame_skip_factor) {
-            if (s->picture_in_gop_number < m->gop_size &&
+            if (m->picture_in_gop_number < m->gop_size &&
                 s->next_picture_ptr &&
                 skip_check(m, s->input_picture[0], s->next_picture_ptr)) {
                 // FIXME check that the gop check above is +-1 correct
@@ -1463,10 +1463,10 @@ static int select_input_picture(MPVMainEncContext *m)
                        "warning, too many B-frames in a row\n");
             }
 
-            if (s->picture_in_gop_number + b_frames >= m->gop_size) {
+            if (m->picture_in_gop_number + b_frames >= m->gop_size) {
                 if ((s->mpv_flags & FF_MPV_FLAG_STRICT_GOP) &&
-                    m->gop_size > s->picture_in_gop_number) {
-                    b_frames = m->gop_size - s->picture_in_gop_number - 1;
+                    m->gop_size > m->picture_in_gop_number) {
+                    b_frames = m->gop_size - m->picture_in_gop_number - 1;
                 } else {
                     if (s->avctx->flags & AV_CODEC_FLAG_CLOSED_GOP)
                         b_frames = 0;
@@ -1687,7 +1687,7 @@ int ff_mpv_encode_picture(AVCodecContext *avctx, AVPacket *pkt,
 
     s->vbv_ignore_qmax = 0;
 
-    s->picture_in_gop_number++;
+    m->picture_in_gop_number++;
 
     if (load_input_picture(m, pic_arg) < 0)
         return -1;
@@ -3717,7 +3717,7 @@ static int encode_picture(MPVMainEncContext *m, int picture_number)
     s->current_picture.f->pict_type = s->pict_type;
 
     if (s->current_picture.f->key_frame)
-        s->picture_in_gop_number=0;
+        m->picture_in_gop_number=0;
 
     s->mb_x = s->mb_y = 0;
     s->last_bits= put_bits_count(&s->pb);

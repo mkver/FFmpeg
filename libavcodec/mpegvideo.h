@@ -108,7 +108,6 @@ typedef struct MPVContext {
     int input_picture_number;  ///< used to set pic->display_picture_number, should not be used for/by anything else
     int coded_picture_number;  ///< used to set pic->coded_picture_number, should not be used for/by anything else
     int picture_number;       //FIXME remove, unclear definition
-    int picture_in_gop_number; ///< 0-> first pic in gop, ...
     int mb_width, mb_height;   ///< number of MBs horizontally & vertically
     int mb_stride;             ///< mb_width+1 used for some arrays to allow simple addressing of left & top MBs without sig11
     int b8_stride;             ///< 2*mb_width+1 used for some 8x8 block arrays to allow simple addressing

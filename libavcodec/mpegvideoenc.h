@@ -43,6 +43,7 @@ typedef struct MPVMainEncContext {
     int me_pre;                          ///< prepass for motion estimation
 
     int gop_size;
+    int picture_in_gop_number;     ///< 0-> first pic in gop, ...
 
     /* bit rate control */
     int64_t total_bits;
