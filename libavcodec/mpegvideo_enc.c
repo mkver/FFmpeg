@@ -2495,7 +2495,7 @@ static inline void copy_context_after_encode(MPVEncContext *d,
     d->esc3_level_length= s->esc3_level_length;
 }
 
-static inline void encode_mb_hq(MPVEncContext *s, MPVEncContext *backup, MPVEncContext *best, int type,
+static inline void encode_mb_hq(MPVEncContext *s, MPVEncContext *backup, MPVEncContext *best,
                            PutBitContext pb[2], PutBitContext pb2[2], PutBitContext tex_pb[2],
                            int *dmin, int *next_block, int motion_x, int motion_y)
 {
@@ -2981,7 +2981,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                     s->mb_intra= 0;
                     s->mv[0][0][0] = s->p_mv_table[xy][0];
                     s->mv[0][0][1] = s->p_mv_table[xy][1];
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_INTER, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, s->mv[0][0][0], s->mv[0][0][1]);
                 }
                 if(mb_type&CANDIDATE_MB_TYPE_INTER_I){
@@ -2993,7 +2993,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                         s->mv[0][i][0] = s->p_field_mv_table[i][j][xy][0];
                         s->mv[0][i][1] = s->p_field_mv_table[i][j][xy][1];
                     }
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_INTER_I, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, 0, 0);
                 }
                 if(mb_type&CANDIDATE_MB_TYPE_SKIPPED){
@@ -3002,7 +3002,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                     s->mb_intra= 0;
                     s->mv[0][0][0] = 0;
                     s->mv[0][0][1] = 0;
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_SKIPPED, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, s->mv[0][0][0], s->mv[0][0][1]);
                 }
                 if(mb_type&CANDIDATE_MB_TYPE_INTER4V){
@@ -3013,7 +3013,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                         s->mv[0][i][0] = s->current_picture.motion_val[0][s->block_index[i]][0];
                         s->mv[0][i][1] = s->current_picture.motion_val[0][s->block_index[i]][1];
                     }
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_INTER4V, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, 0, 0);
                 }
                 if(mb_type&CANDIDATE_MB_TYPE_FORWARD){
@@ -3022,7 +3022,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                     s->mb_intra= 0;
                     s->mv[0][0][0] = s->b_forw_mv_table[xy][0];
                     s->mv[0][0][1] = s->b_forw_mv_table[xy][1];
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_FORWARD, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, s->mv[0][0][0], s->mv[0][0][1]);
                 }
                 if(mb_type&CANDIDATE_MB_TYPE_BACKWARD){
@@ -3031,7 +3031,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                     s->mb_intra= 0;
                     s->mv[1][0][0] = s->b_back_mv_table[xy][0];
                     s->mv[1][0][1] = s->b_back_mv_table[xy][1];
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_BACKWARD, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, s->mv[1][0][0], s->mv[1][0][1]);
                 }
                 if(mb_type&CANDIDATE_MB_TYPE_BIDIR){
@@ -3042,7 +3042,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                     s->mv[0][0][1] = s->b_bidir_forw_mv_table[xy][1];
                     s->mv[1][0][0] = s->b_bidir_back_mv_table[xy][0];
                     s->mv[1][0][1] = s->b_bidir_back_mv_table[xy][1];
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_BIDIR, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, 0, 0);
                 }
                 if(mb_type&CANDIDATE_MB_TYPE_FORWARD_I){
@@ -3054,7 +3054,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                         s->mv[0][i][0] = s->b_field_mv_table[0][i][j][xy][0];
                         s->mv[0][i][1] = s->b_field_mv_table[0][i][j][xy][1];
                     }
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_FORWARD_I, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, 0, 0);
                 }
                 if(mb_type&CANDIDATE_MB_TYPE_BACKWARD_I){
@@ -3066,7 +3066,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                         s->mv[1][i][0] = s->b_field_mv_table[1][i][j][xy][0];
                         s->mv[1][i][1] = s->b_field_mv_table[1][i][j][xy][1];
                     }
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_BACKWARD_I, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, 0, 0);
                 }
                 if(mb_type&CANDIDATE_MB_TYPE_BIDIR_I){
@@ -3080,7 +3080,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                             s->mv[dir][i][1] = s->b_field_mv_table[dir][i][j][xy][1];
                         }
                     }
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_BIDIR_I, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, 0, 0);
                 }
                 if(mb_type&CANDIDATE_MB_TYPE_INTRA){
@@ -3089,7 +3089,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                     s->mb_intra= 1;
                     s->mv[0][0][0] = 0;
                     s->mv[0][0][1] = 0;
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_INTRA, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, 0, 0);
                     if(s->h263_pred || s->h263_aic){
                         if(best_s.mb_intra)
@@ -3133,7 +3133,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                                 }
                             }
 
-                            encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_INTER /* wrong but unused */, pb, pb2, tex_pb,
+                            encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                          &dmin, &next_block, s->mv[mvdir][0][0], s->mv[mvdir][0][1]);
                             if(best_s.qscale != qp){
                                 if(storecoefs){
@@ -3154,7 +3154,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                     s->mv_dir = MV_DIR_FORWARD | MV_DIR_BACKWARD | MV_DIRECT;
                     s->mb_intra= 0;
                     ff_mpeg4_set_direct_mv(s, mx, my);
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_DIRECT, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, mx, my);
                 }
                 if(CONFIG_MPEG4_ENCODER && mb_type&CANDIDATE_MB_TYPE_DIRECT0){
@@ -3162,7 +3162,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                     s->mv_dir = MV_DIR_FORWARD | MV_DIR_BACKWARD | MV_DIRECT;
                     s->mb_intra= 0;
                     ff_mpeg4_set_direct_mv(s, 0, 0);
-                    encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_DIRECT, pb, pb2, tex_pb,
+                    encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                  &dmin, &next_block, 0, 0);
                 }
                 if (!best_s.mb_intra && s->mpv_flags & FF_MPV_FLAG_SKIP_RD) {
@@ -3192,7 +3192,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                         s->mv[1][0][1] = best_s.mv[1][0][1];*/
                         backup_s.dquant= 0;
                         s->skipdct=1;
-                        encode_mb_hq(s, &backup_s, &best_s, CANDIDATE_MB_TYPE_INTER /* wrong but unused */, pb, pb2, tex_pb,
+                        encode_mb_hq(s, &backup_s, &best_s, pb, pb2, tex_pb,
                                         &dmin, &next_block, mx, my);
                         s->skipdct=0;
                     }
