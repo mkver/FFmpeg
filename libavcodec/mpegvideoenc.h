@@ -109,6 +109,10 @@ typedef struct MPVMainEncContext {
     uint16_t q_inter_matrix16[32][2][64];
     uint16_t q_intra_matrix16[32][2][64];
     uint16_t q_chroma_intra_matrix16[32][2][64];
+
+#if FF_API_MPEGVIDEO_OPTS || FF_API_MJPEG_PRED
+    int dummy;               ///< used as target for deprecated options
+#endif
 } MPVMainEncContext;
 
 #define UNI_AC_ENC_INDEX(run,level) ((run)*128 + (level))
@@ -197,9 +201,9 @@ FF_MPV_OPT_CMP_FUNC, \
 #define FF_MPV_DEPRECATED_MPEG_QUANT_OPT \
     { "mpeg_quant", "Deprecated, does nothing", FF_MPV_OFFSET(mpeg_quant), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 0, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED },
 #define FF_MPV_DEPRECATED_A53_CC_OPT \
-    { "a53cc",      "Deprecated, does nothing", FF_MPV_OFFSET(dummy),      AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED },
+    { "a53cc",      "Deprecated, does nothing", FF_MPV_MAIN_OFFSET(dummy),      AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED },
 #define FF_MPV_DEPRECATED_MATRIX_OPT \
-   { "force_duplicated_matrix", "Deprecated, does nothing", FF_MPV_OFFSET(dummy), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED },
+   { "force_duplicated_matrix", "Deprecated, does nothing", FF_MPV_MAIN_OFFSET(dummy), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED },
 #define FF_MPV_DEPRECATED_BFRAME_OPTS \
    { "b_strategy",    "Deprecated, does nothing", FF_MPV_MAIN_OFFSET(b_frame_strategy), AV_OPT_TYPE_INT, { .i64 =  0 }, 0, 2, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED }, \
    { "b_sensitivity", "Deprecated, does nothing", FF_MPV_MAIN_OFFSET(b_sensitivity),    AV_OPT_TYPE_INT, { .i64 = 40 }, 1, INT_MAX, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED }, \

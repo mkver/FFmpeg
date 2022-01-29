@@ -482,10 +482,6 @@ typedef struct MPVContext {
     int noise_reduction;
 
     int intra_penalty;
-
-#if FF_API_MPEGVIDEO_OPTS || FF_API_MJPEG_PRED
-    int dummy;               ///< used as target for deprecated options
-#endif
 } MPVContext;
 
 /**
