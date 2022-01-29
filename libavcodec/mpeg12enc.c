@@ -942,7 +942,6 @@ static av_always_inline void mpeg1_encode_mb_internal(MPVEncContext *s,
                     put_sbits(&s->pb, 2, cbp);
                 }
             }
-            s->f_count++;
         } else {
             if (s->mv_type == MV_TYPE_16X16) {
                 if (cbp) {                      // With coded bloc pattern
@@ -973,7 +972,6 @@ static av_always_inline void mpeg1_encode_mb_internal(MPVEncContext *s,
                     s->last_mv[0][1][0] = s->mv[0][0][0];
                     s->last_mv[0][0][1] =
                     s->last_mv[0][1][1] = s->mv[0][0][1];
-                    s->f_count++;
                 }
                 if (s->mv_dir & MV_DIR_BACKWARD) {
                     mpeg1_encode_motion(s,
@@ -986,7 +984,6 @@ static av_always_inline void mpeg1_encode_mb_internal(MPVEncContext *s,
                     s->last_mv[1][1][0] = s->mv[1][0][0];
                     s->last_mv[1][0][1] =
                     s->last_mv[1][1][1] = s->mv[1][0][1];
-                    s->b_count++;
                 }
             } else {
                 av_assert2(s->mv_type == MV_TYPE_FIELD);
@@ -1019,7 +1016,6 @@ static av_always_inline void mpeg1_encode_mb_internal(MPVEncContext *s,
                         s->last_mv[0][i][0] = s->mv[0][i][0];
                         s->last_mv[0][i][1] = s->mv[0][i][1] * 2;
                     }
-                    s->f_count++;
                 }
                 if (s->mv_dir & MV_DIR_BACKWARD) {
                     for (i = 0; i < 2; i++) {
@@ -1033,7 +1029,6 @@ static av_always_inline void mpeg1_encode_mb_internal(MPVEncContext *s,
                         s->last_mv[1][i][0] = s->mv[1][i][0];
                         s->last_mv[1][i][1] = s->mv[1][i][1] * 2;
                     }
-                    s->b_count++;
                 }
             }
             s->mv_bits += get_bits_diff(s);
