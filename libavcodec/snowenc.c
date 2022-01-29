@@ -1858,7 +1858,7 @@ redo_frame:
             return -1;
     if(avctx->flags&AV_CODEC_FLAG_PASS1)
         ff_write_pass1_stats(&s->m);
-    mpv->last_pict_type = mpv->pict_type;
+    s->m.last_pict_type = mpv->pict_type;
 
     emms_c();
 

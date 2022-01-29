@@ -1238,9 +1238,9 @@ static int estimate_best_b_count(MPVMainEncContext *m)
 
     //emms_c();
     //s->next_picture_ptr->quality;
-    p_lambda = s->last_lambda_for[AV_PICTURE_TYPE_P];
+    p_lambda = m->last_lambda_for[AV_PICTURE_TYPE_P];
     //p_lambda * FFABS(s->avctx->b_quant_factor) + s->avctx->b_quant_offset;
-    b_lambda = s->last_lambda_for[AV_PICTURE_TYPE_B];
+    b_lambda = m->last_lambda_for[AV_PICTURE_TYPE_B];
     if (!b_lambda) // FIXME we should do this somewhere else
         b_lambda = p_lambda;
     lambda2  = (b_lambda * b_lambda + (1 << FF_LAMBDA_SHIFT) / 2) >>
@@ -1575,10 +1575,10 @@ static void frame_end(MPVMainEncContext *m)
 
     emms_c();
 
-    s->last_pict_type                 = s->pict_type;
-    s->last_lambda_for [s->pict_type] = s->current_picture_ptr->f->quality;
+    m->last_pict_type                 = s->pict_type;
+    m->last_lambda_for [s->pict_type] = s->current_picture_ptr->f->quality;
     if (s->pict_type!= AV_PICTURE_TYPE_B)
-        s->last_non_b_pict_type = s->pict_type;
+        m->last_non_b_pict_type = s->pict_type;
 }
 
 static void update_noise_reduction(MPVMainEncContext *m)
@@ -3525,9 +3525,9 @@ static int encode_picture(MPVMainEncContext *m, int picture_number)
         ff_get_2pass_fcode(m);
     } else if (!(s->avctx->flags & AV_CODEC_FLAG_QSCALE)) {
         if(s->pict_type==AV_PICTURE_TYPE_B)
-            s->lambda= s->last_lambda_for[s->pict_type];
+            s->lambda = m->last_lambda_for[s->pict_type];
         else
-            s->lambda= s->last_lambda_for[s->last_non_b_pict_type];
+            s->lambda = m->last_lambda_for[m->last_non_b_pict_type];
         update_qscale(s);
     }
 
@@ -3553,7 +3553,7 @@ static int encode_picture(MPVMainEncContext *m, int picture_number)
         s->lambda  = (s->lambda  * m->me_penalty_compensation + 128) >> 8;
         s->lambda2 = (s->lambda2 * (int64_t) m->me_penalty_compensation + 128) >> 8;
         if (s->pict_type != AV_PICTURE_TYPE_B) {
-            if ((m->me_pre && s->last_non_b_pict_type == AV_PICTURE_TYPE_I) ||
+            if ((m->me_pre && m->last_non_b_pict_type == AV_PICTURE_TYPE_I) ||
                 m->me_pre == 2) {
                 s->avctx->execute(s->avctx, pre_estimate_motion_thread, &s->thread_context[0], NULL, context_count, sizeof(void*));
             }

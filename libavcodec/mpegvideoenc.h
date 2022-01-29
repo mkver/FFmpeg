@@ -58,6 +58,10 @@ typedef struct MPVMainEncContext {
      * a delay */
     int64_t reordered_pts;
 
+    int last_pict_type; //FIXME remove
+    int last_non_b_pict_type;   ///< used for MPEG-4 gmc B-frames & ratecontrol
+    int last_lambda_for[5];     ///< last lambda for a specific pict type
+
     /* bit rate control */
     int64_t total_bits;
     int frame_bits;                ///< bits used for the current frame

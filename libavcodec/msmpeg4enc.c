@@ -151,7 +151,8 @@ av_cold void ff_msmpeg4_encode_init(MPVMainEncContext *m)
 
 static void find_best_tables(MSMPEG4EncContext *ms)
 {
-    MPVEncContext *const s = &ms->s.common;
+    MPVMainEncContext *const m = &ms->s;
+    MPVEncContext *const s = &m->common;
     int i;
     int best        = 0, best_size        = INT_MAX;
     int chroma_best = 0, best_chroma_size = INT_MAX;
@@ -204,7 +205,7 @@ static void find_best_tables(MSMPEG4EncContext *ms)
     s->rl_table_index       =        best;
     s->rl_chroma_table_index= chroma_best;
 
-    if(s->pict_type != s->last_non_b_pict_type){
+    if (s->pict_type != m->last_non_b_pict_type) {
         s->rl_table_index= 2;
         if(s->pict_type==AV_PICTURE_TYPE_I)
             s->rl_chroma_table_index= 1;
