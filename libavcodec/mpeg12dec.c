@@ -69,6 +69,7 @@ typedef struct Mpeg1Context {
     AVRational save_aspect;
     int save_width, save_height, save_progressive_seq;
     int rc_buffer_size;
+    int vbv_delay;
     AVRational frame_rate_ext;  /* MPEG-2 specific framerate modificator */
     unsigned frame_rate_index;
     int sync;                   /* Did we reach a sync point like a GOP/SEQ/KEYFrame? */
@@ -1285,7 +1286,7 @@ static int mpeg_decode_postinit(AVCodecContext *avctx)
         if (avctx->codec_id == AV_CODEC_ID_MPEG2VIDEO && s->bit_rate) {
             avctx->rc_max_rate = s->bit_rate;
         } else if (avctx->codec_id == AV_CODEC_ID_MPEG1VIDEO && s->bit_rate &&
-                   (s->bit_rate != 0x3FFFF*400 || s->vbv_delay != 0xFFFF)) {
+                   (s->bit_rate != 0x3FFFF*400 || s1->vbv_delay != 0xFFFF)) {
             avctx->bit_rate = s->bit_rate;
         }
         s1->save_aspect          = s->avctx->sample_aspect_ratio;
@@ -1358,7 +1359,7 @@ static int mpeg1_decode_picture(AVCodecContext *avctx, const uint8_t *buf,
         return AVERROR_INVALIDDATA;
 
     vbv_delay = get_bits(&s->gb, 16);
-    s->vbv_delay = vbv_delay;
+    s1->vbv_delay = vbv_delay;
     if (s->pict_type == AV_PICTURE_TYPE_P ||
         s->pict_type == AV_PICTURE_TYPE_B) {
         s->full_pel[0] = get_bits1(&s->gb);

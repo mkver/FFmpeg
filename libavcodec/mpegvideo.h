@@ -180,7 +180,6 @@ typedef struct MPVContext {
     int adaptive_quant;         ///< use adaptive quantization
     int dquant;                 ///< qscale difference to prev qscale
     int pict_type;              ///< AV_PICTURE_TYPE_I, AV_PICTURE_TYPE_P, AV_PICTURE_TYPE_B, ...
-    int vbv_delay;
     int droppable;
     int skipdct;                ///< skip dct and code zero residual
 
