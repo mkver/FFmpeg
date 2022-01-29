@@ -296,7 +296,6 @@ typedef struct MPVContext {
 
     /* statistics, used for 2-pass encoding */
     int mv_bits;
-    int header_bits;
     int i_tex_bits;
     int p_tex_bits;
     int i_count;

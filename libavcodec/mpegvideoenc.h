@@ -62,6 +62,8 @@ typedef struct MPVMainEncContext {
     int last_non_b_pict_type;   ///< used for MPEG-4 gmc B-frames & ratecontrol
     int last_lambda_for[5];     ///< last lambda for a specific pict type
 
+    int header_bits;
+
     /* bit rate control */
     int64_t total_bits;
     int frame_bits;                ///< bits used for the current frame

@@ -103,8 +103,9 @@ void ff_mjpeg_amv_encode_picture_header(MPVMainEncContext *main)
  *
  * @param s The MPVEncContext.
  */
-static void mjpeg_encode_picture_frame(MPVEncContext *s)
+static void mjpeg_encode_picture_frame(MPVMainEncContext *main)
 {
+    MPVEncContext *const s = &main->common;
     int nbits, code, table_id;
     MJpegContext *m = s->mjpeg_ctx;
     uint8_t  *huff_size[4] = { m->huff_size_dc_luminance,
@@ -118,7 +119,7 @@ static void mjpeg_encode_picture_frame(MPVEncContext *s)
     size_t total_bits = 0;
     size_t bytes_needed;
 
-    s->header_bits = get_bits_diff(s);
+    main->header_bits = get_bits_diff(s);
     // Estimate the total size first
     for (int i = 0; i < m->huff_ncode; i++) {
         table_id = m->huff_buffer[i].table_id;
@@ -224,6 +225,9 @@ int ff_mjpeg_encode_stuffing(MPVEncContext *s)
 
 #if CONFIG_MJPEG_ENCODER
     if (m->huffman == HUFFMAN_TABLE_OPTIMAL) {
+        /* HUFFMAN_TABLE_OPTIMAL is incompatible with slice threading,
+         * therefore the following cast is allowed. */
+        MPVMainEncContext *const main = (MPVMainEncContext*)s;
 
         mjpeg_build_optimal_huffman(m);
 
@@ -236,10 +240,8 @@ int ff_mjpeg_encode_stuffing(MPVEncContext *s)
         s->intra_chroma_ac_vlc_length      =
         s->intra_chroma_ac_vlc_last_length = m->uni_chroma_ac_vlc_len;
 
-        /* HUFFMAN_TABLE_OPTIMAL is incompatible with slice threading,
-         * therefore the following cast is allowed. */
-        mjpeg_encode_picture_header((MPVMainEncContext*)s);
-        mjpeg_encode_picture_frame(s);
+        mjpeg_encode_picture_header(main);
+        mjpeg_encode_picture_frame(main);
     }
 #endif
 
