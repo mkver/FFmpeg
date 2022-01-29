@@ -406,7 +406,7 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
                          avctx->temporal_cplx_masking ||
                          avctx->spatial_cplx_masking  ||
                          avctx->p_masking      ||
-                         s->border_masking ||
+                         m->border_masking ||
                          (s->mpv_flags & FF_MPV_FLAG_QP_RD)) &&
                         !s->fixed_qscale;
 
@@ -1746,7 +1746,7 @@ vbv_retry:
             int min_step = hq ? 1 : (1<<(FF_LAMBDA_SHIFT + 7))/139;
 
             if (put_bits_count(&s->pb) > max_size &&
-                s->lambda < s->lmax) {
+                s->lambda < m->lmax) {
                 m->next_lambda = FFMAX(s->lambda + min_step, s->lambda *
                                        (s->qscale + 1) / s->qscale);
                 if (s->adaptive_quant) {

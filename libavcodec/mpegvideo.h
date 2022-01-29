@@ -470,20 +470,7 @@ typedef struct MPVContext {
     int mpv_flags;      ///< flags set by private options
     int quantizer_noise_shaping;
 
-    /**
-     * ratecontrol qmin qmax limiting method
-     * 0-> clipping, 1-> use a nice continuous function to limit qscale within qmin/qmax.
-     */
-    float rc_qsquish;
-    float rc_qmod_amp;
-    int   rc_qmod_freq;
-    float rc_initial_cplx;
-    float rc_buffer_aggressivity;
-    float border_masking;
-    int lmin, lmax;
     int vbv_ignore_qmax;
-
-    char *rc_eq;
 
     /* temp buffers for rate control */
     float *cplx_tab, *bits_tab;

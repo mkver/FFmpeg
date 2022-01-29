@@ -75,8 +75,8 @@ static av_cold int encode_init(AVCodecContext *avctx)
 
     mpv->avctx   = avctx;
     mpv->bit_rate= avctx->bit_rate;
-    mpv->lmin    = avctx->mb_lmin;
-    mpv->lmax    = avctx->mb_lmax;
+    s->m.lmin    = avctx->mb_lmin;
+    s->m.lmax    = avctx->mb_lmax;
     mpv->mb_num  = (avctx->width * avctx->height + 255) / 256; // For ratecontrol
 
     mpv->me.temp      =
@@ -1907,7 +1907,7 @@ static const AVOption options[] = {
      "defined in the section 'Expression Evaluation', the following functions are available: "
      "bits2qp(bits), qp2bits(qp). Also the following constants are available: iTex pTex tex mv "
      "fCode iCount mcVar var isI isP isB avgQP qComp avgIITex avgPITex avgPPTex avgBPTex avgTex.",
-                                                                                  OFFSET(m.common.rc_eq), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, VE },
+                                                                                  OFFSET(m.rc_eq), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, VE },
     { NULL },
 };
 

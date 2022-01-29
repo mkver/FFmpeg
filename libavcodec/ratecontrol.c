@@ -118,10 +118,12 @@ static double get_diff_limited_q(MPVMainEncContext *m, RateControlEntry *rce, do
 /**
  * Get the qmin & qmax for pict_type.
  */
-static void get_qminmax(int *qmin_ret, int *qmax_ret, MPVEncContext *s, int pict_type)
+static void get_qminmax(int *qmin_ret, int *qmax_ret,
+                        MPVMainEncContext *m, int pict_type)
 {
-    int qmin = s->lmin;
-    int qmax = s->lmax;
+    MPVEncContext *const s = &m->common;
+    int qmin = m->lmin;
+    int qmax = m->lmax;
 
     av_assert0(qmin <= qmax);
 
@@ -158,13 +160,13 @@ static double modify_qscale(MPVMainEncContext *m, RateControlEntry *rce,
     const int pict_type      = rce->new_pict_type;
     int qmin, qmax;
 
-    get_qminmax(&qmin, &qmax, s, pict_type);
+    get_qminmax(&qmin, &qmax, m, pict_type);
 
     /* modulation */
-    if (s->rc_qmod_freq &&
-        frame_num % s->rc_qmod_freq == 0 &&
+    if (m->rc_qmod_freq &&
+        frame_num % m->rc_qmod_freq == 0 &&
         pict_type == AV_PICTURE_TYPE_P)
-        q *= s->rc_qmod_amp;
+        q *= m->rc_qmod_amp;
 
     /* buffer overflow/underflow protection */
     if (buffer_size) {
@@ -177,7 +179,7 @@ static double modify_qscale(MPVMainEncContext *m, RateControlEntry *rce,
                 d = 1.0;
             else if (d < 0.0001)
                 d = 0.0001;
-            q *= pow(d, 1.0 / s->rc_buffer_aggressivity);
+            q *= pow(d, 1.0 / m->rc_buffer_aggressivity);
 
             q_limit = bits2qp(rce,
                               FFMAX((min_rate - buffer_size + rcc->buffer_index) *
@@ -197,7 +199,7 @@ static double modify_qscale(MPVMainEncContext *m, RateControlEntry *rce,
                 d = 1.0;
             else if (d < 0.0001)
                 d = 0.0001;
-            q /= pow(d, 1.0 / s->rc_buffer_aggressivity);
+            q /= pow(d, 1.0 / m->rc_buffer_aggressivity);
 
             q_limit = bits2qp(rce,
                               FFMAX(rcc->buffer_index *
@@ -213,8 +215,8 @@ static double modify_qscale(MPVMainEncContext *m, RateControlEntry *rce,
     }
     ff_dlog(s, "q:%f max:%f min:%f size:%f index:%f agr:%f\n",
             q, max_rate, min_rate, buffer_size, rcc->buffer_index,
-            s->rc_buffer_aggressivity);
-    if (s->rc_qsquish == 0.0 || qmin == qmax) {
+            m->rc_buffer_aggressivity);
+    if (m->rc_qsquish == 0.0 || qmin == qmax) {
         if (q < qmin)
             q = qmin;
         else if (q > qmax)
@@ -275,7 +277,7 @@ static double get_qscale(MPVMainEncContext *m, RateControlEntry *rce,
 
     bits = av_expr_eval(rcc->rc_eq_eval, const_values, rce);
     if (isnan(bits)) {
-        av_log(s->avctx, AV_LOG_ERROR, "Error evaluating rc_eq \"%s\"\n", s->rc_eq);
+        av_log(s->avctx, AV_LOG_ERROR, "Error evaluating rc_eq \"%s\"\n", m->rc_eq);
         return -1;
     }
 
@@ -522,11 +524,11 @@ av_cold int ff_rate_control_init(MPVMainEncContext *m)
     }
 
     res = av_expr_parse(&rcc->rc_eq_eval,
-                        s->rc_eq ? s->rc_eq : "tex^qComp",
+                        m->rc_eq ? m->rc_eq : "tex^qComp",
                         const_names, func1_names, func1,
                         NULL, NULL, 0, s->avctx);
     if (res < 0) {
-        av_log(s->avctx, AV_LOG_ERROR, "Error parsing rc_eq \"%s\"\n", s->rc_eq);
+        av_log(s->avctx, AV_LOG_ERROR, "Error parsing rc_eq \"%s\"\n", m->rc_eq);
         return res;
     }
 
@@ -627,9 +629,9 @@ av_cold int ff_rate_control_init(MPVMainEncContext *m)
             return -1;
         }
         /* init stuff with the user specified complexity */
-        if (s->rc_initial_cplx) {
+        if (m->rc_initial_cplx) {
             for (i = 0; i < 60 * 30; i++) {
-                double bits = s->rc_initial_cplx * (i / 10000.0 + 1.0) * s->mb_num;
+                double bits = m->rc_initial_cplx * (i / 10000.0 + 1.0) * s->mb_num;
                 RateControlEntry rce;
 
                 if (i % ((m->gop_size + 3) / 4) == 0)
@@ -753,7 +755,7 @@ static void adaptive_quantization(MPVMainEncContext *m, double q)
     const float temp_cplx_masking    = s->avctx->temporal_cplx_masking;
     const float spatial_cplx_masking = s->avctx->spatial_cplx_masking;
     const float p_masking            = s->avctx->p_masking;
-    const float border_masking       = s->border_masking;
+    const float border_masking       = m->border_masking;
     float bits_sum                   = 0.0;
     float cplx_sum                   = 0.0;
     float *cplx_tab                  = s->cplx_tab;
@@ -895,7 +897,7 @@ float ff_rate_estimate_qscale(MPVMainEncContext *m, int dry_run)
     Picture * const pic = &s->current_picture;
     emms_c();
 
-    get_qminmax(&qmin, &qmax, s, pict_type);
+    get_qminmax(&qmin, &qmax, m, pict_type);
 
     fps = get_fps(s->avctx);
     /* update predictors */
