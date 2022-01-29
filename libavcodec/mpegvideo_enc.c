@@ -572,7 +572,7 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
         return AVERROR(EINVAL);
     }
 
-    if (s->scenechange_threshold < 1000000000 &&
+    if (m->scenechange_threshold < 1000000000 &&
         (avctx->flags & AV_CODEC_FLAG_CLOSED_GOP)) {
         av_log(avctx, AV_LOG_ERROR,
                "closed gop with scene change detection are not supported yet, "
@@ -3632,7 +3632,7 @@ static int encode_picture(MPVMainEncContext *m, int picture_number)
     s->current_picture.   mb_var_sum= s->current_picture_ptr->   mb_var_sum= s->me.   mb_var_sum_temp;
     emms_c();
 
-    if (s->me.scene_change_score > s->scenechange_threshold &&
+    if (s->me.scene_change_score > m->scenechange_threshold &&
         s->pict_type == AV_PICTURE_TYPE_P) {
         s->pict_type= AV_PICTURE_TYPE_I;
         for(i=0; i<s->mb_stride*s->mb_height; i++)

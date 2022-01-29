@@ -479,7 +479,6 @@ typedef struct MPVContext {
     int frame_skip_exp;
     int frame_skip_cmp;
 
-    int scenechange_threshold;
     int noise_reduction;
 
     int intra_penalty;
