@@ -119,16 +119,6 @@ typedef struct MPVContext {
     Picture **input_picture;   ///< next pictures on display order for encoding
     Picture **reordered_input_picture; ///< pointer to the next pictures in coded order for encoding
 
-    int64_t user_specified_pts; ///< last non-zero pts from AVFrame which was passed into avcodec_send_frame()
-    /**
-     * pts difference between the first and second input frame, used for
-     * calculating dts of the first frame when there's a delay */
-    int64_t dts_delta;
-    /**
-     * reordered pts to be used as dts for the next output frame when there's
-     * a delay */
-    int64_t reordered_pts;
-
     /** bit output */
     PutBitContext pb;
 

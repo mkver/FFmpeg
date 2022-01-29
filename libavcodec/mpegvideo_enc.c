@@ -389,7 +389,7 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
         av_log(avctx, AV_LOG_ERROR, "intra dc precision too large\n");
         return AVERROR(EINVAL);
     }
-    s->user_specified_pts = AV_NOPTS_VALUE;
+    m->user_specified_pts = AV_NOPTS_VALUE;
 
     if (m->gop_size <= 1) {
         s->intra_only = 1;
@@ -1021,8 +1021,8 @@ static int load_input_picture(MPVMainEncContext *m, const AVFrame *pic_arg)
         display_picture_number = s->input_picture_number++;
 
         if (pts != AV_NOPTS_VALUE) {
-            if (s->user_specified_pts != AV_NOPTS_VALUE) {
-                int64_t last = s->user_specified_pts;
+            if (m->user_specified_pts != AV_NOPTS_VALUE) {
+                int64_t last = m->user_specified_pts;
 
                 if (pts <= last) {
                     av_log(s->avctx, AV_LOG_ERROR,
@@ -1032,13 +1032,13 @@ static int load_input_picture(MPVMainEncContext *m, const AVFrame *pic_arg)
                 }
 
                 if (!s->low_delay && display_picture_number == 1)
-                    s->dts_delta = pts - last;
+                    m->dts_delta = pts - last;
             }
-            s->user_specified_pts = pts;
+            m->user_specified_pts = pts;
         } else {
-            if (s->user_specified_pts != AV_NOPTS_VALUE) {
-                s->user_specified_pts =
-                pts = s->user_specified_pts + 1;
+            if (m->user_specified_pts != AV_NOPTS_VALUE) {
+                m->user_specified_pts =
+                pts = m->user_specified_pts + 1;
                 av_log(s->avctx, AV_LOG_INFO,
                        "Warning: AVFrame.pts=? trying to guess (%"PRId64")\n",
                        pts);
@@ -1887,10 +1887,10 @@ vbv_retry:
         pkt->pts = s->current_picture.f->pts;
         if (!s->low_delay && s->pict_type != AV_PICTURE_TYPE_B) {
             if (!s->current_picture.f->coded_picture_number)
-                pkt->dts = pkt->pts - s->dts_delta;
+                pkt->dts = pkt->pts - m->dts_delta;
             else
-                pkt->dts = s->reordered_pts;
-            s->reordered_pts = pkt->pts;
+                pkt->dts = m->reordered_pts;
+            m->reordered_pts = pkt->pts;
         } else
             pkt->dts = pkt->pts;
         if (s->current_picture.f->key_frame)

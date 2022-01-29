@@ -45,6 +45,17 @@ typedef struct MPVMainEncContext {
     int gop_size;
     int picture_in_gop_number;     ///< 0-> first pic in gop, ...
 
+    /** last non-zero pts from AVFrame which was passed into avcodec_send_frame() */
+    int64_t user_specified_pts;
+    /**
+     * pts difference between the first and second input frame, used for
+     * calculating dts of the first frame when there's a delay */
+    int64_t dts_delta;
+    /**
+     * reordered pts to be used as dts for the next output frame when there's
+     * a delay */
+    int64_t reordered_pts;
+
     /* bit rate control */
     int64_t total_bits;
     int frame_bits;                ///< bits used for the current frame
