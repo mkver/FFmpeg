@@ -75,6 +75,7 @@ typedef struct MPVMainEncContext {
     AVFrame *tmp_frames[MPVENC_MAX_B_FRAMES + 2];
     int b_frame_strategy;
     int b_sensitivity;
+    int brd_scale;
 } MPVMainEncContext;
 
 #define UNI_AC_ENC_INDEX(run,level) ((run)*128 + (level))
@@ -157,7 +158,7 @@ FF_MPV_OPT_CMP_FUNC, \
 #define FF_MPV_COMMON_BFRAME_OPTS \
 {"b_strategy", "Strategy to choose between I/P/B-frames",      FF_MPV_MAIN_OFFSET(b_frame_strategy), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 2, FF_MPV_OPT_FLAGS }, \
 {"b_sensitivity", "Adjust sensitivity of b_frame_strategy 1",  FF_MPV_MAIN_OFFSET(b_sensitivity), AV_OPT_TYPE_INT, {.i64 = 40 }, 1, INT_MAX, FF_MPV_OPT_FLAGS }, \
-{"brd_scale", "Downscale frames for dynamic B-frame decision", FF_MPV_OFFSET(brd_scale), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 3, FF_MPV_OPT_FLAGS },
+{"brd_scale", "Downscale frames for dynamic B-frame decision", FF_MPV_MAIN_OFFSET(brd_scale), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 3, FF_MPV_OPT_FLAGS },
 
 #if FF_API_MPEGVIDEO_OPTS
 #define FF_MPV_DEPRECATED_MPEG_QUANT_OPT \
@@ -169,7 +170,7 @@ FF_MPV_OPT_CMP_FUNC, \
 #define FF_MPV_DEPRECATED_BFRAME_OPTS \
    { "b_strategy",    "Deprecated, does nothing", FF_MPV_MAIN_OFFSET(b_frame_strategy), AV_OPT_TYPE_INT, { .i64 =  0 }, 0, 2, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED }, \
    { "b_sensitivity", "Deprecated, does nothing", FF_MPV_MAIN_OFFSET(b_sensitivity),    AV_OPT_TYPE_INT, { .i64 = 40 }, 1, INT_MAX, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED }, \
-   { "brd_scale",     "Deprecated, does nothing", FF_MPV_OFFSET(brd_scale),        AV_OPT_TYPE_INT, { .i64 =  0 }, 0, 3, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED },
+   { "brd_scale",     "Deprecated, does nothing", FF_MPV_MAIN_OFFSET(brd_scale),        AV_OPT_TYPE_INT, { .i64 =  0 }, 0, 3, FF_MPV_OPT_FLAGS | AV_OPT_FLAG_DEPRECATED },
 #endif
 
 extern const AVClass ff_mpv_enc_class;

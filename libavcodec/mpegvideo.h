@@ -407,7 +407,6 @@ typedef struct MPVContext {
     int top_field_first;
     int concealment_motion_vectors;
     int q_scale_type;
-    int brd_scale;
     int intra_vlc_format;
     int alternate_scan;
 #define VIDEO_FORMAT_COMPONENT   0

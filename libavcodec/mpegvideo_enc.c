@@ -907,8 +907,8 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
                 return AVERROR(ENOMEM);
 
             m->tmp_frames[i]->format = AV_PIX_FMT_YUV420P;
-            m->tmp_frames[i]->width  = s->width  >> s->brd_scale;
-            m->tmp_frames[i]->height = s->height >> s->brd_scale;
+            m->tmp_frames[i]->width  = s->width  >> m->brd_scale;
+            m->tmp_frames[i]->height = s->height >> m->brd_scale;
 
             ret = av_frame_get_buffer(m->tmp_frames[i], 0);
             if (ret < 0)
@@ -1222,7 +1222,7 @@ static int estimate_best_b_count(MPVMainEncContext *m)
 {
     MPVEncContext *const s = &m->common;
     AVPacket *pkt;
-    const int scale = s->brd_scale;
+    const int scale = m->brd_scale;
     int width  = s->width  >> scale;
     int height = s->height >> scale;
     int i, j, out_size, p_lambda, b_lambda, lambda2;
