@@ -39,6 +39,8 @@ typedef MPVContext MPVEncContext;
 typedef struct MPVMainEncContext {
     MPVMainContext common;
 
+    Picture *input_picture[MAX_PICTURE_COUNT];   ///< next pictures in display order
+
     int me_penalty_compensation;
     int me_pre;                          ///< prepass for motion estimation
 
