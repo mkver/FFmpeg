@@ -945,6 +945,10 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
         ff_convert_matrix(s, s->q_inter_matrix, s->q_inter_matrix16,
                           s->inter_matrix, s->inter_quant_bias, avctx->qmin,
                           31, 0);
+        av_freep(&s->q_chroma_intra_matrix);
+        av_freep(&s->q_chroma_intra_matrix16);
+        s->q_chroma_intra_matrix   = s->q_intra_matrix;
+        s->q_chroma_intra_matrix16 = s->q_intra_matrix16;
     }
 
     if ((ret = ff_rate_control_init(m)) < 0)
@@ -3595,13 +3599,6 @@ static int encode_picture(MPVMainEncContext *m, int picture_number)
         else
             s->lambda = m->last_lambda_for[m->last_non_b_pict_type];
         update_qscale(s);
-    }
-
-    if (s->out_format != FMT_MJPEG) {
-        if(s->q_chroma_intra_matrix   != s->q_intra_matrix  ) av_freep(&s->q_chroma_intra_matrix);
-        if(s->q_chroma_intra_matrix16 != s->q_intra_matrix16) av_freep(&s->q_chroma_intra_matrix16);
-        s->q_chroma_intra_matrix   = s->q_intra_matrix;
-        s->q_chroma_intra_matrix16 = s->q_intra_matrix16;
     }
 
     s->mb_intra=0; //for the rate distortion & bit compare functions
