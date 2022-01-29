@@ -2429,7 +2429,7 @@ static av_always_inline void encode_mb(MPVEncContext *s, int motion_x, int motio
 }
 
 static inline void copy_context_before_encode(MPVEncContext *d,
-                                              const MPVEncContext *s, int type)
+                                              const MPVEncContext *s)
 {
     int i;
 
@@ -2457,7 +2457,7 @@ static inline void copy_context_before_encode(MPVEncContext *d,
 }
 
 static inline void copy_context_after_encode(MPVEncContext *d,
-                                             const MPVEncContext *s, int type)
+                                             const MPVEncContext *s)
 {
     int i;
 
@@ -2502,7 +2502,7 @@ static inline void encode_mb_hq(MPVEncContext *s, MPVEncContext *backup, MPVEncC
     int score;
     uint8_t *dest_backup[3];
 
-    copy_context_before_encode(s, backup, type);
+    copy_context_before_encode(s, backup);
 
     s->block= s->blocks[*next_block];
     s->pb= pb[*next_block];
@@ -2542,7 +2542,7 @@ static inline void encode_mb_hq(MPVEncContext *s, MPVEncContext *backup, MPVEncC
         *dmin= score;
         *next_block^=1;
 
-        copy_context_after_encode(best, s, type);
+        copy_context_after_encode(best, s);
     }
 }
 
@@ -2966,7 +2966,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
                 int next_block=0;
                 int pb_bits_count, pb2_bits_count, tex_pb_bits_count;
 
-                copy_context_before_encode(&backup_s, s, -1);
+                copy_context_before_encode(&backup_s, s);
                 backup_s.pb= s->pb;
                 best_s.data_partitioning= s->data_partitioning;
                 best_s.partitioned_frame= s->partitioned_frame;
@@ -3200,7 +3200,7 @@ static int encode_thread(AVCodecContext *c, void *arg){
 
                 s->current_picture.qscale_table[xy] = best_s.qscale;
 
-                copy_context_after_encode(s, &best_s, -1);
+                copy_context_after_encode(s, &best_s);
 
                 pb_bits_count= put_bits_count(&s->pb);
                 flush_put_bits(&s->pb);
