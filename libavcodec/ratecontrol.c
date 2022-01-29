@@ -758,8 +758,8 @@ static void adaptive_quantization(MPVMainEncContext *m, double q)
     const float border_masking       = m->border_masking;
     float bits_sum                   = 0.0;
     float cplx_sum                   = 0.0;
-    float *cplx_tab                  = s->cplx_tab;
-    float *bits_tab                  = s->bits_tab;
+    float *cplx_tab                  = m->cplx_tab;
+    float *bits_tab                  = m->bits_tab;
     const int qmin                   = s->avctx->mb_lmin;
     const int qmax                   = s->avctx->mb_lmax;
     Picture *const pic               = &s->current_picture;

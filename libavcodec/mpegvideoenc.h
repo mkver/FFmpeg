@@ -84,11 +84,22 @@ typedef struct MPVMainEncContext {
 
     char *rc_eq;
 
+    /* temp buffers for rate control */
+    float *cplx_tab, *bits_tab;
+
     /* temporary frames used by b_frame_strategy == 2 */
     AVFrame *tmp_frames[MPVENC_MAX_B_FRAMES + 2];
     int b_frame_strategy;
     int b_sensitivity;
     int brd_scale;
+
+    int16_t (*p_mv_table_base)[2];
+    int16_t (*b_forw_mv_table_base)[2];
+    int16_t (*b_back_mv_table_base)[2];
+    int16_t (*b_bidir_forw_mv_table_base)[2];
+    int16_t (*b_bidir_back_mv_table_base)[2];
+    int16_t (*b_direct_mv_table_base)[2];
+    int16_t (*b_field_mv_table_base)[2];
 } MPVMainEncContext;
 
 #define UNI_AC_ENC_INDEX(run,level) ((run)*128 + (level))
