@@ -476,8 +476,6 @@ typedef struct MPVContext {
     /* frame skip options for encoding */
     int frame_skip_threshold;
     int frame_skip_factor;
-    int frame_skip_exp;
-    int frame_skip_cmp;
 
     int noise_reduction;
 

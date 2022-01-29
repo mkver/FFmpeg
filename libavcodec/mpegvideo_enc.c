@@ -892,7 +892,7 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
     s->quant_precision = 5;
 
     ff_set_cmp(&s->mecc, s->mecc.ildct_cmp,      avctx->ildct_cmp);
-    ff_set_cmp(&s->mecc, s->mecc.frame_skip_cmp, s->frame_skip_cmp);
+    ff_set_cmp(&s->mecc, s->mecc.frame_skip_cmp, m->frame_skip_cmp);
 
     if (CONFIG_H261_ENCODER && s->out_format == FMT_H261) {
         ff_h261_encode_init(m);
@@ -1234,7 +1234,7 @@ static int skip_check(MPVMainEncContext *m, Picture *p, Picture *ref)
                 uint8_t *rptr = ref->f->data[plane] + 8 * (x + y * stride);
                 int v = s->mecc.frame_skip_cmp[1](s, dptr, rptr, stride, 8);
 
-                switch (FFABS(s->frame_skip_exp)) {
+                switch (FFABS(m->frame_skip_exp)) {
                 case 0: score    =  FFMAX(score, v);          break;
                 case 1: score   += FFABS(v);                  break;
                 case 2: score64 += v * (int64_t)v;                       break;
@@ -1248,9 +1248,9 @@ static int skip_check(MPVMainEncContext *m, Picture *p, Picture *ref)
 
     if (score)
         score64 = score;
-    if (s->frame_skip_exp < 0)
+    if (m->frame_skip_exp < 0)
         score64 = pow(score64 / (double)(s->mb_width * s->mb_height),
-                      -1.0/s->frame_skip_exp);
+                      -1.0/m->frame_skip_exp);
 
     if (score64 < s->frame_skip_threshold)
         return 1;
