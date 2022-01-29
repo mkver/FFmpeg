@@ -632,7 +632,7 @@ av_cold int ff_rate_control_init(MPVMainEncContext *m)
                 double bits = s->rc_initial_cplx * (i / 10000.0 + 1.0) * s->mb_num;
                 RateControlEntry rce;
 
-                if (i % ((s->gop_size + 3) / 4) == 0)
+                if (i % ((m->gop_size + 3) / 4) == 0)
                     rce.pict_type = AV_PICTURE_TYPE_I;
                 else if (i % (s->max_b_frames + 1))
                     rce.pict_type = AV_PICTURE_TYPE_B;

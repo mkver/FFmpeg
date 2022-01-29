@@ -82,7 +82,6 @@ typedef struct MPVContext {
     void *private_ctx;
     /* the following parameters must be initialized before encoding */
     int width, height;///< picture size. must be a multiple of 16
-    int gop_size;
     int intra_only;   ///< if true, only intra pictures are generated
     int64_t bit_rate; ///< wanted bit rate
     enum OutputFormat out_format; ///< output format

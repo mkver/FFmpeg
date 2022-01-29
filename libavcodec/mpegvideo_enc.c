@@ -350,7 +350,7 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
                avctx->gop_size, 600);
         avctx->gop_size = 600;
     }
-    s->gop_size     = avctx->gop_size;
+    m->gop_size     = avctx->gop_size;
     s->avctx        = avctx;
     if (avctx->max_b_frames > MPVENC_MAX_B_FRAMES) {
         av_log(avctx, AV_LOG_ERROR, "Too many B-frames requested, maximum "
@@ -392,9 +392,9 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
     }
     s->user_specified_pts = AV_NOPTS_VALUE;
 
-    if (s->gop_size <= 1) {
+    if (m->gop_size <= 1) {
         s->intra_only = 1;
-        s->gop_size   = 12;
+        m->gop_size   = 12;
     } else {
         s->intra_only = 0;
     }
@@ -1380,7 +1380,7 @@ static int select_input_picture(MPVMainEncContext *m)
     /* set next picture type & ordering */
     if (!s->reordered_input_picture[0] && s->input_picture[0]) {
         if (s->frame_skip_threshold || s->frame_skip_factor) {
-            if (s->picture_in_gop_number < s->gop_size &&
+            if (s->picture_in_gop_number < m->gop_size &&
                 s->next_picture_ptr &&
                 skip_check(m, s->input_picture[0], s->next_picture_ptr)) {
                 // FIXME check that the gop check above is +-1 correct
@@ -1464,10 +1464,10 @@ static int select_input_picture(MPVMainEncContext *m)
                        "warning, too many B-frames in a row\n");
             }
 
-            if (s->picture_in_gop_number + b_frames >= s->gop_size) {
+            if (s->picture_in_gop_number + b_frames >= m->gop_size) {
                 if ((s->mpv_flags & FF_MPV_FLAG_STRICT_GOP) &&
-                    s->gop_size > s->picture_in_gop_number) {
-                    b_frames = s->gop_size - s->picture_in_gop_number - 1;
+                    m->gop_size > s->picture_in_gop_number) {
+                    b_frames = m->gop_size - s->picture_in_gop_number - 1;
                 } else {
                     if (s->avctx->flags & AV_CODEC_FLAG_CLOSED_GOP)
                         b_frames = 0;

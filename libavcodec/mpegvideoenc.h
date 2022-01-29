@@ -42,6 +42,8 @@ typedef struct MPVMainEncContext {
     int me_penalty_compensation;
     int me_pre;                          ///< prepass for motion estimation
 
+    int gop_size;
+
     /* bit rate control */
     int64_t total_bits;
     int frame_bits;                ///< bits used for the current frame
