@@ -21,14 +21,19 @@
 #ifndef AVCODEC_THREADFRAME_H
 #define AVCODEC_THREADFRAME_H
 
+#include <stdatomic.h>
+
 #include "libavutil/frame.h"
 #include "avcodec.h"
+
+typedef struct ProgressInfo {
+    atomic_int progress[2];     ///< Holds progress for top/bottom fields
+} ProgressInfo;
 
 typedef struct ThreadFrame {
     AVFrame *f;
     AVCodecContext *owner[2];
-    // progress->data is an array of 2 ints holding progress for top/bottom
-    // fields
+    // progress->data is a ProgressInfo
     AVBufferRef *progress;
 } ThreadFrame;
 
