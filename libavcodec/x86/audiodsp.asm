@@ -48,8 +48,6 @@ cglobal scalarproduct_int16, 3,3,3, v1, v2, order
     RET
 %endmacro
 
-INIT_MMX mmxext
-SCALARPRODUCT
 INIT_XMM sse2
 SCALARPRODUCT
 
@@ -117,8 +115,6 @@ cglobal vector_clip_int32%5, 5,5,%1, dst, src, min, max, len
     REP_RET
 %endmacro
 
-INIT_MMX mmx
-VECTOR_CLIP_INT32 0, 1, 0, 0
 INIT_XMM sse2
 VECTOR_CLIP_INT32 6, 1, 0, 0, _int
 VECTOR_CLIP_INT32 6, 2, 0, 1
