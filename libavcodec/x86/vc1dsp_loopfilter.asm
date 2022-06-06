@@ -248,23 +248,6 @@ cglobal vc1_h_loop_filter4, 3,5,0
     START_H_FILTER 4
     call vc1_h_loop_filter_internal
     RET
-
-; void ff_vc1_v_loop_filter8_mmxext(uint8_t *src, ptrdiff_t stride, int pq)
-cglobal vc1_v_loop_filter8, 3,5,0
-    START_V_FILTER
-    call vc1_v_loop_filter_internal
-    add  r4, 4
-    add  r0, 4
-    call vc1_v_loop_filter_internal
-    RET
-
-; void ff_vc1_h_loop_filter8_mmxext(uint8_t *src, ptrdiff_t stride, int pq)
-cglobal vc1_h_loop_filter8, 3,5,0
-    START_H_FILTER 4
-    call vc1_h_loop_filter_internal
-    lea  r0, [r0+4*r1]
-    call vc1_h_loop_filter_internal
-    RET
 %endmacro
 
 INIT_MMX mmxext
