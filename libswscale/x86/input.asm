@@ -342,11 +342,6 @@ RGB24_TO_UV_FN %2, rgb
 RGB24_TO_UV_FN %2, bgr, rgb
 %endmacro
 
-%if ARCH_X86_32
-INIT_MMX mmx
-RGB24_FUNCS 0, 0
-%endif
-
 INIT_XMM sse2
 RGB24_FUNCS 10, 12
 
@@ -534,11 +529,6 @@ RGB32_TO_UV_FN %2, b, g, r, a, rgba
 RGB32_TO_UV_FN %2, a, r, g, b, rgba
 RGB32_TO_UV_FN %2, a, b, g, r, rgba
 %endmacro
-
-%if ARCH_X86_32
-INIT_MMX mmx
-RGB32_FUNCS 0, 0
-%endif
 
 INIT_XMM sse2
 RGB32_FUNCS 8, 12
@@ -734,16 +724,6 @@ cglobal %2ToUV, 4, 5, %1, dstU, dstV, unused, src, w
     LOOP_NVXX_TO_UV a, %2
 %endif ; mmsize == 8/16
 %endmacro
-
-%if ARCH_X86_32
-INIT_MMX mmx
-YUYV_TO_Y_FN  0, yuyv
-YUYV_TO_Y_FN  0, uyvy
-YUYV_TO_UV_FN 0, yuyv
-YUYV_TO_UV_FN 0, uyvy
-NVXX_TO_UV_FN 0, nv12
-NVXX_TO_UV_FN 0, nv21
-%endif
 
 INIT_XMM sse2
 YUYV_TO_Y_FN  3, yuyv
