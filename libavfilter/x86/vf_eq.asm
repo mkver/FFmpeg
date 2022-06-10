@@ -83,8 +83,10 @@ cglobal process_one_line, 5, 7, 5, src, dst, contrast, brightness, w
 
 %endmacro
 
+%if ARCH_X86_32
 INIT_MMX mmxext
 PROCESS_ONE_LINE 3
+%endif
 
 INIT_XMM sse2
 PROCESS_ONE_LINE 4
