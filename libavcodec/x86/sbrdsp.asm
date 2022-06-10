@@ -286,9 +286,6 @@ cglobal sbr_qmf_deint_bfly, 3,5,8, v,src0,src1,vrev,c
     REP_RET
 %endmacro
 
-INIT_XMM sse
-SBR_QMF_DEINT_BFLY
-
 INIT_XMM sse2
 SBR_QMF_DEINT_BFLY
 
