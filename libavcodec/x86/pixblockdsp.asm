@@ -25,30 +25,6 @@
 
 SECTION .text
 
-INIT_MMX mmx
-; void ff_get_pixels_mmx(int16_t *block, const uint8_t *pixels, ptrdiff_t stride)
-cglobal get_pixels, 3,4
-    add          r0, 128
-    mov          r3, -128
-    pxor         m7, m7
-.loop:
-    mova         m0, [r1]
-    mova         m2, [r1+r2]
-    mova         m1, m0
-    mova         m3, m2
-    punpcklbw    m0, m7
-    punpckhbw    m1, m7
-    punpcklbw    m2, m7
-    punpckhbw    m3, m7
-    mova [r0+r3+ 0], m0
-    mova [r0+r3+ 8], m1
-    mova [r0+r3+16], m2
-    mova [r0+r3+24], m3
-    lea          r1, [r1+r2*2]
-    add          r3, 32
-    js .loop
-    REP_RET
-
 INIT_XMM sse2
 cglobal get_pixels, 3, 4, 5
     lea          r3, [r2*3]
@@ -120,9 +96,6 @@ cglobal diff_pixels, 4,5,5
     jne .loop
     RET
 %endmacro
-
-INIT_MMX mmx
-DIFF_PIXELS
 
 INIT_XMM sse2
 DIFF_PIXELS
