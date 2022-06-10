@@ -63,8 +63,6 @@ cglobal scalarproduct_and_madd_int16, 4,4,8, v1, v2, v3, order, mul
     RET
 %endmacro
 
-INIT_MMX mmxext
-SCALARPRODUCT
 INIT_XMM sse2
 SCALARPRODUCT
 
