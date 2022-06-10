@@ -74,8 +74,6 @@ cglobal put_signed_pixels_clamped, 3, 4, %1, block, pixels, lsize, lsize3
     RET
 %endmacro
 
-INIT_MMX mmx
-PUT_SIGNED_PIXELS_CLAMPED 0
 INIT_XMM sse2
 PUT_SIGNED_PIXELS_CLAMPED 3
 
@@ -117,8 +115,6 @@ cglobal put_pixels_clamped, 3, 4, 2, block, pixels, lsize, lsize3
     RET
 %endmacro
 
-INIT_MMX mmx
-PUT_PIXELS_CLAMPED
 INIT_XMM sse2
 PUT_PIXELS_CLAMPED
 
@@ -177,7 +173,5 @@ cglobal add_pixels_clamped, 3, 3, 5, block, pixels, lsize
     RET
 %endmacro
 
-INIT_MMX mmx
-ADD_PIXELS_CLAMPED
 INIT_XMM sse2
 ADD_PIXELS_CLAMPED
