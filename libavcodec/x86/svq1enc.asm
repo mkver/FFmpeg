@@ -55,7 +55,5 @@ cglobal ssd_int8_vs_int16, 3, 3, 3, pix1, pix2, size
     RET
 %endmacro
 
-INIT_MMX mmx
-SSD_INT8_VS_INT16
 INIT_XMM sse2
 SSD_INT8_VS_INT16
