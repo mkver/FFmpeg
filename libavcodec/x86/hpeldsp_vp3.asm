@@ -65,8 +65,6 @@ cglobal put_no_rnd_pixels8_x2_exact, 4,5
 
 INIT_MMX mmxext
 PUT_NO_RND_PIXELS8_X2_EXACT
-INIT_MMX 3dnow
-PUT_NO_RND_PIXELS8_X2_EXACT
 
 
 ; void ff_put_no_rnd_pixels8_y2_exact(uint8_t *block, const uint8_t *pixels, ptrdiff_t line_size, int h)
@@ -106,6 +104,4 @@ cglobal put_no_rnd_pixels8_y2_exact, 4,5
 %endmacro
 
 INIT_MMX mmxext
-PUT_NO_RND_PIXELS8_Y2_EXACT
-INIT_MMX 3dnow
 PUT_NO_RND_PIXELS8_Y2_EXACT
