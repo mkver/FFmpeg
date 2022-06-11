@@ -1,5 +1,5 @@
 ;******************************************************************************
-;* FFT transform with SSE/3DNow optimizations
+;* FFT transform with SSE/AVX optimizations
 ;* Copyright (c) 2008 Loren Merritt
 ;* Copyright (c) 2011 Vitor Sessak
 ;*
@@ -92,29 +92,6 @@ cextern cos_ %+ i
 
 SECTION .text
 
-%macro T2_3DNOW 4 ; z0, z1, mem0, mem1
-    mova     %1, %3
-    mova     %2, %1
-    pfadd    %1, %4
-    pfsub    %2, %4
-%endmacro
-
-%macro T4_3DNOW 6 ; z0, z1, z2, z3, tmp0, tmp1
-    mova     %5, %3
-    pfsub    %3, %4
-    pfadd    %5, %4 ; {t6,t5}
-    pxor     %3, [ps_m1p1] ; {t8,t7}
-    mova     %6, %1
-    movd [r0+12], %3
-    punpckhdq %3, [r0+8]
-    pfadd    %1, %5 ; {r0,i0}
-    pfsub    %6, %5 ; {r2,i2}
-    mova     %4, %2
-    pfadd    %2, %3 ; {r1,i1}
-    pfsub    %4, %3 ; {r3,i3}
-    SWAP     %3, %6
-%endmacro
-
 ;  in: %1 = {r0,i0,r2,i2,r4,i4,r6,i6}
 ;      %2 = {r1,i1,r3,i3,r5,i5,r7,i7}
 ;      %3, %4, %5 tmp
@@ -199,7 +176,7 @@ SECTION .text
     vextractf128  %4 %+ H(%5), %3, 0
     vextractf128   %4(%5 + 1), %2, 1
     vextractf128  %4 %+ H(%5 + 1), %3, 1
-%elif cpuflag(sse) || cpuflag(3dnow)
+%elif cpuflag(sse)
     mova     %3, %2
     unpcklps %2, %1
     unpckhps %3, %1
@@ -308,12 +285,6 @@ IF%1 mova  Z(1), m5
     INTERL m5, m1, m3, Z, 0
     INTERL m6, m2, m7, Z, 4
 %endif
-%endmacro
-
-%macro PUNPCK 3
-    mova      %3, %1
-    punpckldq %1, %2
-    punpckhdq %3, %2
 %endmacro
 
 %define Z(x) [r0+mmsize*x]
@@ -462,68 +433,6 @@ fft16_sse:
     ret
 
 
-%macro FFT48_3DNOW 0
-align 16
-fft4 %+ SUFFIX:
-    T2_3DNOW m0, m1, Z(0), Z(1)
-    mova     m2, Z(2)
-    mova     m3, Z(3)
-    T4_3DNOW m0, m1, m2, m3, m4, m5
-    PUNPCK   m0, m1, m4
-    PUNPCK   m2, m3, m5
-    mova   Z(0), m0
-    mova   Z(1), m4
-    mova   Z(2), m2
-    mova   Z(3), m5
-    ret
-
-align 16
-fft8 %+ SUFFIX:
-    T2_3DNOW m0, m1, Z(0), Z(1)
-    mova     m2, Z(2)
-    mova     m3, Z(3)
-    T4_3DNOW m0, m1, m2, m3, m4, m5
-    mova   Z(0), m0
-    mova   Z(2), m2
-    T2_3DNOW m4, m5,  Z(4),  Z(5)
-    T2_3DNOW m6, m7, Z2(6), Z2(7)
-    PSWAPD   m0, m5
-    PSWAPD   m2, m7
-    pxor     m0, [ps_m1p1]
-    pxor     m2, [ps_m1p1]
-    pfsub    m5, m0
-    pfadd    m7, m2
-    pfmul    m5, [ps_root2]
-    pfmul    m7, [ps_root2]
-    T4_3DNOW m1, m3, m5, m7, m0, m2
-    mova   Z(5), m5
-    mova  Z2(7), m7
-    mova     m0, Z(0)
-    mova     m2, Z(2)
-    T4_3DNOW m0, m2, m4, m6, m5, m7
-    PUNPCK   m0, m1, m5
-    PUNPCK   m2, m3, m7
-    mova   Z(0), m0
-    mova   Z(1), m5
-    mova   Z(2), m2
-    mova   Z(3), m7
-    PUNPCK   m4,  Z(5), m5
-    PUNPCK   m6, Z2(7), m7
-    mova   Z(4), m4
-    mova   Z(5), m5
-    mova  Z2(6), m6
-    mova  Z2(7), m7
-    ret
-%endmacro
-
-%if ARCH_X86_32
-INIT_MMX 3dnowext
-FFT48_3DNOW
-
-INIT_MMX 3dnow
-FFT48_3DNOW
-%endif
-
 %define Z(x) [zcq + o1q*(x&6) + mmsize*(x&1)]
 %define Z2(x) [zcq + o3q + mmsize*(x&1)]
 %define ZH(x) [zcq + o1q*(x&6) + mmsize*(x&1) + mmsize/2]
@@ -606,20 +515,9 @@ cglobal fft_calc, 2,5,8
     add      r2, mmsize*2
     jl       .loop
 .end:
-%if cpuflag(3dnow)
-    femms
-    RET
-%else
     REP_RET
-%endif
 %endmacro
 
-%if ARCH_X86_32
-INIT_MMX 3dnow
-FFT_CALC_FUNC
-INIT_MMX 3dnowext
-FFT_CALC_FUNC
-%endif
 INIT_XMM sse
 FFT_CALC_FUNC
 
@@ -700,36 +598,11 @@ cglobal imdct_calc, 3,5,3
     sub     r3, mmsize
     add     r2, mmsize
     jl      .loop
-%if cpuflag(3dnow)
-    femms
-    RET
-%else
     REP_RET
-%endif
 %endmacro
-
-%if ARCH_X86_32
-INIT_MMX 3dnow
-IMDCT_CALC_FUNC
-INIT_MMX 3dnowext
-IMDCT_CALC_FUNC
-%endif
 
 INIT_XMM sse
 IMDCT_CALC_FUNC
-
-%if ARCH_X86_32
-INIT_MMX 3dnow
-%define mulps pfmul
-%define addps pfadd
-%define subps pfsub
-%define unpcklps punpckldq
-%define unpckhps punpckhdq
-DECL_PASS pass_3dnow, PASS_SMALL 1, [wq], [wq+o1q]
-DECL_PASS pass_interleave_3dnow, PASS_BIG 0
-%define pass_3dnowext pass_3dnow
-%define pass_interleave_3dnowext pass_interleave_3dnow
-%endif
 
 %ifdef PIC
 %define SECTION_REL - $$
@@ -785,14 +658,6 @@ DECL_FFT 6, _interleave
 INIT_XMM sse
 DECL_FFT 5
 DECL_FFT 5, _interleave
-%if ARCH_X86_32
-INIT_MMX 3dnow
-DECL_FFT 4
-DECL_FFT 4, _interleave
-INIT_MMX 3dnowext
-DECL_FFT 4
-DECL_FFT 4, _interleave
-%endif
 
 INIT_XMM sse
 %undef mulps
@@ -821,17 +686,12 @@ INIT_XMM sse
     PSWAPD     m5, m3
     pfmul      m2, m3
     pfmul      m6, m5
-%if cpuflag(3dnowext)
-    pfpnacc    m0, m4
-    pfpnacc    m2, m6
-%else
     SBUTTERFLY dq, 0, 4, 1
     SBUTTERFLY dq, 2, 6, 3
     pxor       m4, m7
     pxor       m6, m7
     pfadd      m0, m4
     pfadd      m2, m6
-%endif
 %else
     movaps   xmm0, [%3+%2*4]
     movaps   xmm1, [%3+%1*4-0x10]
@@ -864,17 +724,6 @@ INIT_XMM sse
     mulps      %3, %3, [%6+%1]
     subps      %2, %2, m6
     addps      %3, %3, m7
-%elif cpuflag(3dnow)
-    mova       m6, [%1+%2*2]
-    mova       %3, [%1+%2*2+8]
-    mova       %4, m6
-    mova       m7, %3
-    pfmul      m6, [%5+%2]
-    pfmul      %3, [%6+%2]
-    pfmul      %4, [%6+%2]
-    pfmul      m7, [%5+%2]
-    pfsub      %3, m6
-    pfadd      %4, m7
 %endif
 %endmacro
 
@@ -931,24 +780,6 @@ INIT_XMM sse
     sub      %2,   0x10
     add      %1,   0x10
     jl       .post
-%elif cpuflag(3dnow)
-    CMUL  %3, %1, m0, m1, %4, %5
-    CMUL  %3, %2, m2, m3, %4, %5
-    movd  [%3+%1*2+ 0], m0
-    movd  [%3+%2*2+12], m1
-    movd  [%3+%2*2+ 0], m2
-    movd  [%3+%1*2+12], m3
-    psrlq      m0, 32
-    psrlq      m1, 32
-    psrlq      m2, 32
-    psrlq      m3, 32
-    movd  [%3+%1*2+ 8], m0
-    movd  [%3+%2*2+ 4], m1
-    movd  [%3+%2*2+ 8], m2
-    movd  [%3+%1*2+ 4], m3
-    sub        %2, 8
-    add        %1, 8
-    jl         .post
 %endif
 %endmacro
 
@@ -990,7 +821,7 @@ cglobal imdct_half, 3,12,8; FFTContext *s, FFTSample *output, const FFTSample *i
     xor   r4, r4
     sub   r4, r3
 %endif
-%if notcpuflag(3dnowext) && mmsize == 8
+%if mmsize == 8
     movd  m7, [ps_neg]
 %endif
 .pre:
@@ -1069,14 +900,6 @@ cglobal imdct_half, 3,12,8; FFTContext *s, FFTSample *output, const FFTSample *i
 %endmacro
 
 DECL_IMDCT
-
-%if ARCH_X86_32
-INIT_MMX 3dnow
-DECL_IMDCT
-
-INIT_MMX 3dnowext
-DECL_IMDCT
-%endif
 
 INIT_YMM avx
 
