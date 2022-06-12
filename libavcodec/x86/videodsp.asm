@@ -83,11 +83,6 @@ cglobal emu_edge_vvar, 1, 6, 1, dst, src, start_y, end_y, bh, w
     RET
 %endmacro
 
-%if ARCH_X86_32
-INIT_MMX mmx
-vvar_fn
-%endif
-
 INIT_XMM sse
 vvar_fn
 
@@ -105,11 +100,7 @@ cglobal emu_edge_hvar, 5, 6, 1, dst, dst_stride, start_x, n_words, h, w
     imul             wd, 0x01010101             ;   w *= 0x01010101
     movd             m0, wd
     mov              wq, n_wordsq               ;   initialize w
-%if cpuflag(sse2)
     pshufd           m0, m0, q0000              ;   splat
-%else ; mmx
-    punpckldq        m0, m0                     ;   splat
-%endif ; mmx/sse
 %endif ; avx2
 .x_loop:                                        ;   do {
     movu    [dstq+wq*2], m0                     ;     write($reg, $mmsize)
@@ -122,11 +113,6 @@ cglobal emu_edge_hvar, 5, 6, 1, dst, dst_stride, start_x, n_words, h, w
     jnz .y_loop
     RET
 %endmacro
-
-%if ARCH_X86_32
-INIT_MMX mmx
-hvar_fn
-%endif
 
 INIT_XMM sse2
 hvar_fn
@@ -338,9 +324,6 @@ cglobal emu_edge_vfix %+ %%n, 1, 5, 1, dst, src, start_y, end_y, bh
 
 INIT_MMX mmx
 VERTICAL_EXTEND 1, 15
-%if ARCH_X86_32
-VERTICAL_EXTEND 16, 22
-%endif
 
 INIT_XMM sse
 VERTICAL_EXTEND 16, 22
@@ -438,9 +421,6 @@ cglobal emu_edge_hfix %+ %%n, 4, 5, 1, dst, dst_stride, start_x, bh, val
 
 INIT_MMX mmx
 H_EXTEND 2, 14
-%if ARCH_X86_32
-H_EXTEND 16, 22
-%endif
 
 INIT_XMM sse2
 H_EXTEND 16, 22
@@ -462,7 +442,3 @@ cglobal prefetch, 3, 3, 0, buf, stride, h
 
 INIT_MMX mmxext
 PREFETCH_FN prefetcht0
-%if ARCH_X86_32
-INIT_MMX 3dnow
-PREFETCH_FN prefetch
-%endif
