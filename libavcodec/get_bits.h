@@ -227,19 +227,60 @@ static inline int get_bits_count(const GetBitContext *s)
 }
 
 #if CACHED_BITSTREAM_READER
-static inline void refill_32(GetBitContext *s, int is_le)
+static av_always_inline void refill_32_internal(GetBitContext *s, int is_le)
 {
-#if !UNCHECKED_BITSTREAM_READER
-    if (s->index >> 3 >= s->buffer_end - s->buffer)
-        return;
-#endif
-
     if (is_le)
         s->cache = (uint64_t)AV_RL32(s->buffer + (s->index >> 3)) << s->bits_left | s->cache;
     else
         s->cache = s->cache | (uint64_t)AV_RB32(s->buffer + (s->index >> 3)) << (32 - s->bits_left);
     s->index     += 32;
     s->bits_left += 32;
+}
+
+/**
+ * If the end of input has not been reached yet, refill the GetBitContext
+ * with 32 bits read from the bitstream.
+ * Otherwise just pretend that it read 32 zeroes. One can then use
+ * show_val()/get_val()/skip_remaining() (which require enough cache bits
+ * to be available) as if there were at least 32 bits available;
+ * all other functions not solely based upon these are forbidden.
+ * Lateron one has to use fixup_fake with the return value of this function
+ * to restore the GetBitContext.
+ *
+ * This function is internal to the GetBit-API; access from users is forbidden.
+ *
+ * @return The amount of fake bits added.
+ */
+static inline unsigned refill_32_fake(GetBitContext *s, int is_le)
+{
+#if !UNCHECKED_BITSTREAM_READER
+    if (s->index >> 3 >= s->buffer_end - s->buffer) {
+        s->bits_left += 32;
+        return 32;
+    }
+#endif
+    refill_32_internal(s, is_le);
+    return 0;
+}
+
+static inline void fixup_fake(GetBitContext *s, unsigned fake_bits)
+{
+#if !UNCHECKED_BITSTREAM_READER
+    if (s->bits_left <= fake_bits)
+        s->bits_left  = 0;
+    else
+        s->bits_left -= fake_bits;
+#endif
+}
+
+static inline void refill_32(GetBitContext *s, int is_le)
+{
+#if !UNCHECKED_BITSTREAM_READER
+    if (s->index >> 3 >= s->buffer_end - s->buffer)
+        return;
+#endif
+    refill_32_internal(s, is_le);
+    return;
 }
 
 static inline void refill_64(GetBitContext *s, int is_le)
@@ -773,6 +814,7 @@ static inline const uint8_t *align_get_bits(GetBitContext *s)
         SKIP_BITS(name, gb, n);                                 \
     } while (0)
 
+#if CACHED_BITSTREAM_READER
 /* Return the LUT element for the given bitstream configuration. */
 static inline int set_idx(GetBitContext *s, int code, int *n, int *nb_bits,
                           const VLCElem *table)
@@ -780,11 +822,12 @@ static inline int set_idx(GetBitContext *s, int code, int *n, int *nb_bits,
     unsigned idx;
 
     *nb_bits = -*n;
-    idx = show_bits(s, *nb_bits) + code;
+    idx = show_val(s, *nb_bits) + code;
     *n = table[idx].len;
 
     return table[idx].sym;
 }
+#endif
 
 /**
  * Parse a vlc code.
@@ -800,9 +843,21 @@ static av_always_inline int get_vlc2(GetBitContext *s, const VLCElem *table,
 {
 #if CACHED_BITSTREAM_READER
     int nb_bits;
-    unsigned idx = show_bits(s, bits);
-    int code = table[idx].sym;
-    int n    = table[idx].len;
+    unsigned fake_bits = 0;
+    unsigned idx;
+    int n, code;
+
+    /* We only support VLC tables whose codelengths are bounded by 32. */
+    if (s->bits_left < 32)
+#ifdef BITSTREAM_READER_LE
+        fake_bits = refill_32_fake(s, 1);
+#else
+        fake_bits = refill_32_fake(s, 0);
+#endif
+
+    idx = show_val(s, bits);
+    code = table[idx].sym;
+    n   = table[idx].len;
 
     if (max_depth > 1 && n < 0) {
         skip_remaining(s, bits);
@@ -813,6 +868,8 @@ static av_always_inline int get_vlc2(GetBitContext *s, const VLCElem *table,
         }
     }
     skip_remaining(s, n);
+
+    fixup_fake(s, fake_bits);
 
     return code;
 #else
