@@ -31,6 +31,7 @@
 #include "libavutil/avstring.h"
 #include "libavutil/common.h"
 #include "libavutil/eval.h"
+#include "libavutil/getenv_utf8.h"
 #include "libavutil/imgutils.h"
 #include "libavutil/internal.h"
 #include "libavutil/mathematics.h"
@@ -204,13 +205,19 @@ static av_cold int frei0r_init(AVFilterContext *ctx,
     }
 
     /* see: http://frei0r.dyne.org/codedoc/html/group__pluglocations.html */
-    if ((path = av_strdup(getenv("FREI0R_PATH")))) {
+    path = getenv_utf8("FREI0R_PATH");
+    if (path) {
 #ifdef _WIN32
         const char *separator = ";";
 #else
         const char *separator = ":";
 #endif
         char *p, *ptr = NULL;
+
+        path = getenv_make_writable(path);
+        if (!path)
+            return AVERROR(ENOMEM);
+
         for (p = path; p = av_strtok(p, separator, &ptr); p = NULL) {
             /* add additional trailing slash in case it is missing */
             char *p1 = av_asprintf("%s/", p);
@@ -231,12 +238,17 @@ static av_cold int frei0r_init(AVFilterContext *ctx,
         if (ret < 0)
             return ret;
     }
-    if (!s->dl_handle && (path = getenv("HOME"))) {
+    if (!s->dl_handle && (path = getenv_utf8("HOME"))) {
         char *prefix = av_asprintf("%s/.frei0r-1/lib/", path);
-        if (!prefix)
-            return AVERROR(ENOMEM);
+        if (!prefix) {
+            ret = AVERROR(ENOMEM);
+            goto home_path_end;
+        }
         ret = load_path(ctx, &s->dl_handle, prefix, dl_name);
         av_free(prefix);
+
+    home_path_end:
+        freeenv_utf8(path);
         if (ret < 0)
             return ret;
     }

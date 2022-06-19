@@ -59,6 +59,11 @@ static inline void freeenv_utf8(char *var)
     av_free(var);
 }
 
+static inline char *getenv_make_writable(char *var)
+{
+    return var;
+}
+
 #else
 
 static inline char *getenv_utf8(const char *varname)
@@ -70,6 +75,11 @@ static inline void freeenv_utf8(char *var)
 {
 }
 
+static inline char *getenv_make_writable(const char *var)
+{
+    return av_strdup(var);
+}
+
 #endif // _WIN32
 
 #else
@@ -77,6 +87,8 @@ static inline void freeenv_utf8(char *var)
 #define getenv_utf8(x) NULL
 
 #define freeenv_utf8(x) ((void) 0)
+
+#define getenv_make_writable(x) NULL
 
 #endif // HAVE_GETENV
 
