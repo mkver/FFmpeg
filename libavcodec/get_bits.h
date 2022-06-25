@@ -55,6 +55,17 @@
 #define UNCHECKED_BITSTREAM_READER !CONFIG_SAFE_BITSTREAM_READER
 #endif
 
+#ifndef ALIGNED32_LE_BITSTREAM_READER
+#define ALIGNED32_LE_BITSTREAM_READER 0
+#endif
+#if ALIGNED32_LE_BITSTREAM_READER
+/* ALIGNED32 makes only sense with the cached bitstream reader. */
+#ifndef CACHED_BITSTREAM_READER
+#define CACHED_BITSTREAM_READER 1
+#elif !CACHED_BITSTREAM_READER
+#error ALIGNED32_LE_BITSTREAM_READER requires CACHED_BITSTREAM_READER
+#endif
+#endif
 #ifndef CACHED_BITSTREAM_READER
 #define CACHED_BITSTREAM_READER 0
 #endif
@@ -237,7 +248,11 @@ static inline void refill_32(GetBitContext *s, int is_le)
     if (is_le)
         s->cache = (uint64_t)AV_RL32(s->buffer + (s->index >> 3)) << s->bits_left | s->cache;
     else
+#if ALIGNED32_LE_BITSTREAM_READER
+        s->cache = s->cache | (uint64_t)AV_RL32(s->buffer + (s->index >> 3)) << (32 - s->bits_left);
+#else
         s->cache = s->cache | (uint64_t)AV_RB32(s->buffer + (s->index >> 3)) << (32 - s->bits_left);
+#endif
     s->index     += 32;
     s->bits_left += 32;
 }
@@ -252,7 +267,12 @@ static inline void refill_64(GetBitContext *s, int is_le)
     if (is_le)
         s->cache = AV_RL64(s->buffer + (s->index >> 3));
     else
+#if ALIGNED32_LE_BITSTREAM_READER
+        s->cache = (uint64_t)AV_RL32(s->buffer + (s->index >> 3)) << 32 |
+                   AV_RL32(s->buffer + (s->index >> 3) + 4);
+#else
         s->cache = AV_RB64(s->buffer + (s->index >> 3));
+#endif
     s->index += 64;
     s->bits_left = 64;
 }
