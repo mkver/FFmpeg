@@ -33,6 +33,7 @@
 
 #include "config.h"
 
+#define ALIGNED32_LE_BITSTREAM_READER HAVE_FAST_64BIT
 #define CACHED_BITSTREAM_READER HAVE_FAST_64BIT
 #define UNCHECKED_BITSTREAM_READER 1
 #include "avcodec.h"
@@ -49,8 +50,8 @@
 /**
  * local variable storage
  */
+#if !ALIGNED32_LE_BITSTREAM_READER
 typedef struct FrapsContext {
-    AVCodecContext *avctx;
     BswapDSPContext bdsp;
     uint8_t *tmpbuf;
     int tmpbuf_size;
@@ -73,6 +74,7 @@ static av_cold int decode_init(AVCodecContext *avctx)
 
     return 0;
 }
+#endif
 
 /**
  * Comparator - our nodes should ascend by count
@@ -87,10 +89,13 @@ static int huff_cmp(const void *va, const void *vb)
 /**
  * decode Fraps v2 packed plane
  */
-static int fraps2_decode_plane(FrapsContext *s, uint8_t *dst, int stride, int w,
+static int fraps2_decode_plane(AVCodecContext *avctx, uint8_t *dst, int stride, int w,
                                int h, const uint8_t *src, int size, int Uoff,
                                const int step)
 {
+#if !ALIGNED32_LE_BITSTREAM_READER
+    FrapsContext *const s = avctx->priv_data;
+#endif
     int i, j, ret;
     GetBitContext gb;
     VLC vlc;
@@ -99,17 +104,20 @@ static int fraps2_decode_plane(FrapsContext *s, uint8_t *dst, int stride, int w,
     for (i = 0; i < 256; i++)
         nodes[i].count = bytestream_get_le32(&src);
     size -= 1024;
-    if ((ret = ff_huff_build_tree(s->avctx, &vlc, 256, VLC_BITS,
+    if ((ret = ff_huff_build_tree(avctx, &vlc, 256, VLC_BITS,
                                   nodes, huff_cmp,
                                   FF_HUFFMAN_FLAG_ZERO_COUNT)) < 0)
         return ret;
     /* we have built Huffman table and are ready to decode plane */
 
+#if !ALIGNED32_LE_BITSTREAM_READER
     /* convert bits so they may be used by standard bitreader */
     s->bdsp.bswap_buf((uint32_t *) s->tmpbuf,
                       (const uint32_t *) src, size >> 2);
+    src = s->tmpbuf;
+#endif
 
-    if ((ret = init_get_bits8(&gb, s->tmpbuf, size)) < 0)
+    if ((ret = init_get_bits8(&gb, src, size)) < 0)
         return ret;
 
     for (j = 0; j < h; j++) {
@@ -136,7 +144,9 @@ static int fraps2_decode_plane(FrapsContext *s, uint8_t *dst, int stride, int w,
 static int decode_frame(AVCodecContext *avctx, AVFrame *f,
                         int *got_frame, AVPacket *avpkt)
 {
-    FrapsContext * const s = avctx->priv_data;
+#if !ALIGNED32_LE_BITSTREAM_READER
+    FrapsContext *const s = avctx->priv_data;
+#endif
     const uint8_t *buf     = avpkt->data;
     int buf_size           = avpkt->size;
     uint32_t header;
@@ -209,11 +219,13 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *f,
             }
         }
         offs[planes] = buf_size - header_size;
+#if !ALIGNED32_LE_BITSTREAM_READER
         for (i = 0; i < planes; i++) {
             av_fast_padded_malloc(&s->tmpbuf, &s->tmpbuf_size, offs[i + 1] - offs[i] - 1024);
             if (!s->tmpbuf)
                 return AVERROR(ENOMEM);
         }
+#endif
     }
 
     f->pict_type = AV_PICTURE_TYPE_I;
@@ -284,7 +296,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *f,
          */
         for (i = 0; i < planes; i++) {
             is_chroma = !!i;
-            if ((ret = fraps2_decode_plane(s, f->data[i], f->linesize[i],
+            if ((ret = fraps2_decode_plane(avctx, f->data[i], f->linesize[i],
                                            avctx->width  >> is_chroma,
                                            avctx->height >> is_chroma,
                                            buf + offs[i], offs[i + 1] - offs[i],
@@ -298,7 +310,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *f,
     case 5:
         /* Virtually the same as version 4, but is for RGB24 */
         for (i = 0; i < planes; i++) {
-            if ((ret = fraps2_decode_plane(s, f->data[0] + i + (f->linesize[0] * (avctx->height - 1)),
+            if ((ret = fraps2_decode_plane(avctx, f->data[0] + i + (f->linesize[0] * (avctx->height - 1)),
                                            -f->linesize[0], avctx->width, avctx->height,
                                            buf + offs[i], offs[i + 1] - offs[i], 0, 3)) < 0) {
                 av_log(avctx, AV_LOG_ERROR, "Error decoding plane %i\n", i);
@@ -324,7 +336,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *f,
     return buf_size;
 }
 
-
+#if !ALIGNED32_LE_BITSTREAM_READER
 /**
  * closes decoder
  * @param avctx codec context
@@ -337,6 +349,7 @@ static av_cold int decode_end(AVCodecContext *avctx)
     av_freep(&s->tmpbuf);
     return 0;
 }
+#endif
 
 
 const FFCodec ff_fraps_decoder = {
@@ -344,9 +357,11 @@ const FFCodec ff_fraps_decoder = {
     .p.long_name    = NULL_IF_CONFIG_SMALL("Fraps"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_FRAPS,
+#if !ALIGNED32_LE_BITSTREAM_READER
     .priv_data_size = sizeof(FrapsContext),
     .init           = decode_init,
     .close          = decode_end,
+#endif
     FF_CODEC_DECODE_CB(decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_FRAME_THREADS,
     .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
