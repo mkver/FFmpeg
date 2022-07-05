@@ -34,6 +34,8 @@
 #include "libavutil/opt.h"
 #include "libavcodec/put_bits.h"
 
+/* Each FLVFileposition entry is written as two AMF double values. */
+#define FILEPOSITION_ENTRY_SIZE (2 * 9)
 
 static const AVCodecTag flv_video_codec_ids[] = {
     { AV_CODEC_ID_FLV1,     FLV_CODECID_H263 },
@@ -73,7 +75,6 @@ typedef enum {
 typedef struct FLVFileposition {
     int64_t keyframe_position;
     double keyframe_timestamp;
-    struct FLVFileposition *next;
 } FLVFileposition;
 
 typedef struct FLVContext {
@@ -107,9 +108,9 @@ typedef struct FLVContext {
     int acurframeindex;
     int64_t keyframes_info_offset;
 
-    int64_t filepositions_count;
     FLVFileposition *filepositions;
-    FLVFileposition *head_filepositions;
+    unsigned filepositions_count;
+    size_t filepositions_allocated;
 
     AVCodecParameters *audio_par;
     AVCodecParameters *video_par;
@@ -548,27 +549,20 @@ static void flv_write_codec_header(AVFormatContext* s, AVCodecParameters* par, i
 
 static int flv_append_keyframe_info(AVFormatContext *s, FLVContext *flv, double ts, int64_t pos)
 {
-    FLVFileposition *position = av_malloc(sizeof(FLVFileposition));
-
-    if (!position) {
-        av_log(s, AV_LOG_WARNING, "no mem for add keyframe index!\n");
-        return AVERROR(ENOMEM);
+    /* The filepositions array is part of a metadata element whose size field
+     * is three bytes long; so bound the number of filepositions in order not
+     * to allocate more than could ever be written. */
+    int ret = av_fast_realloc_array(&flv->filepositions,
+                                    &flv->filepositions_allocated,
+                                    flv->filepositions_count + 1,
+                                    (((1 << 24) - 1) - 10) / FILEPOSITION_ENTRY_SIZE,
+                                    sizeof(*flv->filepositions));
+    if (ret < 0) {
+        av_log(s, AV_LOG_WARNING, "Adding entry to keyframe index failed.\n");
+        return ret;
     }
 
-    position->keyframe_timestamp = ts;
-    position->keyframe_position = pos;
-
-    if (!flv->filepositions_count) {
-        flv->filepositions = position;
-        flv->head_filepositions = flv->filepositions;
-        position->next = NULL;
-    } else {
-        flv->filepositions->next = position;
-        position->next = NULL;
-        flv->filepositions = flv->filepositions->next;
-    }
-
-    flv->filepositions_count++;
+    flv->filepositions[flv->filepositions_count++] = (FLVFileposition){ pos, ts };
 
     return 0;
 }
@@ -733,7 +727,7 @@ static int flv_write_trailer(AVFormatContext *s)
     int64_t cur_pos = avio_tell(s->pb);
 
     if (build_keyframes_idx) {
-        FLVFileposition *newflv_posinfo;
+        const FLVFileposition *flv_posinfo = flv->filepositions;
 
         avio_seek(pb, flv->videosize_offset, SEEK_SET);
         put_amf_double(pb, flv->videosize);
@@ -758,15 +752,13 @@ static int flv_write_trailer(AVFormatContext *s)
         avio_seek(pb, flv->keyframes_info_offset, SEEK_SET);
         put_amf_string(pb, "filepositions");
         put_amf_dword_array(pb, flv->filepositions_count);
-        for (newflv_posinfo = flv->head_filepositions; newflv_posinfo; newflv_posinfo = newflv_posinfo->next) {
-            put_amf_double(pb, newflv_posinfo->keyframe_position + flv->keyframe_index_size);
-        }
+        for (unsigned i = 0; i < flv->filepositions_count; i++)
+            put_amf_double(pb, flv_posinfo[i].keyframe_position + flv->keyframe_index_size);
 
         put_amf_string(pb, "times");
         put_amf_dword_array(pb, flv->filepositions_count);
-        for (newflv_posinfo = flv->head_filepositions; newflv_posinfo; newflv_posinfo = newflv_posinfo->next) {
-            put_amf_double(pb, newflv_posinfo->keyframe_timestamp);
-        }
+        for (unsigned i = 0; i < flv->filepositions_count; i++)
+            put_amf_double(pb, flv_posinfo[i].keyframe_timestamp);
 
         put_amf_string(pb, "");
         avio_w8(pb, AMF_END_OF_OBJECT);
@@ -1037,15 +1029,9 @@ static int flv_check_bitstream(AVFormatContext *s, AVStream *st,
 static void flv_deinit(AVFormatContext *s)
 {
     FLVContext *flv = s->priv_data;
-    FLVFileposition *filepos = flv->head_filepositions;
 
-    while (filepos) {
-        FLVFileposition *next = filepos->next;
-        av_free(filepos);
-        filepos = next;
-    }
-    flv->filepositions = flv->head_filepositions = NULL;
-    flv->filepositions_count = 0;
+    flv->filepositions_allocated = flv->filepositions_count = 0;
+    av_freep(&flv->filepositions);
 }
 
 static const AVOption options[] = {
