@@ -76,7 +76,7 @@ typedef struct {
     ASSStyle *ass_dialog_style;
     StyleBox *style_attributes;
     unsigned  count;
-    unsigned  style_attributes_bytes_allocated;
+    size_t  style_attributes_allocated;
     StyleBox  style_attributes_temp;
     AVBPrint buffer;
     HighlightBox hlit;
@@ -342,6 +342,8 @@ static av_cold int mov_text_encode_init(AVCodecContext *avctx)
 // Start a new style box if needed
 static int mov_text_style_start(MovTextContext *s)
 {
+    int ret;
+
     // there's an existing style entry
     if (s->style_attributes_temp.style_start == s->text_pos)
         // Still at same text pos, use same entry
@@ -353,10 +355,9 @@ static int mov_text_style_start(MovTextContext *s)
         StyleBox *tmp;
 
         // last style != defaults, end the style entry and start a new one
-        if (s->count + 1 > FFMIN(SIZE_MAX / sizeof(*s->style_attributes), UINT16_MAX) ||
-            !(tmp = av_fast_realloc(s->style_attributes,
-                                    &s->style_attributes_bytes_allocated,
-                                    (s->count + 1) * sizeof(*s->style_attributes)))) {
+        ret = av_realloc_array_reuse(&s->style_attributes, &s->style_attributes_allocated,
+                                     s->count + 1, UINT16_MAX, sizeof(*s->style_attributes));
+        if (ret < 0) {
             mov_text_cleanup(s);
             av_bprint_clear(&s->buffer);
             s->box_flags &= ~STYL_BOX;
