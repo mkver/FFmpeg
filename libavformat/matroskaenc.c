@@ -170,7 +170,8 @@ typedef struct mkv_cuepoint {
 
 typedef struct mkv_cues {
     mkv_cuepoint   *entries;
-    int             num_entries;
+    size_t          num_entries;
+    size_t          allocated_entries;
 } mkv_cues;
 
 struct MatroskaMuxContext;
@@ -258,6 +259,10 @@ typedef struct MatroskaMuxContext {
 
 /** 4 * (1-byte EBML ID, 1-byte EBML size, 8-byte uint max) */
 #define MAX_CUETRACKPOS_SIZE 40
+
+/** Minimal size of CueTrack, CueClusterPosition and CueRelativePosition,
+ *  and 1 + 1 bytes for the overhead of CueTrackPositions itself. */
+#define MIN_CUETRACKPOS_SIZE (1 + 1 + 3 * (1 + 1 + 1))
 
 /** 2 + 1 Simpletag header, 2 + 1 + 8 Name "DURATION", 23B for TagString */
 #define DURATION_SIMPLETAG_SIZE (2 + 1 + (2 + 1 + 8) + 23)
@@ -916,16 +921,20 @@ static int mkv_add_cuepoint(MatroskaMuxContext *mkv, int stream, int64_t ts,
                             int64_t cluster_pos, int64_t relative_pos, int64_t duration)
 {
     mkv_cues *cues = &mkv->cues;
-    mkv_cuepoint *entries = cues->entries;
-    unsigned idx = cues->num_entries;
+    mkv_cuepoint *entries;
+    size_t idx = cues->num_entries;
+    int ret;
 
     if (ts < 0)
         return 0;
 
-    entries = av_realloc_array(entries, cues->num_entries + 1, sizeof(mkv_cuepoint));
-    if (!entries)
-        return AVERROR(ENOMEM);
-    cues->entries = entries;
+    ret = av_realloc_array_reuse(&cues->entries, &cues->allocated_entries,
+                                 cues->num_entries + 1,
+                                 MAX_SUPPORTED_EBML_LENGTH / MIN_CUETRACKPOS_SIZE,
+                                 sizeof(*cues->entries));
+    if (ret < 0)
+        return ret;
+    entries = cues->entries;
 
     /* Make sure the cues entries are sorted by pts. */
     while (idx > 0 && entries[idx - 1].pts > ts)
