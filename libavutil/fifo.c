@@ -96,6 +96,19 @@ size_t av_fifo_can_write(const AVFifo *f)
     return f->nb_elems - av_fifo_can_read(f);
 }
 
+static void fifo_readjust_after_growing(AVFifo *f, size_t old_size)
+{
+    const size_t inc = f->nb_elems - old_size;
+    // move the data from the end of the ring buffer
+    // to the end of the newly allocated space
+    if (f->offset_w <= f->offset_r && !f->is_empty) {
+        memmove(f->buffer + (f->offset_r + inc) * f->elem_size,
+                f->buffer + f->offset_r * f->elem_size,
+                (old_size - f->offset_r) * f->elem_size);
+        f->offset_r += inc;
+    }
+}
+
 int av_fifo_grow2(AVFifo *f, size_t inc)
 {
     uint8_t *tmp;
@@ -107,16 +120,8 @@ int av_fifo_grow2(AVFifo *f, size_t inc)
     if (!tmp)
         return AVERROR(ENOMEM);
     f->buffer = tmp;
-
-    // move the data from the end of the ring buffer
-    // to the end of the newly allocated space
-    if (f->offset_w <= f->offset_r && !f->is_empty) {
-        memmove(tmp + (f->offset_r + inc) * f->elem_size, tmp + f->offset_r * f->elem_size,
-                (f->nb_elems - f->offset_r) * f->elem_size);
-        f->offset_r += inc;
-    }
-
     f->nb_elems += inc;
+    fifo_readjust_after_growing(f, f->nb_elems - inc);
 
     return 0;
 }
@@ -133,9 +138,15 @@ static int fifo_check_space(AVFifo *f, size_t to_write)
     can_grow = f->auto_grow_limit > f->nb_elems ?
                f->auto_grow_limit - f->nb_elems : 0;
     if ((f->flags & AV_FIFO_FLAG_AUTO_GROW) && need_grow <= can_grow) {
-        // allocate a bit more than necessary, if we can
-        const size_t inc = (need_grow < can_grow / 2 ) ? need_grow * 2 : can_grow;
-        return av_fifo_grow2(f, inc);
+        // Use av_fast_realloc_array() to allocate in a fast way
+        // while respecting the auto_grow_limit
+        const size_t old_size = f->nb_elems;
+        int ret = av_fast_realloc_array(&f->buffer, &f->nb_elems, f->nb_elems + need_grow,
+                                        f->auto_grow_limit, f->elem_size);
+        if (ret < 0)
+            return ret;
+        fifo_readjust_after_growing(f, old_size);
+        return 0;
     }
 
     return AVERROR(ENOSPC);
