@@ -108,17 +108,12 @@ int av_fifo_grow2(AVFifo *f, size_t inc)
         return AVERROR(ENOMEM);
     f->buffer = tmp;
 
-    // move the data from the beginning of the ring buffer
-    // to the newly allocated space
+    // move the data from the end of the ring buffer
+    // to the end of the newly allocated space
     if (f->offset_w <= f->offset_r && !f->is_empty) {
-        const size_t copy = FFMIN(inc, f->offset_w);
-        memcpy(tmp + f->nb_elems * f->elem_size, tmp, copy * f->elem_size);
-        if (copy < f->offset_w) {
-            memmove(tmp, tmp + copy * f->elem_size,
-                    (f->offset_w - copy) * f->elem_size);
-            f->offset_w -= copy;
-        } else
-            f->offset_w = copy == inc ? 0 : f->nb_elems + copy;
+        memmove(tmp + (f->offset_r + inc) * f->elem_size, tmp + f->offset_r * f->elem_size,
+                (f->nb_elems - f->offset_r) * f->elem_size);
+        f->offset_r += inc;
     }
 
     f->nb_elems += inc;
