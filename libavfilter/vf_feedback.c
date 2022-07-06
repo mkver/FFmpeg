@@ -195,10 +195,8 @@ static int activate(AVFilterContext *ctx)
             AVFrame *frame;
 
             ret = av_fifo_write(s->fifo, &in, 1);
-            if (ret < 0) {
-                av_frame_free(&in);
+            if (ret < 0)
                 return ret;
-            }
 
             frame = av_frame_clone(in);
             if (!frame)
@@ -249,13 +247,21 @@ static int activate(AVFilterContext *ctx)
     return FFERROR_NOT_READY;
 }
 
+static av_cold void frame_free_wrapper(void *opaque, void *obj)
+{
+    AVFrame **frame = obj;
+    av_frame_free(frame);
+}
+
 static av_cold int init(AVFilterContext *ctx)
 {
     FeedbackContext *s = ctx->priv;
+    int ret;
 
-    s->fifo = av_fifo_alloc2(8, sizeof(AVFrame *), AV_FIFO_FLAG_AUTO_GROW);
-    if (!s->fifo)
-        return AVERROR(ENOMEM);
+    ret = av_fifo_alloc4(&s->fifo, 8, sizeof(AVFrame *), NULL, frame_free_wrapper,
+                         AV_FIFO_FLAG_AUTO_GROW | AV_FIFO_FLAG_RESET_REMAINDER_ON_ERROR);
+    if (ret < 0)
+        return ret;
 
     return 0;
 }
@@ -263,19 +269,8 @@ static av_cold int init(AVFilterContext *ctx)
 static av_cold void uninit(AVFilterContext *ctx)
 {
     FeedbackContext *s = ctx->priv;
-    if (s->fifo) {
-        size_t size = av_fifo_can_read(s->fifo);
 
-        for (size_t n = 0; n < size; n++) {
-            AVFrame *frame = NULL;
-
-            av_fifo_read(s->fifo, &frame, 1);
-
-            av_frame_free(&frame);
-        }
-
-        av_fifo_freep2(&s->fifo);
-    }
+    av_fifo_freep2(&s->fifo);
 }
 
 static const AVFilterPad inputs[] = {
