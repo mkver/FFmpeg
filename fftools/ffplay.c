@@ -438,22 +438,14 @@ static int packet_queue_put_private(PacketQueue *q, AVPacket *pkt)
 
 static int packet_queue_put(PacketQueue *q, AVPacket *pkt)
 {
-    AVPacket *pkt1;
     int ret;
 
-    pkt1 = av_packet_alloc();
-    if (!pkt1) {
-        av_packet_unref(pkt);
-        return -1;
-    }
-    av_packet_move_ref(pkt1, pkt);
-
     SDL_LockMutex(q->mutex);
-    ret = packet_queue_put_private(q, pkt1);
+    ret = packet_queue_put_private(q, pkt);
     SDL_UnlockMutex(q->mutex);
 
     if (ret < 0)
-        av_packet_free(&pkt1);
+        av_packet_unref(pkt);
 
     return ret;
 }
@@ -464,13 +456,45 @@ static int packet_queue_put_nullpacket(PacketQueue *q, AVPacket *pkt, int stream
     return packet_queue_put(q, pkt);
 }
 
+static av_cold int fifo_init_packet(void *opaque, void *obj)
+{
+    MyAVPacketList *pkt1 = obj;
+    pkt1->pkt = av_packet_alloc();
+    if (!pkt1->pkt)
+        return AVERROR(ENOMEM);
+    return 0;
+}
+
+static av_cold void fifo_free_packet(void *opaque, void *obj)
+{
+    MyAVPacketList *pkt1 = obj;
+    av_packet_free(&pkt1->pkt);
+}
+
+static av_cold void fifo_unref_packet(void *opaque, void *obj)
+{
+    MyAVPacketList *pkt1 = obj;
+    av_packet_unref(pkt1->pkt);
+}
+
+static int fifo_move_packet(void *opaque, void *dst, void *src)
+{
+    MyAVPacketList *pkt1 = src, *pkt2 = dst;
+    pkt2->serial = pkt1->serial;
+    av_packet_move_ref(pkt2->pkt, pkt1->pkt);
+    return 0;
+}
+
 /* packet queue handling */
 static int packet_queue_init(PacketQueue *q)
 {
+    int ret;
     memset(q, 0, sizeof(PacketQueue));
-    q->pkt_list = av_fifo_alloc2(1, sizeof(MyAVPacketList), AV_FIFO_FLAG_AUTO_GROW);
-    if (!q->pkt_list)
-        return AVERROR(ENOMEM);
+    ret = av_fifo_alloc3(&q->pkt_list, 1, sizeof(MyAVPacketList), NULL,
+                         fifo_init_packet, fifo_move_packet, fifo_move_packet,
+                         fifo_unref_packet, fifo_free_packet, AV_FIFO_FLAG_AUTO_GROW);
+    if (ret < 0)
+        return ret;
     q->mutex = SDL_CreateMutex();
     if (!q->mutex) {
         av_log(NULL, AV_LOG_FATAL, "SDL_CreateMutex(): %s\n", SDL_GetError());
@@ -487,11 +511,8 @@ static int packet_queue_init(PacketQueue *q)
 
 static void packet_queue_flush(PacketQueue *q)
 {
-    MyAVPacketList pkt1;
-
     SDL_LockMutex(q->mutex);
-    while (av_fifo_read(q->pkt_list, &pkt1, 1) >= 0)
-        av_packet_free(&pkt1.pkt);
+    av_fifo_reset2(q->pkt_list);
     q->nb_packets = 0;
     q->size = 0;
     q->duration = 0;
@@ -501,7 +522,6 @@ static void packet_queue_flush(PacketQueue *q)
 
 static void packet_queue_destroy(PacketQueue *q)
 {
-    packet_queue_flush(q);
     av_fifo_freep2(&q->pkt_list);
     SDL_DestroyMutex(q->mutex);
     SDL_DestroyCond(q->cond);
@@ -529,7 +549,7 @@ static void packet_queue_start(PacketQueue *q)
 /* return < 0 if aborted, 0 if no packet and > 0 if packet.  */
 static int packet_queue_get(PacketQueue *q, AVPacket *pkt, int block, int *serial)
 {
-    MyAVPacketList pkt1;
+    MyAVPacketList pkt1 = { .pkt = pkt };
     int ret;
 
     SDL_LockMutex(q->mutex);
@@ -544,10 +564,8 @@ static int packet_queue_get(PacketQueue *q, AVPacket *pkt, int block, int *seria
             q->nb_packets--;
             q->size -= pkt1.pkt->size + sizeof(pkt1);
             q->duration -= pkt1.pkt->duration;
-            av_packet_move_ref(pkt, pkt1.pkt);
             if (serial)
                 *serial = pkt1.serial;
-            av_packet_free(&pkt1.pkt);
             ret = 1;
             break;
         } else if (!block) {
