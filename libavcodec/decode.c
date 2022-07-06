@@ -161,8 +161,6 @@ static int extract_packet_props(AVCodecInternal *avci, const AVPacket *pkt)
         return ret;
 
     ret = av_fifo_write(avci->pkt_props, &tmp, 1);
-    if (ret < 0)
-        av_packet_unref(&tmp);
 
     return ret;
 }
@@ -1526,6 +1524,12 @@ int ff_reget_buffer(AVCodecContext *avctx, AVFrame *frame, int flags)
     return ret;
 }
 
+static void pkt_fifo_unref(void *opaque, void *obj)
+{
+    AVPacket *pkt = obj;
+    av_packet_unref(pkt);
+}
+
 int ff_decode_preinit(AVCodecContext *avctx)
 {
     AVCodecInternal *avci = avctx->internal;
@@ -1609,10 +1613,14 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     avci->in_pkt         = av_packet_alloc();
     avci->last_pkt_props = av_packet_alloc();
-    avci->pkt_props      = av_fifo_alloc2(1, sizeof(*avci->last_pkt_props),
-                                          AV_FIFO_FLAG_AUTO_GROW);
-    if (!avci->in_pkt || !avci->last_pkt_props || !avci->pkt_props)
+    if (!avci->in_pkt || !avci->last_pkt_props)
         return AVERROR(ENOMEM);
+
+    ret = av_fifo_alloc4(&avci->pkt_props, 1, sizeof(*avci->last_pkt_props),
+                         NULL, pkt_fifo_unref,
+                         AV_FIFO_FLAG_AUTO_GROW | AV_FIFO_FLAG_RESET_REMAINDER_ON_ERROR);
+    if (ret < 0)
+        return ret;
 
     ret = decode_bsfs_init(avctx);
     if (ret < 0)
