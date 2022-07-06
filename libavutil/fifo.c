@@ -40,6 +40,11 @@ struct AVFifo {
     // distinguishes the ambiguous situation offset_r == offset_w
     int    is_empty;
 
+    void *opaque;
+    AVFifoInitCB *init_cb;
+    AVFifoMoveCB *read_cb, *write_cb;
+    AVFifoFreeCB *unref_cb, *free_cb;
+
     unsigned int flags;
     size_t       auto_grow_limit;
 };
@@ -74,6 +79,55 @@ AVFifo *av_fifo_alloc2(size_t nb_elems, size_t elem_size,
     return f;
 }
 
+av_cold int av_fifo_alloc3(AVFifo **fp, size_t nb_elems, size_t elem_size,
+                           void *opaque, AVFifoInitCB init_cb,
+                           AVFifoMoveCB read_cb, AVFifoMoveCB write_cb,
+                           AVFifoFreeCB unref_cb, AVFifoFreeCB free_cb,
+                           unsigned int flags)
+{
+    AVFifo *f;
+    int ret;
+
+    *fp = NULL;
+    if (!elem_size)
+        return AVERROR(EINVAL);
+
+    f = av_mallocz(sizeof(*f));
+    if (!f)
+        return AVERROR(ENOMEM);
+    *fp = f;
+
+    f->elem_size = elem_size;
+    f->is_empty  = 1;
+
+    f->flags     = flags;
+    f->auto_grow_limit = FFMAX(AUTO_GROW_DEFAULT_BYTES / elem_size, 1);
+
+    f->opaque   = opaque;
+    f->init_cb  = init_cb;
+    f->read_cb  = read_cb;
+    f->write_cb = write_cb;
+    f->unref_cb = unref_cb;
+    f->free_cb  = free_cb;
+
+    if (nb_elems) {
+        ret = av_fifo_grow2(f, nb_elems);
+        if (ret < 0) {
+            av_fifo_freep2(fp);
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+av_cold int av_fifo_alloc4(AVFifo **f, size_t elems, size_t elem_size,
+                           void *opaque, AVFifoFreeCB unref_cb, unsigned int flags)
+{
+    return av_fifo_alloc3(f, elems, elem_size, opaque, NULL, NULL, NULL,
+                          unref_cb, NULL, flags | AV_FIFO_FLAG_RESET_BEFORE_CLOSE);
+}
+
 void av_fifo_auto_grow_limit(AVFifo *f, size_t max_elems)
 {
     f->auto_grow_limit = max_elems;
@@ -96,17 +150,66 @@ size_t av_fifo_can_write(const AVFifo *f)
     return f->nb_elems - av_fifo_can_read(f);
 }
 
-static void fifo_readjust_after_growing(AVFifo *f, size_t old_size)
+static void fifo_drain_internal(AVFifo *f, size_t size)
+{
+    const size_t cur_size = av_fifo_can_read(f);
+
+    av_assert0(cur_size >= size);
+
+    if (cur_size == size)
+        f->is_empty = 1;
+
+    if (f->offset_r >= f->nb_elems - size)
+        f->offset_r -= f->nb_elems - size;
+    else
+        f->offset_r += size;
+}
+
+static int fifo_readjust_after_growing(AVFifo *f, size_t old_size)
 {
     const size_t inc = f->nb_elems - old_size;
+    size_t uninit_start, uninit_end;
+    size_t move_amount = 0;
+    int ret;
+
     // move the data from the end of the ring buffer
     // to the end of the newly allocated space
     if (f->offset_w <= f->offset_r && !f->is_empty) {
+        move_amount = old_size - f->offset_r;
         memmove(f->buffer + (f->offset_r + inc) * f->elem_size,
                 f->buffer + f->offset_r * f->elem_size,
                 (old_size - f->offset_r) * f->elem_size);
         f->offset_r += inc;
     }
+
+    uninit_start = old_size - move_amount;
+    uninit_end   = uninit_start + inc;
+    if (f->flags & AV_FIFO_FLAG_ZERO_INIT)
+        memset(f->buffer + uninit_start * f->elem_size, 0, inc * f->elem_size);
+    if (f->init_cb) {
+        // Elements uninit_start..(uninit_end - 1) need to be initialized
+
+        for (; uninit_start < uninit_end; uninit_start++) {
+            ret = f->init_cb(f->opaque, f->buffer + uninit_start * f->elem_size);
+            if (ret < 0) {
+                if (f->flags & AV_FIFO_FLAG_INIT_CLEANUP)
+                    f->free_cb(f->opaque, f->buffer + uninit_start * f->elem_size);
+                // Elements 0..(uninit_start - 1) and
+                // (nb_elems - move_amount)..(nb_elems - 1) are initialized.
+                if (move_amount) {
+                    // Move the initialized elements from the end to the front
+                    // so that all the elements at the front are initialized.
+                    memmove(f->buffer + uninit_start * f->elem_size,
+                            f->buffer + f->offset_r * f->elem_size,
+                            move_amount * f->elem_size);
+                    f->offset_r = uninit_start;
+                }
+                f->nb_elems -= uninit_end - uninit_start;
+                return ret;
+            }
+        }
+    }
+    return 0;
 }
 
 int av_fifo_grow2(AVFifo *f, size_t inc)
@@ -153,7 +256,7 @@ static int fifo_check_space(AVFifo *f, size_t to_write)
 }
 
 static int fifo_write_common(AVFifo *f, const uint8_t *buf, size_t *nb_elems,
-                             AVFifoCB read_cb, void *opaque)
+                             AVFifoCB read_cb, AVFifoMoveCB move_cb, void *opaque)
 {
     size_t to_write = *nb_elems;
     size_t offset_w;
@@ -167,14 +270,21 @@ static int fifo_write_common(AVFifo *f, const uint8_t *buf, size_t *nb_elems,
 
     while (to_write > 0) {
         size_t    len = FFMIN(f->nb_elems - offset_w, to_write);
-        uint8_t *wptr = f->buffer + offset_w * f->elem_size;
+        void    *wptr = f->buffer + offset_w * f->elem_size;
 
         if (read_cb) {
             ret = read_cb(opaque, wptr, &len);
             if (ret < 0 || len == 0)
                 break;
         } else {
-            memcpy(wptr, buf, len * f->elem_size);
+            if (move_cb) {
+                // have to cast const away unfortunately
+                len = 1;
+                ret = move_cb(opaque, wptr, (void*)buf);
+                if (ret < 0)
+                    break;
+            } else
+                memcpy(wptr, buf, len * f->elem_size);
             buf += len * f->elem_size;
         }
         offset_w += len;
@@ -193,17 +303,23 @@ static int fifo_write_common(AVFifo *f, const uint8_t *buf, size_t *nb_elems,
 
 int av_fifo_write(AVFifo *f, const void *buf, size_t nb_elems)
 {
-    return fifo_write_common(f, buf, &nb_elems, NULL, NULL);
+    return fifo_write_common(f, buf, &nb_elems, NULL, f->read_cb, f->opaque);
 }
 
 int av_fifo_write_from_cb(AVFifo *f, AVFifoCB read_cb,
                           void *opaque, size_t *nb_elems)
 {
-    return fifo_write_common(f, NULL, nb_elems, read_cb, opaque);
+    return fifo_write_common(f, NULL, nb_elems, read_cb, NULL, opaque);
+}
+
+int av_fifo_move_to_fifo(AVFifo *f, void *buf, size_t *nb_elems)
+{
+    return fifo_write_common(f, buf, nb_elems, NULL, f->read_cb, f->opaque);
 }
 
 static int fifo_peek_common(const AVFifo *f, uint8_t *buf, size_t *nb_elems,
-                            size_t offset, AVFifoCB write_cb, void *opaque)
+                            size_t offset, AVFifoCB write_cb, AVFifoMoveCB move_cb,
+                            void *opaque)
 {
     size_t  to_read = *nb_elems;
     size_t offset_r = f->offset_r;
@@ -229,7 +345,13 @@ static int fifo_peek_common(const AVFifo *f, uint8_t *buf, size_t *nb_elems,
             if (ret < 0 || len == 0)
                 break;
         } else {
-            memcpy(buf, rptr, len * f->elem_size);
+            if (move_cb) {
+                len = 1;
+                ret = move_cb(opaque, buf, rptr);
+                if (ret < 0)
+                    break;
+            } else
+                memcpy(buf, rptr, len * f->elem_size);
             buf += len * f->elem_size;
         }
         offset_r += len;
@@ -245,55 +367,77 @@ static int fifo_peek_common(const AVFifo *f, uint8_t *buf, size_t *nb_elems,
 
 int av_fifo_read(AVFifo *f, void *buf, size_t nb_elems)
 {
-    int ret = fifo_peek_common(f, buf, &nb_elems, 0, NULL, NULL);
-    av_fifo_drain2(f, nb_elems);
+    int ret = fifo_peek_common(f, buf, &nb_elems, 0, NULL, f->write_cb, f->opaque);
+    fifo_drain_internal(f, nb_elems);
     return ret;
 }
 
 int av_fifo_read_to_cb(AVFifo *f, AVFifoCB write_cb,
                        void *opaque, size_t *nb_elems)
 {
-    int ret = fifo_peek_common(f, NULL, nb_elems, 0, write_cb, opaque);
-    av_fifo_drain2(f, *nb_elems);
+    int ret = fifo_peek_common(f, NULL, nb_elems, 0, write_cb, NULL,opaque);
+    fifo_drain_internal(f, *nb_elems);
+    return ret;
+}
+
+int av_fifo_move_from_fifo(AVFifo *f, void *buf, size_t *nb_elems)
+{
+    int ret = fifo_peek_common(f, buf, nb_elems, 0, NULL, f->write_cb, f->opaque);
+    fifo_drain_internal(f, *nb_elems);
     return ret;
 }
 
 int av_fifo_peek(AVFifo *f, void *buf, size_t nb_elems, size_t offset)
 {
-    return fifo_peek_common(f, buf, &nb_elems, offset, NULL, NULL);
+    return fifo_peek_common(f, buf, &nb_elems, offset, NULL, NULL, NULL);
 }
 
 int av_fifo_peek_to_cb(AVFifo *f, AVFifoCB write_cb, void *opaque,
                        size_t *nb_elems, size_t offset)
 {
-    return fifo_peek_common(f, NULL, nb_elems, offset, write_cb, opaque);
+    return fifo_peek_common(f, NULL, nb_elems, offset, write_cb, NULL, opaque);
 }
 
 void av_fifo_drain2(AVFifo *f, size_t size)
 {
-    const size_t cur_size = av_fifo_can_read(f);
+    if (f->unref_cb) {
+        size_t offset_r = f->offset_r, to_free = size;
 
-    av_assert0(cur_size >= size);
-    if (cur_size == size)
-        f->is_empty = 1;
+        while (to_free > 0) {
+            void  *ptr = f->buffer + offset_r * f->elem_size;
 
-    if (f->offset_r >= f->nb_elems - size)
-        f->offset_r -= f->nb_elems - size;
-    else
-        f->offset_r += size;
+            f->unref_cb(f->opaque, ptr);
+            offset_r += 1;
+            if (offset_r >= f->nb_elems)
+                offset_r = 0;
+            to_free -= 1;
+        }
+    }
+    fifo_drain_internal(f, size);
 }
 
 void av_fifo_reset2(AVFifo *f)
 {
+    av_fifo_drain2(f, av_fifo_can_read(f));
     f->offset_r = f->offset_w = 0;
-    f->is_empty = 1;
 }
 
-void av_fifo_freep2(AVFifo **f)
+void av_fifo_freep2(AVFifo **fp)
 {
-    if (*f) {
-        av_freep(&(*f)->buffer);
-        av_freep(f);
+    if (*fp) {
+        AVFifo *f = *fp;
+
+        if (f->flags & AV_FIFO_FLAG_RESET_BEFORE_CLOSE)
+            av_fifo_reset2(f);
+        if (f->free_cb) {
+            void *ptr = f->buffer;
+            for (size_t to_free = f->nb_elems; to_free > 0; to_free--) {
+                f->free_cb(f->opaque, ptr);
+                ptr = (char*)ptr + f->elem_size;
+            }
+        }
+        av_freep(&f->buffer);
+        av_freep(fp);
     }
 }
 

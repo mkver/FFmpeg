@@ -49,6 +49,9 @@ typedef struct AVFifo AVFifo;
  *         the invoking av_fifo_*_cb() function)
  */
 typedef int AVFifoCB(void *opaque, void *buf, size_t *nb_elems);
+typedef int AVFifoInitCB(void *opaque, void *obj);
+typedef int AVFifoMoveCB(void *opaque, void *dst, void *src);
+typedef void AVFifoFreeCB(void *opaque, void *obj);
 
 /**
  * Automatically resize the FIFO on writes, so that the data fits. This
@@ -69,6 +72,29 @@ typedef int AVFifoCB(void *opaque, void *buf, size_t *nb_elems);
  */
 AVFifo *av_fifo_alloc2(size_t elems, size_t elem_size,
                        unsigned int flags);
+
+#define AV_FIFO_FLAG_ZERO_INIT                   (1 << 16)
+#define AV_FIFO_FLAG_RESET_BEFORE_CLOSE          (1 << 17)
+#define AV_FIFO_FLAG_INIT_CLEANUP                (1 << 18)
+
+/**
+ * Allocate and initialize an AVFifo with a given element size.
+ *
+ * @param elems     initial number of elements that can be stored in the FIFO
+ * @param elem_size Size in bytes of a single element. Further operations on
+ *                  the returned FIFO will implicitly use this element size.
+ * @param flags a combination of AV_FIFO_FLAG_*
+ *
+ * @return newly-allocated AVFifo on success, a negative error code on failure
+ */
+int av_fifo_alloc3(AVFifo **f, size_t elems, size_t elem_size,
+                   void *opaque, AVFifoInitCB init_cb,
+                   AVFifoMoveCB read_cb, AVFifoMoveCB write_cb,
+                   AVFifoFreeCB unref_cb, AVFifoFreeCB free_cb,
+                   unsigned int flags);
+
+int av_fifo_alloc4(AVFifo **f, size_t elems, size_t elem_size,
+                   void *opaque, AVFifoFreeCB unref_cb, unsigned int flags);
 
 /**
  * @return Element size for FIFO operations. This element size is set at
@@ -137,6 +163,8 @@ int av_fifo_write(AVFifo *f, const void *buf, size_t nb_elems);
 int av_fifo_write_from_cb(AVFifo *f, AVFifoCB read_cb,
                           void *opaque, size_t *nb_elems);
 
+int av_fifo_move_to_fifo(AVFifo *f, void *buf, size_t *nb_elems);
+
 /**
  * Read data from a FIFO.
  *
@@ -167,6 +195,8 @@ int av_fifo_read(AVFifo *f, void *buf, size_t nb_elems);
  */
 int av_fifo_read_to_cb(AVFifo *f, AVFifoCB write_cb,
                        void *opaque, size_t *nb_elems);
+
+int av_fifo_move_from_fifo(AVFifo *f, void *buf, size_t *nb_elems);
 
 /**
  * Read data from a FIFO without modifying FIFO state.
