@@ -264,7 +264,7 @@ static int fifo_write_common(AVFifo *f, const uint8_t *buf, size_t *nb_elems,
 
     ret = fifo_check_space(f, to_write);
     if (ret < 0)
-        return ret;
+        goto fail;
 
     offset_w = f->offset_w;
 
@@ -274,7 +274,7 @@ static int fifo_write_common(AVFifo *f, const uint8_t *buf, size_t *nb_elems,
 
         if (read_cb) {
             ret = read_cb(opaque, wptr, &len);
-            if (ret < 0 || len == 0)
+            if (len == 0)
                 break;
         } else {
             if (move_cb) {
@@ -287,16 +287,23 @@ static int fifo_write_common(AVFifo *f, const uint8_t *buf, size_t *nb_elems,
                 memcpy(wptr, buf, len * f->elem_size);
             buf += len * f->elem_size;
         }
+        to_write -= len;
+        if (ret < 0)
+            break;
         offset_w += len;
         if (offset_w >= f->nb_elems)
             offset_w = 0;
-        to_write -= len;
     }
     f->offset_w = offset_w;
 
     if (*nb_elems != to_write)
         f->is_empty = 0;
     *nb_elems -= to_write;
+fail:
+    if (*nb_elems && buf && f->flags & AV_FIFO_FLAG_RESET_REMAINDER_ON_ERROR) {
+        for (size_t remaining = *nb_elems; remaining > 0; remaining--, buf += f->elem_size)
+            f->unref_cb(opaque, (void*)buf);
+    }
 
     return ret;
 }

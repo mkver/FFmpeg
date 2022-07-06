@@ -76,6 +76,7 @@ AVFifo *av_fifo_alloc2(size_t elems, size_t elem_size,
 #define AV_FIFO_FLAG_ZERO_INIT                   (1 << 16)
 #define AV_FIFO_FLAG_RESET_BEFORE_CLOSE          (1 << 17)
 #define AV_FIFO_FLAG_INIT_CLEANUP                (1 << 18)
+#define AV_FIFO_FLAG_RESET_REMAINDER_ON_ERROR    (1 << 19)
 
 /**
  * Allocate and initialize an AVFifo with a given element size.
