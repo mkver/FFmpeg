@@ -327,12 +327,10 @@ static av_cold void free_frame_list(struct FrameListData *list)
     }
 }
 
-static av_cold void free_hdr10_plus_fifo(AVFifo **fifo)
+static av_cold void free_hdr10_plus(void *opaque, void *obj)
 {
-    FrameHDR10Plus frame_hdr10_plus;
-    while (av_fifo_read(*fifo, &frame_hdr10_plus, 1) >= 0)
-        av_buffer_unref(&frame_hdr10_plus.hdr10_plus);
-    av_fifo_freep2(fifo);
+    FrameHDR10Plus *frame_hdr10_plus = obj;
+    av_buffer_unref(&frame_hdr10_plus->hdr10_plus);
 }
 
 static int copy_hdr10_plus_to_pkt(AVFifo *fifo, AVPacket *pkt)
@@ -446,8 +444,7 @@ static av_cold int vpx_free(AVCodecContext *avctx)
     av_freep(&ctx->twopass_stats.buf);
     av_freep(&avctx->stats_out);
     free_frame_list(ctx->coded_frame_list);
-    if (ctx->hdr10_plus_fifo)
-        free_hdr10_plus_fifo(&ctx->hdr10_plus_fifo);
+    av_fifo_freep2(&ctx->hdr10_plus_fifo);
     return 0;
 }
 
@@ -918,10 +915,11 @@ static av_cold int vpx_init(AVCodecContext *avctx,
         // Keep HDR10+ if it has bit depth higher than 8 and
         // it has PQ trc (SMPTE2084).
         if (enccfg.g_bit_depth > 8 && avctx->color_trc == AVCOL_TRC_SMPTE2084) {
-            ctx->hdr10_plus_fifo = av_fifo_alloc2(1, sizeof(FrameHDR10Plus),
-                                                  AV_FIFO_FLAG_AUTO_GROW);
-            if (!ctx->hdr10_plus_fifo)
-                return AVERROR(ENOMEM);
+            res = av_fifo_alloc4(&ctx->hdr10_plus_fifo, 1, sizeof(FrameHDR10Plus),
+                                 NULL, free_hdr10_plus, AV_FIFO_FLAG_AUTO_GROW |
+                                 AV_FIFO_FLAG_RESET_REMAINDER_ON_ERROR);
+            if (res < 0)
+                return res;
         }
     }
 #endif
@@ -1728,10 +1726,8 @@ static int vpx_encode(AVCodecContext *avctx, AVPacket *pkt,
                 if (!data.hdr10_plus)
                     return AVERROR(ENOMEM);
                 err = av_fifo_write(ctx->hdr10_plus_fifo, &data, 1);
-                if (err < 0) {
-                    av_buffer_unref(&data.hdr10_plus);
+                if (err < 0)
                     return err;
-                }
             }
         }
     }
