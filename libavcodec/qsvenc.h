@@ -112,6 +112,15 @@ extern const AVCodecHWConfigInternal *const ff_qsv_enc_hw_configs[];
 
 typedef int SetEncodeCtrlCB (AVCodecContext *avctx,
                              const AVFrame *frame, mfxEncodeCtrl* enc_ctrl);
+
+typedef struct QSVPacket {
+    AVPacket        pkt;
+    mfxSyncPoint   *sync;
+    mfxBitstream   *bs;
+    mfxExtAVCEncodedFrameInfo *enc_info;
+    mfxExtBuffer **enc_buf;
+} QSVPacket;
+
 typedef struct QSVEncContext {
     AVCodecContext *avctx;
 
@@ -123,6 +132,8 @@ typedef struct QSVEncContext {
     int packet_size;
     int width_align;
     int height_align;
+
+    QSVPacket qpkt;
 
     mfxVideoParam param;
     mfxFrameAllocRequest req;
