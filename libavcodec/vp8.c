@@ -1247,7 +1247,7 @@ void decode_intra4x4_modes(VP8Context *s, VP56RangeCoder *c, VP8Macroblock *mb,
 static av_always_inline
 void decode_mb_mode(VP8Context *s, VP8mvbounds *mv_bounds,
                     VP8Macroblock *mb, int mb_x, int mb_y,
-                    uint8_t *segment, uint8_t *ref, int layout, int is_vp7)
+                    uint8_t *segment, const uint8_t *ref, int layout, int is_vp7)
 {
     VP56RangeCoder *c = &s->c;
     static const char * const vp7_feature_name[] = { "q-index",
@@ -1811,7 +1811,7 @@ static const uint8_t subpel_idx[3][8] = {
  */
 static av_always_inline
 void vp8_mc_luma(VP8Context *s, VP8ThreadData *td, uint8_t *dst,
-                 ThreadFrame *ref, const VP56mv *mv,
+                 const ThreadFrame *ref, const VP56mv *mv,
                  int x_off, int y_off, int block_w, int block_h,
                  int width, int height, ptrdiff_t linesize,
                  vp8_mc_func mc_func[3][3])
@@ -1869,7 +1869,7 @@ void vp8_mc_luma(VP8Context *s, VP8ThreadData *td, uint8_t *dst,
  */
 static av_always_inline
 void vp8_mc_chroma(VP8Context *s, VP8ThreadData *td, uint8_t *dst1,
-                   uint8_t *dst2, ThreadFrame *ref, const VP56mv *mv,
+                   uint8_t *dst2, const ThreadFrame *ref, const VP56mv *mv,
                    int x_off, int y_off, int block_w, int block_h,
                    int width, int height, ptrdiff_t linesize,
                    vp8_mc_func mc_func[3][3])
@@ -2374,7 +2374,8 @@ static av_always_inline int decode_mb_row_no_filter(AVCodecContext *avctx, void 
     int mb_y = atomic_load(&td->thread_mb_pos) >> 16;
     int mb_x, mb_xy = mb_y * s->mb_width;
     int num_jobs = s->num_jobs;
-    VP8Frame *curframe = s->curframe, *prev_frame = s->prev_frame;
+    const VP8Frame *prev_frame = s->prev_frame;
+    VP8Frame *curframe = s->curframe;
     VP56RangeCoder *c  = &s->coeff_partition[mb_y & (s->num_coeff_partitions - 1)];
     VP8Macroblock *mb;
     uint8_t *dst[3] = {
