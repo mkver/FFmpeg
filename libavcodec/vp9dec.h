@@ -163,9 +163,7 @@ typedef struct VP9Context {
 } VP9Context;
 
 struct VP9TileData {
-    //VP9Context should be const, but because of the threading API(generates
-    //a lot of warnings) it's not.
-    VP9Context *s;
+    const VP9Context *s;
     VP56RangeCoder *c_b;
     VP56RangeCoder *c;
     int row, row7, col, col7;
