@@ -582,8 +582,7 @@ static int get_pixel_format(AVCodecContext *avctx)
 static void av1_frame_unref(AVCodecContext *avctx, AV1Frame *f)
 {
     ff_thread_release_buffer(avctx, f->f);
-    av_buffer_unref(&f->hwaccel_priv_buf);
-    f->hwaccel_picture_private = NULL;
+    ff_refstruct_unref(&f->hwaccel_picture_private);
     ff_refstruct_unref(&f->header_ref);
     f->raw_frame_header = NULL;
     f->spatial_id = f->temporal_id = 0;
@@ -608,12 +607,8 @@ static int av1_frame_ref(AVCodecContext *avctx, AV1Frame *dst, const AV1Frame *s
     if (ret < 0)
         goto fail;
 
-    if (src->hwaccel_picture_private) {
-        dst->hwaccel_priv_buf = av_buffer_ref(src->hwaccel_priv_buf);
-        if (!dst->hwaccel_priv_buf)
-            goto fail;
-        dst->hwaccel_picture_private = dst->hwaccel_priv_buf->data;
-    }
+    ff_refstruct_replace(&dst->hwaccel_picture_private,
+                          src->hwaccel_picture_private);
 
     dst->spatial_id = src->spatial_id;
     dst->temporal_id = src->temporal_id;
@@ -835,13 +830,11 @@ static int av1_frame_alloc(AVCodecContext *avctx, AV1Frame *f)
     if (avctx->hwaccel) {
         const AVHWAccel *hwaccel = avctx->hwaccel;
         if (hwaccel->frame_priv_data_size) {
-            f->hwaccel_priv_buf =
-                av_buffer_allocz(hwaccel->frame_priv_data_size);
-            if (!f->hwaccel_priv_buf) {
+            f->hwaccel_picture_private = ff_refstruct_allocz(hwaccel->frame_priv_data_size);
+            if (!f->hwaccel_picture_private) {
                 ret = AVERROR(ENOMEM);
                 goto fail;
             }
-            f->hwaccel_picture_private = f->hwaccel_priv_buf->data;
         }
     }
     return 0;

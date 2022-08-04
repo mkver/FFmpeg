@@ -33,7 +33,6 @@
 typedef struct AV1Frame {
     AVFrame *f;
 
-    AVBufferRef *hwaccel_priv_buf;
     void *hwaccel_picture_private;
 
     /* header_ref is the OBU containing raw_frame_header;
