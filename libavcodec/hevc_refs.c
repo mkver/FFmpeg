@@ -26,6 +26,7 @@
 #include "thread.h"
 #include "hevc.h"
 #include "hevcdec.h"
+#include "refstruct.h"
 #include "threadframe.h"
 
 void ff_hevc_unref_frame(HEVCContext *s, HEVCFrame *frame, int flags)
@@ -50,8 +51,7 @@ void ff_hevc_unref_frame(HEVCContext *s, HEVCFrame *frame, int flags)
 
         frame->collocated_ref = NULL;
 
-        av_buffer_unref(&frame->hwaccel_priv_buf);
-        frame->hwaccel_picture_private = NULL;
+        ff_refstruct_unref(&frame->hwaccel_picture_private);
     }
 }
 
@@ -118,10 +118,9 @@ static HEVCFrame *alloc_frame(HEVCContext *s)
             const AVHWAccel *hwaccel = s->avctx->hwaccel;
             av_assert0(!frame->hwaccel_picture_private);
             if (hwaccel->frame_priv_data_size) {
-                frame->hwaccel_priv_buf = av_buffer_allocz(hwaccel->frame_priv_data_size);
-                if (!frame->hwaccel_priv_buf)
+                frame->hwaccel_picture_private = ff_refstruct_allocz(hwaccel->frame_priv_data_size);
+                if (!frame->hwaccel_picture_private)
                     goto fail;
-                frame->hwaccel_picture_private = frame->hwaccel_priv_buf->data;
             }
         }
 
