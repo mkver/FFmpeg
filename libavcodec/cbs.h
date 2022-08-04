@@ -105,10 +105,10 @@ typedef struct CodedBitstreamUnit {
      */
     void *content;
     /**
-     * If content is reference counted, a reference to the buffer containing
-     * content.  Null if content is not reference counted.
+     * NULL if content is not reference counted; otherwise a pointer
+     * identical to content.
      */
-    AVBufferRef *content_ref;
+    void *content_ref;
 } CodedBitstreamUnit;
 
 /**
@@ -374,14 +374,16 @@ int ff_cbs_alloc_unit_content(CodedBitstreamContext *ctx,
 /**
  * Insert a new unit into a fragment with the given content.
  *
+ * If content_ref is supplied, it has to agree with content
+ * which must be refcounted via the refstruct-API.
  * The content structure continues to be owned by the caller if
- * content_buf is not supplied.
+ * content_ref is not supplied.
  */
 int ff_cbs_insert_unit_content(CodedBitstreamFragment *frag,
                                int position,
                                CodedBitstreamUnitType type,
                                void *content,
-                               AVBufferRef *content_buf);
+                               void *content_ref);
 
 /**
  * Add a new unit to a fragment with the given data bitstream.

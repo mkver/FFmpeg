@@ -24,6 +24,7 @@
 #include "cbs.h"
 #include "cbs_internal.h"
 #include "cbs_av1.h"
+#include "refstruct.h"
 
 
 static int cbs_av1_read_uvlc(CodedBitstreamContext *ctx, GetBitContext *gbc,
@@ -943,12 +944,7 @@ static int cbs_av1_read_unit(CodedBitstreamContext *ctx,
                 priv->operating_point_idc = sequence_header->operating_point_idc[priv->operating_point];
             }
 
-            av_buffer_unref(&priv->sequence_header_ref);
-            priv->sequence_header = NULL;
-
-            priv->sequence_header_ref = av_buffer_ref(unit->content_ref);
-            if (!priv->sequence_header_ref)
-                return AVERROR(ENOMEM);
+            ff_refstruct_replace(&priv->sequence_header_ref, unit->content_ref);
             priv->sequence_header = &obu->obu.sequence_header;
         }
         break;
@@ -1086,16 +1082,14 @@ static int cbs_av1_write_obu(CodedBitstreamContext *ctx,
             if (err < 0)
                 return err;
 
-            av_buffer_unref(&priv->sequence_header_ref);
+            ff_refstruct_unref(&priv->sequence_header_ref);
             priv->sequence_header = NULL;
 
             err = ff_cbs_make_unit_refcounted(ctx, unit);
             if (err < 0)
                 return err;
 
-            priv->sequence_header_ref = av_buffer_ref(unit->content_ref);
-            if (!priv->sequence_header_ref)
-                return AVERROR(ENOMEM);
+            priv->sequence_header_ref = ff_refstruct_ref(unit->content_ref);
             priv->sequence_header = &obu->obu.sequence_header;
         }
         break;
@@ -1263,13 +1257,13 @@ static void cbs_av1_close(CodedBitstreamContext *ctx)
 {
     CodedBitstreamAV1Context *priv = ctx->priv_data;
 
-    av_buffer_unref(&priv->sequence_header_ref);
+    ff_refstruct_unref(&priv->sequence_header_ref);
     av_buffer_unref(&priv->frame_header_ref);
 }
 
-static void cbs_av1_free_metadata(void *unit, uint8_t *content)
+static void cbs_av1_free_metadata(void *unit, void *content)
 {
-    AV1RawOBU *obu = (AV1RawOBU*)content;
+    AV1RawOBU *obu = content;
     AV1RawMetadata *md;
 
     av_assert0(obu->header.obu_type == AV1_OBU_METADATA);
@@ -1280,7 +1274,6 @@ static void cbs_av1_free_metadata(void *unit, uint8_t *content)
         av_buffer_unref(&md->metadata.itut_t35.payload_ref);
         break;
     }
-    av_free(content);
 }
 
 static const CodedBitstreamUnitTypeDescriptor cbs_av1_unit_types[] = {

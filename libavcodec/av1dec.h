@@ -36,7 +36,9 @@ typedef struct AV1Frame {
     AVBufferRef *hwaccel_priv_buf;
     void *hwaccel_picture_private;
 
-    AVBufferRef *header_ref;
+    /* header_ref is the OBU containing raw_frame_header;
+     * it is refcounted according to the refstruct-API. */
+    AV1RawOBU *header_ref;
     AV1RawFrameHeader *raw_frame_header;
 
     int temporal_id;
@@ -68,9 +70,11 @@ typedef struct AV1DecContext {
     CodedBitstreamContext *cbc;
     CodedBitstreamFragment current_obu;
 
-    AVBufferRef *seq_ref;
+    /* *_ref are the OBUs containing raw_seq/frame_header;
+     * *_ref are refcounted via the refstruct-API. */
+    AV1RawOBU *seq_ref;
     AV1RawSequenceHeader *raw_seq;
-    AVBufferRef *header_ref;
+    AV1RawOBU *header_ref;
     AV1RawFrameHeader *raw_frame_header;
     TileGroupInfo *tile_group_info;
     uint16_t tile_num;
