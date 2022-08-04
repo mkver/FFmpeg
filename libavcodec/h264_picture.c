@@ -44,7 +44,7 @@ void ff_h264_unref_picture(H264Context *h, H264Picture *pic)
 
     ff_thread_release_ext_buffer(h->avctx, &pic->tf);
     ff_thread_release_buffer(h->avctx, pic->f_grain);
-    av_buffer_unref(&pic->hwaccel_priv_buf);
+    ff_refstruct_unref(&pic->hwaccel_picture_private);
 
     av_buffer_unref(&pic->qscale_table_buf);
     av_buffer_unref(&pic->mb_type_buf);
@@ -126,14 +126,8 @@ int ff_h264_ref_picture(H264Context *h, H264Picture *dst, H264Picture *src)
         }
     }
 
-    if (src->hwaccel_picture_private) {
-        dst->hwaccel_priv_buf = av_buffer_ref(src->hwaccel_priv_buf);
-        if (!dst->hwaccel_priv_buf) {
-            ret = AVERROR(ENOMEM);
-            goto fail;
-        }
-        dst->hwaccel_picture_private = dst->hwaccel_priv_buf->data;
-    }
+    ff_refstruct_replace(&dst->hwaccel_picture_private,
+                          src->hwaccel_picture_private);
 
     h264_copy_picture_params(dst, src);
 
@@ -180,11 +174,8 @@ int ff_h264_replace_picture(H264Context *h, H264Picture *dst, const H264Picture 
             goto fail;
     }
 
-    ret = av_buffer_replace(&dst->hwaccel_priv_buf, src->hwaccel_priv_buf);
-    if (ret < 0)
-        goto fail;
-
-    dst->hwaccel_picture_private = src->hwaccel_picture_private;
+    ff_refstruct_replace(&dst->hwaccel_picture_private,
+                          src->hwaccel_picture_private);
 
     h264_copy_picture_params(dst, src);
 
