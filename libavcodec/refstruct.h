@@ -36,4 +36,6 @@ void *ff_refstruct_ref(void *data);
 
 void ff_refstruct_replace(void *dstp, const void *src);
 
+int ff_refstruct_is_writable(const void *data);
+
 #endif /* AVCODEC_REFSTRUCT_H */
