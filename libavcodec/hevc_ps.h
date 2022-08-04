@@ -23,7 +23,6 @@
 
 #include <stdint.h>
 
-#include "libavutil/buffer.h"
 #include "libavutil/pixfmt.h"
 #include "libavutil/rational.h"
 
@@ -325,9 +324,12 @@ typedef struct HEVCPPS {
 } HEVCPPS;
 
 typedef struct HEVCParamSets {
-    AVBufferRef *vps_list[HEVC_MAX_VPS_COUNT];
-    AVBufferRef *sps_list[HEVC_MAX_SPS_COUNT];
-    AVBufferRef *pps_list[HEVC_MAX_PPS_COUNT];
+    /* The parameter sets in the following lists are refcounted
+     * via the refstruct-API; the pointers in the lists
+     * are ownership-pointers; the pointers not in the lists are not. */
+    HEVCVPS *vps_list[HEVC_MAX_VPS_COUNT];
+    HEVCSPS *sps_list[HEVC_MAX_SPS_COUNT];
+    HEVCPPS *pps_list[HEVC_MAX_PPS_COUNT];
 
     /* currently active parameter sets */
     const HEVCVPS *vps;
@@ -345,7 +347,7 @@ typedef struct HEVCParamSets {
  *                 to an existing VPS
  */
 int ff_hevc_parse_sps(HEVCSPS *sps, GetBitContext *gb, unsigned int *sps_id,
-                      int apply_defdispwin, AVBufferRef **vps_list, AVCodecContext *avctx);
+                      int apply_defdispwin, HEVCVPS **vps_list, AVCodecContext *avctx);
 
 int ff_hevc_decode_nal_vps(GetBitContext *gb, AVCodecContext *avctx,
                            HEVCParamSets *ps);
