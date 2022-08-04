@@ -37,6 +37,7 @@
 #include "codec.h"
 #include "codec_internal.h"
 #include "hwconfig.h"
+#include "refstruct.h"
 #include "thread.h"
 #include "threadframe.h"
 #include "internal.h"
@@ -901,11 +902,8 @@ int ff_thread_ref_frame(ThreadFrame *dst, const ThreadFrame *src)
 
     av_assert0(!dst->progress);
 
-    if (src->progress &&
-        !(dst->progress = av_buffer_ref(src->progress))) {
-        ff_thread_release_ext_buffer(dst->owner[0], dst);
-        return AVERROR(ENOMEM);
-    }
+    if (src->progress)
+        dst->progress = ff_refstruct_ref(src->progress);
 
     return 0;
 }
