@@ -26,7 +26,6 @@
 
 #include <stdint.h>
 
-#include "libavutil/buffer.h"
 #include "libavutil/pixfmt.h"
 #include "libavutil/rational.h"
 
@@ -136,18 +135,18 @@ typedef struct PPS {
     uint32_t(*dequant4_coeff[6])[16];
     uint32_t(*dequant8_coeff[6])[64];
 
-    AVBufferRef *sps_ref;
+    /* This pointer is reference-counted via the refstruct API. */
     const SPS   *sps;
 } PPS;
 
 typedef struct H264ParamSets {
-    AVBufferRef *sps_list[MAX_SPS_COUNT];
-    AVBufferRef *pps_list[MAX_PPS_COUNT];
+    /* The pointers in these lists are reference-counted via the refstruct API. */
+    SPS *sps_list[MAX_SPS_COUNT];
+    PPS *pps_list[MAX_PPS_COUNT];
 
-    AVBufferRef *pps_ref;
     /* currently active parameters sets */
-    const PPS *pps;
-    const SPS *sps;
+    const PPS *pps; ///< refcounted via refstruct API
+    const SPS *sps; ///< ordinary pointer, not refcounted via refstruct API
 
     int overread_warning_printed[2];
 } H264ParamSets;
