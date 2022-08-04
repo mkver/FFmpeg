@@ -75,7 +75,6 @@ typedef struct Picture {
     AVBufferRef *mb_mean_buf;
     uint8_t *mb_mean;           ///< Table for MB luminance
 
-    AVBufferRef *hwaccel_priv_buf;
     void *hwaccel_picture_private; ///< Hardware accelerator private data
 
     int field_picture;          ///< whether or not the picture was encoded in separate fields
