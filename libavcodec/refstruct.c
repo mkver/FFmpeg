@@ -100,3 +100,9 @@ void ff_refstruct_replace(void *dstp, const void *src)
     if (src)
         *(void**)dstp = ff_refstruct_ref(src);
 }
+
+int ff_refstruct_is_writable(const void *buf)
+{
+    AVRefCount *ref = (AVRefCount*)((char *)buf - REFCOUNT_OFFSET);
+    return atomic_load_explicit(&ref->refcount, memory_order_acquire) == 1;
+}

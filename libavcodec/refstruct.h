@@ -21,6 +21,12 @@
 
 #include <stddef.h>
 
+/* Typedef that may be used for pointers that are refcounted
+ * via this API. Using this typedef is not mandatory;
+ * it is useful in case a pointer is only retained
+ * due to its refcount and not to access its data. */
+typedef void* FFRefStruct;
+
 void *ff_refstruct_allocz_ext(size_t size, void *opaque,
                               void (*free)(void *opaque, void *buf));
 
@@ -31,5 +37,7 @@ void ff_refstruct_unref(void *bufp);
 void *ff_refstruct_ref(const void *buf);
 
 void ff_refstruct_replace(void *dstp, const void *src);
+
+int ff_refstruct_is_writable(const void *buf);
 
 #endif /* AVCODEC_REFSTRUCT_H */
