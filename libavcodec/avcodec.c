@@ -40,6 +40,7 @@
 #include "encode.h"
 #include "frame_thread_encoder.h"
 #include "internal.h"
+#include "refstruct.h"
 #include "thread.h"
 
 int avcodec_default_execute(AVCodecContext *c, int (*func)(AVCodecContext *c2, void *arg2), void *arg, int *ret, int count, int size)
@@ -472,7 +473,7 @@ av_cold int avcodec_close(AVCodecContext *avctx)
         av_frame_free(&avci->in_frame);
         av_frame_free(&avci->recon_frame);
 
-        av_buffer_unref(&avci->pool);
+        ff_refstruct_unref(&avci->pool);
 
         if (avctx->hwaccel && avctx->hwaccel->uninit)
             avctx->hwaccel->uninit(avctx);
