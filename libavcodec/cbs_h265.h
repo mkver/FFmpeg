@@ -681,9 +681,7 @@ typedef struct CodedBitstreamH265Context {
 
     // All currently available parameter sets.  These are updated when
     // any parameter set NAL unit is read/written with this context.
-    AVBufferRef *vps_ref[HEVC_MAX_VPS_COUNT];
-    AVBufferRef *sps_ref[HEVC_MAX_SPS_COUNT];
-    AVBufferRef *pps_ref[HEVC_MAX_PPS_COUNT];
+    // These parameter sets are refcounted via the refstruct-API.
     H265RawVPS *vps[HEVC_MAX_VPS_COUNT];
     H265RawSPS *sps[HEVC_MAX_SPS_COUNT];
     H265RawPPS *pps[HEVC_MAX_PPS_COUNT];
@@ -691,6 +689,7 @@ typedef struct CodedBitstreamH265Context {
     // The currently active parameter sets.  These are updated when any
     // NAL unit refers to the relevant parameter set.  These pointers
     // must also be present in the arrays above.
+    // These pointers are non-ownership pointers.
     const H265RawVPS *active_vps;
     const H265RawSPS *active_sps;
     const H265RawPPS *active_pps;

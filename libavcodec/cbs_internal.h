@@ -91,8 +91,8 @@ typedef const struct CodedBitstreamUnitTypeDescriptor {
         } ref;
 
         struct {
-            void (*content_free)(void *opaque, uint8_t *data);
-            int  (*content_clone)(AVBufferRef **ref, CodedBitstreamUnit *unit);
+            void (*content_free)(void *opaque, void *content);
+            int  (*content_clone)(void **new_content, CodedBitstreamUnit *unit);
         } complex;
     } type;
 } CodedBitstreamUnitTypeDescriptor;
