@@ -40,6 +40,7 @@
 #include "hevc_sei.h"
 #include "hevcdsp.h"
 #include "h274.h"
+#include "refstruct.h"
 #include "threadframe.h"
 #include "videodsp.h"
 
@@ -410,8 +411,6 @@ typedef struct HEVCFrame {
     int poc;
     struct HEVCFrame *collocated_ref;
 
-    AVBufferRef *tab_mvf_buf;
-    AVBufferRef *rpl_tab_buf;
     RefPicListTab *rpl;
     int nb_rpl_elems;
 
@@ -512,8 +511,8 @@ typedef struct HEVCContext {
     HEVCSEI sei;
     struct AVMD5 *md5_ctx;
 
-    AVBufferPool *tab_mvf_pool;
-    AVBufferPool *rpl_tab_pool;
+    FFRefStructPool *tab_mvf_pool;
+    FFRefStructPool *rpl_tab_pool;
 
     ///< candidate references for the current frame
     RefPicList rps[5];
