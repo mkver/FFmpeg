@@ -110,18 +110,18 @@ typedef struct H264Picture {
 
     AVFrame *f_grain;
 
-    AVBufferRef *qscale_table_buf;
+    /* The *_base pointers are refcounted via the refstruct-API. */
+    int8_t *qscale_table_base;
     int8_t *qscale_table;
 
-    AVBufferRef *motion_val_buf[2];
+    int16_t (*motion_val_base[2])[2];
     int16_t (*motion_val[2])[2];
 
-    AVBufferRef *mb_type_buf;
+    uint32_t *mb_type_base;
     uint32_t *mb_type;
 
     void *hwaccel_picture_private; ///< hardware accelerator private data
 
-    AVBufferRef *ref_index_buf[2];
     int8_t *ref_index[2];
 
     int field_poc[2];       ///< top/bottom POC
@@ -545,10 +545,10 @@ typedef struct H264Context {
 
     H264SEIContext sei;
 
-    AVBufferPool *qscale_table_pool;
-    AVBufferPool *mb_type_pool;
-    AVBufferPool *motion_val_pool;
-    AVBufferPool *ref_index_pool;
+    struct FFRefStructPool *qscale_table_pool;
+    struct FFRefStructPool *mb_type_pool;
+    struct FFRefStructPool *motion_val_pool;
+    struct FFRefStructPool *ref_index_pool;
     int ref2frm[MAX_SLICES][2][64];     ///< reference to frame number lists, used in the loop filter, the first 2 are for -2,-1
 } H264Context;
 

@@ -49,6 +49,7 @@
 #include "mpegutils.h"
 #include "profiles.h"
 #include "rectangle.h"
+#include "refstruct.h"
 #include "thread.h"
 #include "threadframe.h"
 
@@ -149,10 +150,10 @@ void ff_h264_free_tables(H264Context *h)
     av_freep(&h->mb2b_xy);
     av_freep(&h->mb2br_xy);
 
-    av_buffer_pool_uninit(&h->qscale_table_pool);
-    av_buffer_pool_uninit(&h->mb_type_pool);
-    av_buffer_pool_uninit(&h->motion_val_pool);
-    av_buffer_pool_uninit(&h->ref_index_pool);
+    ff_refstruct_pool_uninit(&h->qscale_table_pool);
+    ff_refstruct_pool_uninit(&h->mb_type_pool);
+    ff_refstruct_pool_uninit(&h->motion_val_pool);
+    ff_refstruct_pool_uninit(&h->ref_index_pool);
 
 #if CONFIG_ERROR_RESILIENCE
     av_freep(&h->er.mb_index2xy);
