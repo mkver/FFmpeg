@@ -21,6 +21,8 @@
 
 #include <stddef.h>
 
+typedef struct FFRefStructPool FFRefStructPool;
+
 #define FF_REFSTRUCT_FLAG_NO_ZEROING (1 << 0)
 
 void *ff_refstruct_alloc_ext(size_t size, unsigned flags, void *opaque,
@@ -37,5 +39,18 @@ void *ff_refstruct_ref(void *data);
 void ff_refstruct_replace(void *dstp, const void *src);
 
 int ff_refstruct_is_writable(const void *data);
+
+FFRefStructPool *ff_refstruct_pool_alloc(size_t size, unsigned flags);
+
+FFRefStructPool *ff_refstruct_pool_alloc_ext(size_t size, unsigned flags,
+                                             void *opaque,
+                                             int (*init)(void *opaque, void *buf),
+                                             void (*reset)(void *opaque, void *buf),
+                                             void (*free_entry)(void *opaque, void *buf),
+                                             void (*free)(void *opaque));
+
+void *ff_refstruct_pool_get(FFRefStructPool *pool);
+
+void ff_refstruct_pool_uninit(FFRefStructPool **pool);
 
 #endif /* AVCODEC_REFSTRUCT_H */
