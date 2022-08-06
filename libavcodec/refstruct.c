@@ -156,8 +156,11 @@ struct FFRefStructPool {
     void (*reset)(void *opaque, void *buf);
     void (*free_entry)(void *opaque, void *buf);
     void (*free)(void *opaque);
+
+    unsigned pool_flags;
+    unsigned entry_flags;
+
     int uninited;
-    unsigned flags;
     /* The number of outstanding entries not in available_entries. */
     atomic_uintptr_t refcount;
     /* This is a linked list of available entries;
@@ -224,7 +227,7 @@ void *ff_refstruct_pool_get(FFRefStructPool *pool)
 
     if (!ret) {
         RefCount *ref;
-        ret = ff_refstruct_alloc_ext(pool->size, pool->flags,
+        ret = ff_refstruct_alloc_ext(pool->size, pool->entry_flags,
                                      pool, pool_release_entry);
         if (!ret)
             return NULL;
@@ -240,6 +243,8 @@ void *ff_refstruct_pool_get(FFRefStructPool *pool)
         }
     }
     atomic_fetch_add_explicit(&pool->refcount, 1, memory_order_relaxed);
+    if (pool->pool_flags & FF_REFSTRUCT_POOL_FLAG_ZERO_EVERY_TIME)
+        memset(ret, 0, pool->size);
     return ret;
 }
 
@@ -296,7 +301,14 @@ FFRefStructPool *ff_refstruct_pool_alloc_ext(size_t size, unsigned flags,
     pool->reset  = reset;
     pool->free_entry = free_entry;
     pool->free   = free;
-    pool->flags  = flags;
+    pool->pool_flags = flags;
+#define ALL_ENTRY_FLAGS FF_REFSTRUCT_FLAG_NO_ZEROING
+    pool->entry_flags = flags & ALL_ENTRY_FLAGS;
+    if (flags & FF_REFSTRUCT_POOL_FLAG_ZERO_EVERY_TIME) {
+        // We will zero the buffer before every use, so zeroing
+        // upon allocating the buffer is unnecessary.
+        pool->entry_flags |= FF_REFSTRUCT_FLAG_NO_ZEROING;
+    }
 
     atomic_init(&pool->refcount, 1);
 

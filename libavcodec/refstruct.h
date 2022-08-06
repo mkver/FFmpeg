@@ -40,6 +40,8 @@ void ff_refstruct_replace(void *dstp, const void *src);
 
 int ff_refstruct_is_writable(const void *data);
 
+#define FF_REFSTRUCT_POOL_FLAG_ZERO_EVERY_TIME  (1 << 16)
+
 FFRefStructPool *ff_refstruct_pool_alloc(size_t size, unsigned flags);
 
 FFRefStructPool *ff_refstruct_pool_alloc_ext(size_t size, unsigned flags,
