@@ -64,7 +64,8 @@ typedef struct VP9mvrefPair {
 
 typedef struct VP9Frame {
     ThreadFrame tf;
-    AVBufferRef *extradata;
+    /* Refcounted via the refstruct-API */
+    void *extradata;
     uint8_t *segmentation_map;
     VP9mvrefPair *mv;
     int uses_2pass;
