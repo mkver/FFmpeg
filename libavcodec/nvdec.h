@@ -44,15 +44,16 @@
 typedef struct NVDECFrame {
     unsigned int idx;
     unsigned int ref_idx;
-    AVBufferRef *idx_ref;
-    AVBufferRef *ref_idx_ref;
+    /* These two pointers are refcounted via the refstruct-API. */
+    unsigned int *idx_ref;
+    unsigned int *ref_idx_ref;
     AVBufferRef *decoder_ref;
 } NVDECFrame;
 
 typedef struct NVDECContext {
     CUVIDPICPARAMS pic_params;
 
-    AVBufferPool *decoder_pool;
+    struct FFRefStructPool *decoder_pool;
 
     AVBufferRef  *decoder_ref;
 
