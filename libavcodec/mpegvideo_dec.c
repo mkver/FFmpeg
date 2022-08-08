@@ -117,12 +117,11 @@ int ff_mpeg_update_thread_context(AVCodecContext *dst,
 #define UPDATE_PICTURE(pic)\
 do {\
     ff_mpeg_unref_picture(s->avctx, &s->pic);\
-    if (s1->pic.f && s1->pic.f->buf[0])\
+    if (s1->pic.f && s1->pic.f->buf[0]) {\
         ret = ff_mpeg_ref_picture(s->avctx, &s->pic, &s1->pic);\
-    else\
-        ret = ff_update_picture_tables(&s->pic, &s1->pic);\
-    if (ret < 0)\
-        return ret;\
+        if (ret < 0)\
+            return ret;\
+    }\
 } while (0)
 
     UPDATE_PICTURE(current_picture);
@@ -201,10 +200,6 @@ int ff_mpv_common_frame_size_change(MpegEncContext *s)
 
     ff_mpv_free_context_frame(s);
 
-    if (s->picture)
-        for (int i = 0; i < MAX_PICTURE_COUNT; i++)
-            s->picture[i].needs_realloc = 1;
-
     s->last_picture_ptr         =
     s->next_picture_ptr         =
     s->current_picture_ptr      = NULL;
@@ -244,6 +239,7 @@ static int alloc_picture(MpegEncContext *s, Picture *pic)
 {
     return ff_alloc_picture(s->avctx, pic, &s->me, &s->sc, 0, 0,
                             s->chroma_x_shift, s->chroma_y_shift, s->out_format,
+                            &s->buffer_pools,
                             s->mb_stride, s->mb_width, s->mb_height, s->b8_stride,
                             &s->linesize, &s->uvlinesize);
 }
@@ -291,8 +287,7 @@ int ff_mpv_frame_start(MpegEncContext *s, AVCodecContext *avctx)
     for (int i = 0; i < MAX_PICTURE_COUNT; i++) {
         if (!s->picture[i].reference ||
             (&s->picture[i] != s->last_picture_ptr &&
-             &s->picture[i] != s->next_picture_ptr &&
-             !s->picture[i].needs_realloc)) {
+             &s->picture[i] != s->next_picture_ptr)) {
             ff_mpeg_unref_picture(s->avctx, &s->picture[i]);
         }
     }

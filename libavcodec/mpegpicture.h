@@ -23,6 +23,7 @@
 
 #include <stdint.h>
 
+#include "libavutil/buffer.h"
 #include "libavutil/frame.h"
 
 #include "avcodec.h"
@@ -39,6 +40,14 @@ typedef struct ScratchpadContext {
     uint8_t *obmc_scratchpad;
     uint8_t *b_scratchpad;        ///< scratchpad used for writing into write only buffers
 } ScratchpadContext;
+
+typedef struct BufferPoolContext {
+    AVBufferPool *mbskip_table_pool;
+    AVBufferPool *qscale_table_pool;
+    AVBufferPool *mb_type_pool;
+    AVBufferPool *motion_val_pool;
+    AVBufferPool *ref_index_pool;
+} BufferPoolContext;
 
 /**
  * Picture.
@@ -71,7 +80,6 @@ typedef struct Picture {
     int field_picture;          ///< whether or not the picture was encoded in separate fields
 
     int b_frame_score;
-    int needs_realloc;          ///< Picture needs to be reallocated (eg due to a frame size change)
 
     int reference;
     int shared;
@@ -87,6 +95,7 @@ typedef struct Picture {
 int ff_alloc_picture(AVCodecContext *avctx, Picture *pic, MotionEstContext *me,
                      ScratchpadContext *sc, int shared, int encoding,
                      int chroma_x_shift, int chroma_y_shift, int out_format,
+                     BufferPoolContext *pools,
                      int mb_stride, int mb_width, int mb_height, int b8_stride,
                      ptrdiff_t *linesize, ptrdiff_t *uvlinesize);
 
@@ -97,7 +106,6 @@ int ff_mpeg_ref_picture(AVCodecContext *avctx, Picture *dst, Picture *src);
 void ff_mpeg_unref_picture(AVCodecContext *avctx, Picture *picture);
 
 void ff_mpv_picture_free(AVCodecContext *avctx, Picture *pic);
-int ff_update_picture_tables(Picture *dst, const Picture *src);
 
 int ff_find_unused_picture(AVCodecContext *avctx, Picture *picture, int shared);
 
