@@ -37,13 +37,13 @@ static void av_noinline free_picture_tables(Picture *pic)
     pic->alloc_mb_width  =
     pic->alloc_mb_height = 0;
 
-    av_buffer_unref(&pic->mbskip_table_buf);
-    av_buffer_unref(&pic->qscale_table_buf);
-    av_buffer_unref(&pic->mb_type_buf);
+    ff_refstruct_unref(&pic->mbskip_table);
+    ff_refstruct_unref(&pic->qscale_table_base);
+    ff_refstruct_unref(&pic->mb_type_base);
 
     for (int i = 0; i < 2; i++) {
-        av_buffer_unref(&pic->motion_val_buf[i]);
-        av_buffer_unref(&pic->ref_index_buf[i]);
+        ff_refstruct_unref(&pic->motion_val_base[i]);
+        ff_refstruct_unref(&pic->ref_index[i]);
     }
 }
 
@@ -126,18 +126,18 @@ static int handle_pic_linesizes(AVCodecContext *avctx, Picture *pic,
 static int alloc_picture_tables(BufferPoolContext *pools, Picture *pic,
                                 int mb_stride, int mb_width, int mb_height)
 {
-#define GET_BUFFER(name, idx_suffix) do { \
-    pic->name ## _buf idx_suffix = av_buffer_pool_get(pools->name ## _pool); \
-    if (!pic->name ## _buf idx_suffix) \
+#define GET_BUFFER(name, buf_suffix, idx_suffix) do { \
+    pic->name ## buf_suffix idx_suffix = ff_refstruct_pool_get(pools->name ## _pool); \
+    if (!pic->name ## buf_suffix idx_suffix) \
         return AVERROR(ENOMEM); \
 } while (0)
-    GET_BUFFER(mbskip_table,);
-    GET_BUFFER(qscale_table,);
-    GET_BUFFER(mb_type,);
+    GET_BUFFER(mbskip_table,,);
+    GET_BUFFER(qscale_table, _base,);
+    GET_BUFFER(mb_type, _base,);
     if (pools->motion_val_pool) {
         for (int i = 0; i < 2; i++) {
-            GET_BUFFER(motion_val, [i]);
-            GET_BUFFER(ref_index,  [i]);
+            GET_BUFFER(motion_val, _base, [i]);
+            GET_BUFFER(ref_index,, [i]);
         }
     }
 #undef GET_BUFFER
@@ -158,7 +158,7 @@ int ff_alloc_picture(AVCodecContext *avctx, Picture *pic, MotionEstContext *me,
                      int mb_stride, int mb_width, int mb_height,
                      ptrdiff_t *linesize, ptrdiff_t *uvlinesize)
 {
-    int i, ret;
+    int ret;
 
     if (handle_pic_linesizes(avctx, pic, me, sc,
                              *linesize, *uvlinesize) < 0)
@@ -172,19 +172,12 @@ int ff_alloc_picture(AVCodecContext *avctx, Picture *pic, MotionEstContext *me,
     if (ret < 0)
         goto fail;
 
-    pic->mbskip_table = pic->mbskip_table_buf->data;
-    pic->qscale_table = pic->qscale_table_buf->data + 2 * mb_stride + 1;
-    pic->mb_type      = (uint32_t*)pic->mb_type_buf->data + 2 * mb_stride + 1;
+    pic->qscale_table = pic->qscale_table_base + 2 * mb_stride + 1;
+    pic->mb_type      = pic->mb_type_base      + 2 * mb_stride + 1;
 
-    if (pic->motion_val_buf[0]) {
-        for (i = 0; i < 2; i++) {
-            pic->motion_val[i] = (int16_t (*)[2])pic->motion_val_buf[i]->data + 4;
-            pic->ref_index[i]  = pic->ref_index_buf[i]->data;
-            /* FIXME: The output of H.263 with OBMC depends upon
-             * the earlier content of the buffer; therefore we
-             * reset it here. */
-            memset(pic->motion_val_buf[i]->data, 0, pic->motion_val_buf[i]->size);
-        }
+    if (pic->motion_val_base[0]) {
+        for (int i = 0; i < 2; i++)
+            pic->motion_val[i] = pic->motion_val_base[i] + 4;
     }
 
     return 0;
@@ -215,36 +208,24 @@ void ff_mpeg_unref_picture(Picture *pic)
     pic->coded_picture_number   = 0;
 }
 
-static int update_picture_tables(Picture *dst, const Picture *src)
+static void update_picture_tables(Picture *dst, const Picture *src)
 {
-    int i, ret;
-
-    ret  = av_buffer_replace(&dst->mbskip_table_buf, src->mbskip_table_buf);
-    ret |= av_buffer_replace(&dst->qscale_table_buf, src->qscale_table_buf);
-    ret |= av_buffer_replace(&dst->mb_type_buf,      src->mb_type_buf);
-    for (i = 0; i < 2; i++) {
-        ret |= av_buffer_replace(&dst->motion_val_buf[i], src->motion_val_buf[i]);
-        ret |= av_buffer_replace(&dst->ref_index_buf[i],  src->ref_index_buf[i]);
+    ff_refstruct_replace(&dst->mbskip_table, src->mbskip_table);
+    ff_refstruct_replace(&dst->qscale_table_base, src->qscale_table_base);
+    ff_refstruct_replace(&dst->mb_type_base,      src->mb_type_base);
+    for (int i = 0; i < 2; i++) {
+        ff_refstruct_replace(&dst->motion_val_base[i], src->motion_val_base[i]);
+        ff_refstruct_replace(&dst->ref_index[i],  src->ref_index[i]);
     }
 
-    if (ret < 0) {
-        free_picture_tables(dst);
-        return ret;
-    }
-
-    dst->mbskip_table  = src->mbskip_table;
     dst->qscale_table  = src->qscale_table;
     dst->mb_type       = src->mb_type;
-    for (i = 0; i < 2; i++) {
+    for (int i = 0; i < 2; i++)
         dst->motion_val[i] = src->motion_val[i];
-        dst->ref_index[i]  = src->ref_index[i];
-    }
 
     dst->alloc_mb_width  = src->alloc_mb_width;
     dst->alloc_mb_height = src->alloc_mb_height;
     dst->alloc_mb_stride = src->alloc_mb_stride;
-
-    return 0;
 }
 
 int ff_mpeg_ref_picture(Picture *dst, Picture *src)
@@ -260,9 +241,7 @@ int ff_mpeg_ref_picture(Picture *dst, Picture *src)
     if (ret < 0)
         goto fail;
 
-    ret = update_picture_tables(dst, src);
-    if (ret < 0)
-        goto fail;
+    update_picture_tables(dst, src);
 
     ff_refstruct_replace(&dst->hwaccel_picture_private,
                           src->hwaccel_picture_private);

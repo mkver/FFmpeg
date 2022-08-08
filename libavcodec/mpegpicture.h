@@ -23,7 +23,6 @@
 
 #include <stdint.h>
 
-#include "libavutil/buffer.h"
 #include "libavutil/frame.h"
 
 #include "avcodec.h"
@@ -42,11 +41,11 @@ typedef struct ScratchpadContext {
 } ScratchpadContext;
 
 typedef struct BufferPoolContext {
-    AVBufferPool *mbskip_table_pool;
-    AVBufferPool *qscale_table_pool;
-    AVBufferPool *mb_type_pool;
-    AVBufferPool *motion_val_pool;
-    AVBufferPool *ref_index_pool;
+    struct FFRefStructPool *mbskip_table_pool;
+    struct FFRefStructPool *qscale_table_pool;
+    struct FFRefStructPool *mb_type_pool;
+    struct FFRefStructPool *motion_val_pool;
+    struct FFRefStructPool *ref_index_pool;
 } BufferPoolContext;
 
 /**
@@ -56,19 +55,17 @@ typedef struct Picture {
     struct AVFrame *f;
     ThreadFrame tf;
 
-    AVBufferRef *qscale_table_buf;
+    int8_t *qscale_table_base;
     int8_t *qscale_table;
 
-    AVBufferRef *motion_val_buf[2];
+    int16_t (*motion_val_base[2])[2];
     int16_t (*motion_val[2])[2];
 
-    AVBufferRef *mb_type_buf;
+    uint32_t *mb_type_base;
     uint32_t *mb_type;          ///< types and macros are defined in mpegutils.h
 
-    AVBufferRef *mbskip_table_buf;
     uint8_t *mbskip_table;
 
-    AVBufferRef *ref_index_buf[2];
     int8_t *ref_index[2];
 
     int alloc_mb_width;         ///< mb_width used to allocate tables
