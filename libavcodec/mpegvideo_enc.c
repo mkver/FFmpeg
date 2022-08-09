@@ -1156,11 +1156,8 @@ static int load_input_picture(MpegEncContext *s, const AVFrame *pic_arg)
         ff_dlog(s->avctx, "%d %d %"PTRDIFF_SPECIFIER" %"PTRDIFF_SPECIFIER"\n", pic_arg->linesize[0],
                 pic_arg->linesize[1], s->linesize, s->uvlinesize);
 
-        i = ff_find_unused_picture(s->avctx, s->picture, direct);
-        if (i < 0)
-            return i;
+        pic = ff_get_unused_picture(s->avctx, s->picture);
 
-        pic = &s->picture[i];
         pic->reference = 3;
 
         if (direct) {
@@ -1598,11 +1595,7 @@ no_output_pic:
             // input is a shared pix, so we can't modify it -> allocate a new
             // one & ensure that the shared one is reuseable
 
-            Picture *pic;
-            int i = ff_find_unused_picture(s->avctx, s->picture, 0);
-            if (i < 0)
-                return i;
-            pic = &s->picture[i];
+            Picture *pic = ff_get_unused_picture(s->avctx, s->picture);
 
             pic->reference = s->reordered_input_picture[0]->reference;
             if (alloc_picture(s, pic, 0) < 0) {
