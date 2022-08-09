@@ -266,7 +266,7 @@ static void gray_frame(AVFrame *frame)
 int ff_mpv_frame_start(MpegEncContext *s, AVCodecContext *avctx)
 {
     Picture *pic;
-    int idx, ret;
+    int ret;
 
     s->mb_skipped = 0;
 
@@ -307,12 +307,7 @@ int ff_mpv_frame_start(MpegEncContext *s, AVCodecContext *avctx)
         // (maybe it was set before reading the header)
         pic = s->current_picture_ptr;
     } else {
-        idx = ff_find_unused_picture(s->avctx, s->picture, 0);
-        if (idx < 0) {
-            av_log(s->avctx, AV_LOG_ERROR, "no frame buffer available\n");
-            return idx;
-        }
-        pic = &s->picture[idx];
+        pic = ff_get_unused_picture(s->avctx, s->picture);
     }
 
     pic->reference = 0;
@@ -371,12 +366,7 @@ int ff_mpv_frame_start(MpegEncContext *s, AVCodecContext *avctx)
                    "warning: first frame is no keyframe\n");
 
         /* Allocate a dummy frame */
-        idx = ff_find_unused_picture(s->avctx, s->picture, 0);
-        if (idx < 0) {
-            av_log(s->avctx, AV_LOG_ERROR, "no frame buffer available\n");
-            return idx;
-        }
-        s->last_picture_ptr = &s->picture[idx];
+        s->last_picture_ptr = ff_get_unused_picture(s->avctx, s->picture);
 
         s->last_picture_ptr->reference    = 3;
         s->last_picture_ptr->f->key_frame = 0;
@@ -413,12 +403,7 @@ int ff_mpv_frame_start(MpegEncContext *s, AVCodecContext *avctx)
     if ((!s->next_picture_ptr || !s->next_picture_ptr->f->buf[0]) &&
         s->pict_type == AV_PICTURE_TYPE_B) {
         /* Allocate a dummy frame */
-        idx = ff_find_unused_picture(s->avctx, s->picture, 0);
-        if (idx < 0) {
-            av_log(s->avctx, AV_LOG_ERROR, "no frame buffer available\n");
-            return idx;
-        }
-        s->next_picture_ptr = &s->picture[idx];
+        s->next_picture_ptr = ff_get_unused_picture(s->avctx, s->picture);
 
         s->next_picture_ptr->reference   = 3;
         s->next_picture_ptr->f->key_frame = 0;
