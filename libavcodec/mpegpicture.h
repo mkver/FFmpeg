@@ -105,6 +105,6 @@ void ff_mpeg_unref_picture(Picture *picture);
 
 void ff_mpv_picture_free(Picture *pic);
 
-int ff_find_unused_picture(AVCodecContext *avctx, Picture *picture, int shared);
+Picture *ff_get_unused_picture(void *logctx, Picture picture[]);
 
 #endif /* AVCODEC_MPEGPICTURE_H */

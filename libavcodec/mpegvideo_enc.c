@@ -1121,7 +1121,7 @@ static int load_input_picture(MpegEncContext *s, const AVFrame *pic_arg)
 {
     Picture *pic = NULL;
     int64_t pts;
-    int i, display_picture_number = 0, ret;
+    int display_picture_number = 0, ret;
     int encoding_delay = s->max_b_frames ? s->max_b_frames
                                          : (s->low_delay ? 0 : 1);
     int flush_offset = 1;
@@ -1172,11 +1172,10 @@ static int load_input_picture(MpegEncContext *s, const AVFrame *pic_arg)
         ff_dlog(s->avctx, "%d %d %"PTRDIFF_SPECIFIER" %"PTRDIFF_SPECIFIER"\n", pic_arg->linesize[0],
                 pic_arg->linesize[1], s->linesize, s->uvlinesize);
 
-        i = ff_find_unused_picture(s->avctx, s->picture, direct);
-        if (i < 0)
-            return i;
+        pic = ff_get_unused_picture(s->avctx, s->picture);
+        if (!pic)
+            return AVERROR(ENOMEM);
 
-        pic = &s->picture[i];
         pic->reference = 3;
 
         if (direct) {
@@ -1606,12 +1605,9 @@ no_output_pic:
         if (s->reordered_input_picture[0]->shared || s->avctx->rc_buffer_size) {
             // input is a shared pix, so we can't modify it -> allocate a new
             // one & ensure that the shared one is reuseable
-
-            Picture *pic;
-            int i = ff_find_unused_picture(s->avctx, s->picture, 0);
-            if (i < 0)
-                return i;
-            pic = &s->picture[i];
+            Picture *pic = ff_get_unused_picture(s->avctx, s->picture);
+            if (!pic)
+                return AVERROR(ENOMEM);
 
             pic->reference = s->reordered_input_picture[0]->reference;
             ret = alloc_picture(s, pic);
