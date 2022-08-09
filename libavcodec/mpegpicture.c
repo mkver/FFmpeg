@@ -341,14 +341,14 @@ fail:
     return ret;
 }
 
-int ff_find_unused_picture(AVCodecContext *avctx, Picture *picture, int shared)
+Picture *ff_get_unused_picture(void *logctx, Picture picture[])
 {
     for (int i = 0; i < MAX_PICTURE_COUNT; i++) {
         if (!picture[i].f->buf[0])
-            return i;
+            return &picture[i];
     }
 
-    av_log(avctx, AV_LOG_FATAL,
+    av_log(logctx, AV_LOG_FATAL,
            "Internal error, picture buffer overflow\n");
     /* We could return -1, but the codec would crash trying to draw into a
      * non-existing frame anyway. This is safer than waiting for a random crash.
@@ -362,7 +362,7 @@ int ff_find_unused_picture(AVCodecContext *avctx, Picture *picture, int shared)
      * interpolated/MC frames, anything else is a bug in the codec ...
      */
     abort();
-    return -1;
+    return NULL;
 }
 
 void av_cold ff_mpv_picture_free(AVCodecContext *avctx, Picture *pic)
