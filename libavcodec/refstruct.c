@@ -20,6 +20,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "config.h"
+
 #include "internal.h"
 #include "refstruct.h"
 
@@ -59,10 +61,11 @@ typedef struct RefCount {
      */
     atomic_uintptr_t  refcount;
     FFRefStructOpaque opaque;
-    void (*free_cb)(FFRefStructOpaque opaque, void *obj);
+    FFRefStructUnrefCB free_cb;
     void (*free)(void *ref);
 
 #if REFSTRUCT_CHECKED
+    unsigned flags;
     uint64_t cookie;
 #endif
 } RefCount;
@@ -85,7 +88,7 @@ static void *get_userdata(void *buf)
 }
 
 static void refcount_init(RefCount *ref, FFRefStructOpaque opaque,
-                          void (*free_cb)(FFRefStructOpaque opaque, void *obj))
+                          unsigned flags, FFRefStructUnrefCB free_cb)
 {
     atomic_init(&ref->refcount, 1);
     ref->opaque  = opaque;
@@ -94,11 +97,12 @@ static void refcount_init(RefCount *ref, FFRefStructOpaque opaque,
 
 #if REFSTRUCT_CHECKED
     ref->cookie  = REFSTRUCT_COOKIE;
+    ref->flags   = flags;
 #endif
 }
 
 void *ff_refstruct_alloc_ext_c(size_t size, unsigned flags, FFRefStructOpaque opaque,
-                               void (*free_cb)(FFRefStructOpaque opaque, void *obj))
+                               FFRefStructUnrefCB free_cb)
 {
     void *buf, *obj;
 
@@ -107,7 +111,7 @@ void *ff_refstruct_alloc_ext_c(size_t size, unsigned flags, FFRefStructOpaque op
     buf = av_malloc(size + REFCOUNT_OFFSET);
     if (!buf)
         return NULL;
-    refcount_init(buf, opaque, free_cb);
+    refcount_init(buf, opaque, flags, free_cb);
     obj = get_userdata(buf);
     if (!(flags & FF_REFSTRUCT_FLAG_NO_ZEROING))
         memset(obj, 0, size);
@@ -131,9 +135,31 @@ void ff_refstruct_unref(void *objp)
     memcpy(objp, &(void *){ NULL }, sizeof(obj));
 
     ref = get_refcount(obj);
+    ff_assert(!(ref->flags & FF_REFSTRUCT_FLAG_DYNAMIC_OPAQUE));
     if (atomic_fetch_sub_explicit(&ref->refcount, 1, memory_order_acq_rel) == 1) {
-        if (ref->free_cb)
-            ref->free_cb(ref->opaque, obj);
+        if (ref->free_cb.unref)
+            ref->free_cb.unref(ref->opaque, obj);
+        ref->free(ref);
+    }
+
+    return;
+}
+
+void ff_refstruct_unref_ext_c(FFRefStructOpaque opaque, void *objp)
+{
+    void *obj;
+    RefCount *ref;
+
+    memcpy(&obj, objp, sizeof(obj));
+    if (!obj)
+        return;
+    memcpy(objp, &(void *){ NULL }, sizeof(obj));
+
+    ref = get_refcount(obj);
+    ff_assert(ref->flags & FF_REFSTRUCT_FLAG_DYNAMIC_OPAQUE);
+    if (atomic_fetch_sub_explicit(&ref->refcount, 1, memory_order_acq_rel) == 1) {
+        if (ref->free_cb.unref_ext)
+            ref->free_cb.unref_ext(opaque, ref->opaque, obj);
         ref->free(ref);
     }
 
@@ -187,7 +213,7 @@ struct FFRefStructPool {
     size_t size;
     FFRefStructOpaque opaque;
     int  (*init_cb)(FFRefStructOpaque opaque, void *obj);
-    void (*reset_cb)(FFRefStructOpaque opaque, void *obj);
+    FFRefStructUnrefCB reset_cb;
     void (*free_entry_cb)(FFRefStructOpaque opaque, void *obj);
     void (*free_cb)(FFRefStructOpaque opaque);
 
@@ -247,17 +273,26 @@ static void pool_reset_entry(FFRefStructOpaque opaque, void *entry)
 {
     FFRefStructPool *pool = opaque.nc;
 
-    pool->reset_cb(pool->opaque, entry);
+    pool->reset_cb.unref(pool->opaque, entry);
 }
 
-static int refstruct_pool_get_ext(void *datap, FFRefStructPool *pool)
+static void pool_reset_entry_ext(FFRefStructOpaque opaque,
+                                 FFRefStructOpaque initial_opaque,
+                                 void *entry)
+{
+    FFRefStructPool *pool = initial_opaque.nc;
+
+    pool->reset_cb.unref_ext(opaque, pool->opaque, entry);
+}
+
+static int refstruct_pool_get_ext(void *objp, FFRefStructPool *pool)
 {
     void *ret = NULL;
 
-    memcpy(datap, &(void *){ NULL }, sizeof(void*));
+    memcpy(objp, &(void *){ NULL }, sizeof(void*));
 
     ff_mutex_lock(&pool->mutex);
-    av_assert1(!pool->uninited);
+    ff_assert(!pool->uninited);
     if (pool->available_entries) {
         RefCount *ref = pool->available_entries;
         ret = get_userdata(ref);
@@ -269,8 +304,13 @@ static int refstruct_pool_get_ext(void *datap, FFRefStructPool *pool)
 
     if (!ret) {
         RefCount *ref;
-        ret = ff_refstruct_alloc_ext(pool->size, pool->entry_flags, pool,
-                                     pool->reset_cb ? pool_reset_entry : NULL);
+#define CB_INIT(suffix) ((FFRefStructUnrefCB) { .unref ## suffix = pool->reset_cb.unref ## suffix ? \
+                                                                   pool_reset_entry ## suffix : NULL })
+        ret = ff_refstruct_alloc_ext_c(pool->size, pool->entry_flags,
+                                       (FFRefStructOpaque){ .nc = pool },
+                                       (pool->pool_flags & FF_REFSTRUCT_FLAG_DYNAMIC_OPAQUE) ?
+                                       CB_INIT(_ext) : CB_INIT());
+#undef CB_INIT
         if (!ret)
             return AVERROR(ENOMEM);
         ref = get_refcount(ret);
@@ -279,7 +319,7 @@ static int refstruct_pool_get_ext(void *datap, FFRefStructPool *pool)
             int err = pool->init_cb(pool->opaque, ret);
             if (err < 0) {
                 if (pool->pool_flags & FF_REFSTRUCT_POOL_FLAG_RESET_ON_INIT_ERROR)
-                    pool->reset_cb(pool->opaque, ret);
+                    pool->reset_cb.unref(pool->opaque, ret);
                 if (pool->pool_flags & FF_REFSTRUCT_POOL_FLAG_FREE_ON_INIT_ERROR)
                     pool->free_entry_cb(pool->opaque, ret);
                 av_free(ref);
@@ -292,7 +332,7 @@ static int refstruct_pool_get_ext(void *datap, FFRefStructPool *pool)
     if (pool->pool_flags & FF_REFSTRUCT_POOL_FLAG_ZERO_EVERY_TIME)
         memset(ret, 0, pool->size);
 
-    memcpy(datap, &ret, sizeof(ret));
+    memcpy(objp, &ret, sizeof(ret));
 
     return 0;
 }
@@ -317,7 +357,7 @@ static void refstruct_pool_uninit(FFRefStructOpaque unused, void *obj)
     RefCount *entry;
 
     ff_mutex_lock(&pool->mutex);
-    av_assert1(!pool->uninited);
+    ff_assert(!pool->uninited);
     pool->uninited = 1;
     entry = pool->available_entries;
     pool->available_entries = NULL;
@@ -338,7 +378,7 @@ FFRefStructPool *ff_refstruct_pool_alloc(size_t size, unsigned flags)
 FFRefStructPool *ff_refstruct_pool_alloc_ext_c(size_t size, unsigned flags,
                                                FFRefStructOpaque opaque,
                                                int  (*init_cb)(FFRefStructOpaque opaque, void *obj),
-                                               void (*reset_cb)(FFRefStructOpaque opaque, void *obj),
+                                               FFRefStructUnrefCB reset_cb,
                                                void (*free_entry_cb)(FFRefStructOpaque opaque, void *obj),
                                                void (*free_cb)(FFRefStructOpaque opaque))
 {
@@ -356,10 +396,15 @@ FFRefStructPool *ff_refstruct_pool_alloc_ext_c(size_t size, unsigned flags,
     pool->reset_cb      = reset_cb;
     pool->free_entry_cb = free_entry_cb;
     pool->free_cb       = free_cb;
-#define COMMON_FLAGS FF_REFSTRUCT_POOL_FLAG_NO_ZEROING
+#define COMMON_FLAGS (FF_REFSTRUCT_POOL_FLAG_NO_ZEROING | FF_REFSTRUCT_POOL_FLAG_DYNAMIC_OPAQUE)
     pool->entry_flags   = flags & COMMON_FLAGS;
+    // Dynamic opaque and resetting-on-init-error are incompatible
+    // (there is no dynamic opaque available in ff_refstruct_pool_get()).
+    ff_assert(!(flags & FF_REFSTRUCT_POOL_FLAG_DYNAMIC_OPAQUE &&
+                flags & FF_REFSTRUCT_POOL_FLAG_RESET_ON_INIT_ERROR));
     // Filter out nonsense combinations to avoid checks later.
-    if (!pool->reset_cb)
+    if (flags & FF_REFSTRUCT_POOL_FLAG_RESET_ON_INIT_ERROR &&
+        !pool->reset_cb.unref)
         flags &= ~FF_REFSTRUCT_POOL_FLAG_RESET_ON_INIT_ERROR;
     if (!pool->free_entry_cb)
         flags &= ~FF_REFSTRUCT_POOL_FLAG_FREE_ON_INIT_ERROR;
