@@ -26,7 +26,7 @@
 typedef struct RefCount {
     atomic_uintptr_t refcount;
     void *opaque;
-    void (*free)(void *opaque, void *data);
+    FFRefStructFreeCB free_cb;
     int no_auto_free; ///< used by the FFRefStructPool to reuse the buffers
 } RefCount;
 
@@ -51,16 +51,16 @@ static void *get_userdata(void *buf)
     return (char*)buf + REFCOUNT_OFFSET;
 }
 
-static void refcount_init(RefCount *ref, void *opaque, void (*free)(void *opaque, void *data))
+static void refcount_init(RefCount *ref, void *opaque, FFRefStructFreeCB free_cb)
 {
     atomic_init(&ref->refcount, 1);
     ref->opaque = opaque;
-    ref->free   = free;
+    ref->free_cb = free_cb;
     ref->no_auto_free = 0;
 }
 
-void *ff_refstruct_alloc_ext(size_t size, unsigned flags, void *opaque,
-                             void (*free)(void *opaque, void *data))
+void *ff_refstruct_alloc_ext2(size_t size, unsigned flags, void *opaque,
+                              FFRefStructFreeCB free_cb)
 {
     void *buf, *data;
 
@@ -69,7 +69,7 @@ void *ff_refstruct_alloc_ext(size_t size, unsigned flags, void *opaque,
     buf = av_malloc(size + REFCOUNT_OFFSET);
     if (!buf)
         return NULL;
-    refcount_init(buf, opaque, free);
+    refcount_init(buf, opaque, free_cb);
     data = get_userdata(buf);
     if (!(flags & FF_REFSTRUCT_FLAG_NO_ZEROING))
         memset(data, 0, size);
@@ -97,8 +97,32 @@ void ff_refstruct_unref(void *datap)
         /* ref->free below might already free ref in case the pool API is in use,
          * so we have to read the flag now to avoid use-after-free. */
         int to_free = !ref->no_auto_free;
-        if (ref->free)
-            ref->free(ref->opaque, data);
+        if (ref->free_cb.free)
+            ref->free_cb.free(ref->opaque, data);
+        if (to_free)
+            av_free(ref);
+    }
+
+    return;
+}
+
+void ff_refstruct_unref_ext(void *opaque, void *datap)
+{
+    void *data;
+    RefCount *ref;
+
+    memcpy(&data, datap, sizeof(data));
+    if (!data)
+        return;
+    memcpy(datap, &(void *){ NULL }, sizeof(data));
+
+    ref = get_refcount(data);
+    if (atomic_fetch_sub_explicit(&ref->refcount, 1, memory_order_acq_rel) == 1) {
+        /* ref->free below might already free ref in case the pool API is in use,
+         * so we have to read the flag now to avoid use-after-free. */
+        int to_free = !ref->no_auto_free;
+        if (ref->free_cb.free_ext)
+            ref->free_cb.free_ext(opaque, ref->opaque, data);
         if (to_free)
             av_free(ref);
     }
@@ -153,7 +177,7 @@ struct FFRefStructPool {
     size_t size;
     void *opaque;
     int (*init)(void *opaque, void *buf);
-    void (*reset)(void *opaque, void *buf);
+    FFRefStructPoolResetCB reset_cb;
     void (*free_entry)(void *opaque, void *buf);
     void (*free)(void *opaque);
 
@@ -187,13 +211,9 @@ static void pool_free_entry(FFRefStructPool *pool, void *entry)
     av_free(get_refcount(entry));
 }
 
-static void pool_release_entry(void *opaque, void *entry)
+static void pool_readd_entry(FFRefStructPool *pool, void *entry)
 {
-    FFRefStructPool *pool = opaque;
     RefCount *ref = get_refcount(entry);
-
-    if (pool->reset)
-        pool->reset(pool->opaque, entry);
 
     pthread_mutex_lock(&pool->mutex);
     if (!pool->uninited) {
@@ -208,6 +228,26 @@ static void pool_release_entry(void *opaque, void *entry)
 
     if (atomic_fetch_sub_explicit(&pool->refcount, 1, memory_order_acq_rel) == 1)
         pool_free(pool);
+}
+
+static void pool_release_entry_ext(void *opaque, void *initial_opaque, void *entry)
+{
+    FFRefStructPool *pool = initial_opaque;
+
+    if (pool->reset_cb.reset_ext)
+        pool->reset_cb.reset_ext(opaque, pool->opaque, entry);
+
+    pool_readd_entry(pool, entry);
+}
+
+static void pool_release_entry(void *opaque, void *entry)
+{
+    FFRefStructPool *pool = opaque;
+
+    if (pool->reset_cb.reset)
+        pool->reset_cb.reset(pool->opaque, entry);
+
+    pool_readd_entry(pool, entry);
 }
 
 void *ff_refstruct_pool_get(FFRefStructPool *pool)
@@ -227,8 +267,10 @@ void *ff_refstruct_pool_get(FFRefStructPool *pool)
 
     if (!ret) {
         RefCount *ref;
-        ret = ff_refstruct_alloc_ext(pool->size, pool->entry_flags,
-                                     pool, pool_release_entry);
+        ret = ff_refstruct_alloc_ext2(pool->size, pool->entry_flags, pool,
+                                      (pool->entry_flags & FF_REFSTRUCT_FLAG_DYNAMIC_OPAQUE)     ?
+                                      (FFRefStructFreeCB) { .free_ext = pool_release_entry_ext } :
+                                      (FFRefStructFreeCB) { .free = pool_release_entry });
         if (!ret)
             return NULL;
         ref = get_refcount(ret);
@@ -282,12 +324,12 @@ FFRefStructPool *ff_refstruct_pool_alloc(size_t size, unsigned flags)
     return ff_refstruct_pool_alloc_ext(size, flags, NULL, NULL, NULL, NULL, NULL);
 }
 
-FFRefStructPool *ff_refstruct_pool_alloc_ext(size_t size, unsigned flags,
-                                             void *opaque,
-                                             int (*init)(void *opaque, void *buf),
-                                             void (*reset)(void *opaque, void *buf),
-                                             void (*free_entry)(void *opaque, void *buf),
-                                             void (*free)(void *opaque))
+FFRefStructPool *ff_refstruct_pool_alloc_ext2(size_t size, unsigned flags,
+                                              void *opaque,
+                                              int (*init)(void *opaque, void *buf),
+                                              FFRefStructPoolResetCB reset_cb,
+                                              void (*free_entry)(void *opaque, void *buf),
+                                              void (*free)(void *opaque))
 {
     FFRefStructPool *pool = av_mallocz(sizeof(*pool));
     int err;
@@ -298,7 +340,7 @@ FFRefStructPool *ff_refstruct_pool_alloc_ext(size_t size, unsigned flags,
     pool->size   = size;
     pool->opaque = opaque;
     pool->init   = init;
-    pool->reset  = reset;
+    pool->reset_cb = reset_cb;
     pool->free_entry = free_entry;
     pool->free   = free;
     pool->pool_flags = flags;
@@ -309,6 +351,8 @@ FFRefStructPool *ff_refstruct_pool_alloc_ext(size_t size, unsigned flags,
         // upon allocating the buffer is unnecessary.
         pool->entry_flags |= FF_REFSTRUCT_FLAG_NO_ZEROING;
     }
+    if (flags & FF_REFSTRUCT_POOL_FLAG_DYNAMIC_OPAQUE)
+        pool->entry_flags |= FF_REFSTRUCT_FLAG_DYNAMIC_OPAQUE;
 
     atomic_init(&pool->refcount, 1);
 
