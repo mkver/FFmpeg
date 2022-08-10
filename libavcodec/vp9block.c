@@ -23,7 +23,6 @@
 
 #include "libavutil/avassert.h"
 
-#include "threadframe.h"
 #include "vp89_rac.h"
 #include "vp9.h"
 #include "vp9data.h"
@@ -108,12 +107,12 @@ static void decode_mode(VP9TileData *td)
                 vpx_rac_get_prob_branchy(td->c,
                     s->s.h.segmentation.pred_prob[s->above_segpred_ctx[col] +
                                     td->left_segpred_ctx[row7]]))) {
-        if (!s->s.h.errorres && s->s.frames[REF_FRAME_SEGMAP].segmentation_map) {
+        if (!s->s.h.errorres && s->s.frames[REF_FRAME_SEGMAP]) {
             int pred = 8, x;
-            uint8_t *refsegmap = s->s.frames[REF_FRAME_SEGMAP].segmentation_map;
+            const uint8_t *refsegmap = s->s.frames[REF_FRAME_SEGMAP]->segmentation_map;
 
-            if (!s->s.frames[REF_FRAME_SEGMAP].uses_2pass)
-                ff_thread_await_progress(&s->s.frames[REF_FRAME_SEGMAP].tf, row >> 3, 0);
+            if (!s->s.frames[REF_FRAME_SEGMAP]->uses_2pass)
+                ff_thread_progress_await(&s->s.frames[REF_FRAME_SEGMAP]->progress, row >> 3);
             for (y = 0; y < h4; y++) {
                 int idx_base = (y + row) * 8 * s->sb_cols + col;
                 for (x = 0; x < w4; x++)
@@ -136,7 +135,7 @@ static void decode_mode(VP9TileData *td)
     }
     if (s->s.h.segmentation.enabled &&
         (s->s.h.segmentation.update_map || s->s.h.keyframe || s->s.h.intraonly)) {
-        setctx_2d(&s->s.frames[CUR_FRAME].segmentation_map[row * 8 * s->sb_cols + col],
+        setctx_2d(&s->s.frames[CUR_FRAME]->segmentation_map[row * 8 * s->sb_cols + col],
                   bw4, bh4, 8 * s->sb_cols, b->seg_id);
     }
 
@@ -776,7 +775,7 @@ static void decode_mode(VP9TileData *td)
     // FIXME kinda ugly
     for (y = 0; y < h4; y++) {
         int x, o = (row + y) * s->sb_cols * 8 + col;
-        VP9mvrefPair *mv = &s->s.frames[CUR_FRAME].mv[o];
+        VP9mvrefPair *mv = &s->s.frames[CUR_FRAME]->mv[o];
 
         if (b->intra) {
             for (x = 0; x < w4; x++) {
@@ -1270,7 +1269,7 @@ void ff_vp9_decode_block(VP9TileData *td, int row, int col,
     int bytesperpixel = s->bytesperpixel;
     int w4 = ff_vp9_bwh_tab[1][bs][0], h4 = ff_vp9_bwh_tab[1][bs][1], lvl;
     int emu[2];
-    AVFrame *f = s->s.frames[CUR_FRAME].tf.f;
+    AVFrame *f = s->s.frames[CUR_FRAME]->f;
 
     td->row = row;
     td->row7 = row & 7;

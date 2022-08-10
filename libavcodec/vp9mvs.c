@@ -137,14 +137,14 @@ static void find_ref_mvs(VP9TileData *td,
     } while (0)
 
         if (row > 0) {
-            VP9mvrefPair *mv = &s->s.frames[CUR_FRAME].mv[(row - 1) * s->sb_cols * 8 + col];
+            const VP9mvrefPair *mv = &s->s.frames[CUR_FRAME]->mv[(row - 1) * s->sb_cols * 8 + col];
             if (mv->ref[0] == ref)
                 RETURN_MV(s->above_mv_ctx[2 * col + (sb & 1)][0]);
             else if (mv->ref[1] == ref)
                 RETURN_MV(s->above_mv_ctx[2 * col + (sb & 1)][1]);
         }
         if (col > td->tile_col_start) {
-            VP9mvrefPair *mv = &s->s.frames[CUR_FRAME].mv[row * s->sb_cols * 8 + col - 1];
+            const VP9mvrefPair *mv = &s->s.frames[CUR_FRAME]->mv[row * s->sb_cols * 8 + col - 1];
             if (mv->ref[0] == ref)
                 RETURN_MV(td->left_mv_ctx[2 * row7 + (sb >> 1)][0]);
             else if (mv->ref[1] == ref)
@@ -161,7 +161,7 @@ static void find_ref_mvs(VP9TileData *td,
 
         if (c >= td->tile_col_start && c < s->cols &&
             r >= 0 && r < s->rows) {
-            VP9mvrefPair *mv = &s->s.frames[CUR_FRAME].mv[r * s->sb_cols * 8 + c];
+            const VP9mvrefPair *mv = &s->s.frames[CUR_FRAME]->mv[r * s->sb_cols * 8 + c];
 
             if (mv->ref[0] == ref)
                 RETURN_MV(mv->mv[0]);
@@ -172,10 +172,10 @@ static void find_ref_mvs(VP9TileData *td,
 
     // MV at this position in previous frame, using same reference frame
     if (s->s.h.use_last_frame_mvs) {
-        VP9mvrefPair *mv = &s->s.frames[REF_FRAME_MVPAIR].mv[row * s->sb_cols * 8 + col];
+        const VP9mvrefPair *mv = &s->s.frames[REF_FRAME_MVPAIR]->mv[row * s->sb_cols * 8 + col];
 
-        if (!s->s.frames[REF_FRAME_MVPAIR].uses_2pass)
-            ff_thread_await_progress(&s->s.frames[REF_FRAME_MVPAIR].tf, row >> 3, 0);
+        if (!s->s.frames[REF_FRAME_MVPAIR]->uses_2pass)
+            ff_thread_progress_await(&s->s.frames[REF_FRAME_MVPAIR]->progress, row >> 3);
         if (mv->ref[0] == ref)
             RETURN_MV(mv->mv[0]);
         else if (mv->ref[1] == ref)
@@ -197,7 +197,7 @@ static void find_ref_mvs(VP9TileData *td,
         int c = p[i][0] + col, r = p[i][1] + row;
 
         if (c >= td->tile_col_start && c < s->cols && r >= 0 && r < s->rows) {
-            VP9mvrefPair *mv = &s->s.frames[CUR_FRAME].mv[r * s->sb_cols * 8 + c];
+            const VP9mvrefPair *mv = &s->s.frames[CUR_FRAME]->mv[r * s->sb_cols * 8 + c];
 
             if (mv->ref[0] != ref && mv->ref[0] >= 0)
                 RETURN_SCALE_MV(mv->mv[0],
@@ -213,7 +213,7 @@ static void find_ref_mvs(VP9TileData *td,
 
     // MV at this position in previous frame, using different reference frame
     if (s->s.h.use_last_frame_mvs) {
-        VP9mvrefPair *mv = &s->s.frames[REF_FRAME_MVPAIR].mv[row * s->sb_cols * 8 + col];
+        const VP9mvrefPair *mv = &s->s.frames[REF_FRAME_MVPAIR]->mv[row * s->sb_cols * 8 + col];
 
         // no need to await_progress, because we already did that above
         if (mv->ref[0] != ref && mv->ref[0] >= 0)

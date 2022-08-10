@@ -227,7 +227,7 @@ static av_always_inline void intra_recon(VP9TileData *td, ptrdiff_t y_off,
     int end_y = FFMIN(2 * (s->rows - row), h4);
     int tx = 4 * s->s.h.lossless + b->tx, uvtx = b->uvtx + 4 * s->s.h.lossless;
     int uvstep1d = 1 << b->uvtx, p;
-    uint8_t *dst = td->dst[0], *dst_r = s->s.frames[CUR_FRAME].tf.f->data[0] + y_off;
+    uint8_t *dst = td->dst[0], *dst_r = s->s.frames[CUR_FRAME]->f->data[0] + y_off;
     LOCAL_ALIGNED_32(uint8_t, a_buf, [96]);
     LOCAL_ALIGNED_32(uint8_t, l, [64]);
 
@@ -242,7 +242,7 @@ static av_always_inline void intra_recon(VP9TileData *td, ptrdiff_t y_off,
             int eob = b->skip ? 0 : b->tx > TX_8X8 ? AV_RN16A(&td->eob[n]) : td->eob[n];
 
             mode = check_intra_mode(td, mode, &a, ptr_r,
-                                    s->s.frames[CUR_FRAME].tf.f->linesize[0],
+                                    s->s.frames[CUR_FRAME]->f->linesize[0],
                                     ptr, td->y_stride, l,
                                     col, x, w4, row, y, b->tx, 0, 0, 0, bytesperpixel);
             s->dsp.intra_pred[b->tx][mode](ptr, td->y_stride, l, a);
@@ -250,7 +250,7 @@ static av_always_inline void intra_recon(VP9TileData *td, ptrdiff_t y_off,
                 s->dsp.itxfm_add[tx][txtp](ptr, td->y_stride,
                                            td->block + 16 * n * bytesperpixel, eob);
         }
-        dst_r += 4 * step1d * s->s.frames[CUR_FRAME].tf.f->linesize[0];
+        dst_r += 4 * step1d * s->s.frames[CUR_FRAME]->f->linesize[0];
         dst   += 4 * step1d * td->y_stride;
     }
 
@@ -261,7 +261,7 @@ static av_always_inline void intra_recon(VP9TileData *td, ptrdiff_t y_off,
     step = 1 << (b->uvtx * 2);
     for (p = 0; p < 2; p++) {
         dst   = td->dst[1 + p];
-        dst_r = s->s.frames[CUR_FRAME].tf.f->data[1 + p] + uv_off;
+        dst_r = s->s.frames[CUR_FRAME]->f->data[1 + p] + uv_off;
         for (n = 0, y = 0; y < end_y; y += uvstep1d) {
             uint8_t *ptr = dst, *ptr_r = dst_r;
             for (x = 0; x < end_x; x += uvstep1d, ptr += 4 * uvstep1d * bytesperpixel,
@@ -271,7 +271,7 @@ static av_always_inline void intra_recon(VP9TileData *td, ptrdiff_t y_off,
                 int eob = b->skip ? 0 : b->uvtx > TX_8X8 ? AV_RN16A(&td->uveob[p][n]) : td->uveob[p][n];
 
                 mode = check_intra_mode(td, mode, &a, ptr_r,
-                                        s->s.frames[CUR_FRAME].tf.f->linesize[1],
+                                        s->s.frames[CUR_FRAME]->f->linesize[1],
                                         ptr, td->uv_stride, l, col, x, w4, row, y,
                                         b->uvtx, p + 1, s->ss_h, s->ss_v, bytesperpixel);
                 s->dsp.intra_pred[b->uvtx][mode](ptr, td->uv_stride, l, a);
@@ -279,7 +279,7 @@ static av_always_inline void intra_recon(VP9TileData *td, ptrdiff_t y_off,
                     s->dsp.itxfm_add[uvtx][DCT_DCT](ptr, td->uv_stride,
                                                     td->uvblock[p] + 16 * n * bytesperpixel, eob);
             }
-            dst_r += 4 * uvstep1d * s->s.frames[CUR_FRAME].tf.f->linesize[1];
+            dst_r += 4 * uvstep1d * s->s.frames[CUR_FRAME]->f->linesize[1];
             dst   += 4 * uvstep1d * td->uv_stride;
         }
     }
@@ -298,7 +298,7 @@ void ff_vp9_intra_recon_16bpp(VP9TileData *td, ptrdiff_t y_off, ptrdiff_t uv_off
 static av_always_inline void mc_luma_unscaled(VP9TileData *td, const vp9_mc_func (*mc)[2],
                                               uint8_t *dst, ptrdiff_t dst_stride,
                                               const uint8_t *ref, ptrdiff_t ref_stride,
-                                              const ThreadFrame *ref_frame,
+                                              const VP9Frame *ref_frame,
                                               ptrdiff_t y, ptrdiff_t x, const VP9mv *mv,
                                               int bw, int bh, int w, int h, int bytesperpixel)
 {
@@ -314,7 +314,7 @@ static av_always_inline void mc_luma_unscaled(VP9TileData *td, const vp9_mc_func
     // we use +7 because the last 7 pixels of each sbrow can be changed in
     // the longest loopfilter of the next sbrow
     th = (y + bh + 4 * !!my + 7) >> 6;
-    ff_thread_await_progress(ref_frame, FFMAX(th, 0), 0);
+    ff_thread_progress_await(&ref_frame->progress, FFMAX(th, 0));
     // The arm/aarch64 _hv filters read one more row than what actually is
     // needed, so switch to emulated edge one pixel sooner vertically
     // (!!my * 5) than horizontally (!!mx * 4).
@@ -336,7 +336,7 @@ static av_always_inline void mc_chroma_unscaled(VP9TileData *td, const vp9_mc_fu
                                                 ptrdiff_t dst_stride,
                                                 const uint8_t *ref_u, ptrdiff_t src_stride_u,
                                                 const uint8_t *ref_v, ptrdiff_t src_stride_v,
-                                                const ThreadFrame *ref_frame,
+                                                const VP9Frame *ref_frame,
                                                 ptrdiff_t y, ptrdiff_t x, const VP9mv *mv,
                                                 int bw, int bh, int w, int h, int bytesperpixel)
 {
@@ -353,7 +353,7 @@ static av_always_inline void mc_chroma_unscaled(VP9TileData *td, const vp9_mc_fu
     // we use +7 because the last 7 pixels of each sbrow can be changed in
     // the longest loopfilter of the next sbrow
     th = (y + bh + 4 * !!my + 7) >> (6 - s->ss_v);
-    ff_thread_await_progress(ref_frame, FFMAX(th, 0), 0);
+    ff_thread_progress_await(&ref_frame->progress, FFMAX(th, 0));
     // The arm/aarch64 _hv filters read one more row than what actually is
     // needed, so switch to emulated edge one pixel sooner vertically
     // (!!my * 5) than horizontally (!!mx * 4).
@@ -407,15 +407,15 @@ static av_always_inline void mc_luma_scaled(VP9TileData *td, vp9_scaled_mc_func 
                                             const vp9_mc_func (*mc)[2],
                                             uint8_t *dst, ptrdiff_t dst_stride,
                                             const uint8_t *ref, ptrdiff_t ref_stride,
-                                            const ThreadFrame *ref_frame,
+                                            const VP9Frame *ref_frame,
                                             ptrdiff_t y, ptrdiff_t x, const VP9mv *in_mv,
                                             int px, int py, int pw, int ph,
                                             int bw, int bh, int w, int h, int bytesperpixel,
                                             const uint16_t *scale, const uint8_t *step)
 {
     const VP9Context *s = td->s;
-    if (s->s.frames[CUR_FRAME].tf.f->width == ref_frame->f->width &&
-        s->s.frames[CUR_FRAME].tf.f->height == ref_frame->f->height) {
+    if (s->s.frames[CUR_FRAME]->f->width == ref_frame->f->width &&
+        s->s.frames[CUR_FRAME]->f->height == ref_frame->f->height) {
         mc_luma_unscaled(td, mc, dst, dst_stride, ref, ref_stride, ref_frame,
                          y, x, in_mv, bw, bh, w, h, bytesperpixel);
     } else {
@@ -444,7 +444,7 @@ static av_always_inline void mc_luma_scaled(VP9TileData *td, vp9_scaled_mc_func 
     // we use +7 because the last 7 pixels of each sbrow can be changed in
     // the longest loopfilter of the next sbrow
     th = (y + refbh_m1 + 4 + 7) >> 6;
-    ff_thread_await_progress(ref_frame, FFMAX(th, 0), 0);
+    ff_thread_progress_await(&ref_frame->progress, FFMAX(th, 0));
     // The arm/aarch64 _hv filters read one more row than what actually is
     // needed, so switch to emulated edge one pixel sooner vertically
     // (y + 5 >= h - refbh_m1) than horizontally (x + 4 >= w - refbw_m1).
@@ -467,15 +467,15 @@ static av_always_inline void mc_chroma_scaled(VP9TileData *td, vp9_scaled_mc_fun
                                               ptrdiff_t dst_stride,
                                               const uint8_t *ref_u, ptrdiff_t src_stride_u,
                                               const uint8_t *ref_v, ptrdiff_t src_stride_v,
-                                              const ThreadFrame *ref_frame,
+                                              const VP9Frame *ref_frame,
                                               ptrdiff_t y, ptrdiff_t x, const VP9mv *in_mv,
                                               int px, int py, int pw, int ph,
                                               int bw, int bh, int w, int h, int bytesperpixel,
                                               const uint16_t *scale, const uint8_t *step)
 {
     const VP9Context *s = td->s;
-    if (s->s.frames[CUR_FRAME].tf.f->width == ref_frame->f->width &&
-        s->s.frames[CUR_FRAME].tf.f->height == ref_frame->f->height) {
+    if (s->s.frames[CUR_FRAME]->f->width == ref_frame->f->width &&
+        s->s.frames[CUR_FRAME]->f->height == ref_frame->f->height) {
         mc_chroma_unscaled(td, mc, dst_u, dst_v, dst_stride, ref_u, src_stride_u,
                            ref_v, src_stride_v, ref_frame,
                            y, x, in_mv, bw, bh, w, h, bytesperpixel);
@@ -514,7 +514,7 @@ static av_always_inline void mc_chroma_scaled(VP9TileData *td, vp9_scaled_mc_fun
     // we use +7 because the last 7 pixels of each sbrow can be changed in
     // the longest loopfilter of the next sbrow
     th = (y + refbh_m1 + 4 + 7) >> (6 - s->ss_v);
-    ff_thread_await_progress(ref_frame, FFMAX(th, 0), 0);
+    ff_thread_progress_await(&ref_frame->progress, FFMAX(th, 0));
     // The arm/aarch64 _hv filters read one more row than what actually is
     // needed, so switch to emulated edge one pixel sooner vertically
     // (y + 5 >= h - refbh_m1) than horizontally (x + 4 >= w - refbw_m1).

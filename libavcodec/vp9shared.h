@@ -27,10 +27,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "libavutil/frame.h"
 #include "libavutil/mem_internal.h"
 
+#include "threadprogress.h"
 #include "vp9.h"
-#include "threadframe.h"
 
 enum BlockPartition {
     PARTITION_NONE,    // [ ] <-.
@@ -63,7 +64,8 @@ typedef struct VP9mvrefPair {
 } VP9mvrefPair;
 
 typedef struct VP9Frame {
-    ThreadFrame tf;
+    AVFrame *f;
+    ThreadProgress progress;
     /* Refcounted via the refstruct-API */
     void *extradata;
     uint8_t *segmentation_map;
@@ -165,11 +167,11 @@ typedef struct VP9BitstreamHeader {
 typedef struct VP9SharedContext {
     VP9BitstreamHeader h;
 
-    ThreadFrame refs[8];
+    const VP9Frame *refs[8];
 #define CUR_FRAME 0
 #define REF_FRAME_MVPAIR 1
 #define REF_FRAME_SEGMAP 2
-    VP9Frame frames[3];
+    VP9Frame *frames[3];
 } VP9SharedContext;
 
 #endif /* AVCODEC_VP9SHARED_H */

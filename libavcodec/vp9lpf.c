@@ -179,7 +179,7 @@ void ff_vp9_loopfilter_sb(AVCodecContext *avctx, VP9Filter *lflvl,
                           int row, int col, ptrdiff_t yoff, ptrdiff_t uvoff)
 {
     VP9Context *s = avctx->priv_data;
-    AVFrame *f = s->s.frames[CUR_FRAME].tf.f;
+    AVFrame *f = s->s.frames[CUR_FRAME]->f;
     uint8_t *dst = f->data[0] + yoff;
     ptrdiff_t ls_y = f->linesize[0], ls_uv = f->linesize[1];
     uint8_t (*uv_masks)[8][4] = lflvl->mask[s->ss_h | s->ss_v];

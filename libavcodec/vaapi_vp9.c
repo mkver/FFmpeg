@@ -29,7 +29,7 @@
 static VASurfaceID vaapi_vp9_surface_id(const VP9Frame *vf)
 {
     if (vf)
-        return ff_vaapi_get_surface_id(vf->tf.f);
+        return ff_vaapi_get_surface_id(vf->f);
     else
         return VA_INVALID_SURFACE;
 }
@@ -39,12 +39,12 @@ static int vaapi_vp9_start_frame(AVCodecContext          *avctx,
                                  av_unused uint32_t       size)
 {
     const VP9SharedContext *h = avctx->priv_data;
-    VAAPIDecodePicture *pic = h->frames[CUR_FRAME].hwaccel_picture_private;
+    VAAPIDecodePicture *pic = h->frames[CUR_FRAME]->hwaccel_picture_private;
     VADecPictureParameterBufferVP9 pic_param;
     const AVPixFmtDescriptor *pixdesc = av_pix_fmt_desc_get(avctx->sw_pix_fmt);
     int err, i;
 
-    pic->output_surface = vaapi_vp9_surface_id(&h->frames[CUR_FRAME]);
+    pic->output_surface = vaapi_vp9_surface_id(h->frames[CUR_FRAME]);
 
     pic_param = (VADecPictureParameterBufferVP9) {
         .frame_width                      = avctx->width,
@@ -100,8 +100,8 @@ static int vaapi_vp9_start_frame(AVCodecContext          *avctx,
     }
 
     for (i = 0; i < 8; i++) {
-        if (h->refs[i].f->buf[0])
-            pic_param.reference_frames[i] = ff_vaapi_get_surface_id(h->refs[i].f);
+        if (h->refs[i])
+            pic_param.reference_frames[i] = ff_vaapi_get_surface_id(h->refs[i]->f);
         else
             pic_param.reference_frames[i] = VA_INVALID_ID;
     }
@@ -120,7 +120,7 @@ static int vaapi_vp9_start_frame(AVCodecContext          *avctx,
 static int vaapi_vp9_end_frame(AVCodecContext *avctx)
 {
     const VP9SharedContext *h = avctx->priv_data;
-    VAAPIDecodePicture *pic = h->frames[CUR_FRAME].hwaccel_picture_private;
+    VAAPIDecodePicture *pic = h->frames[CUR_FRAME]->hwaccel_picture_private;
 
     return ff_vaapi_decode_issue(avctx, pic);
 }
@@ -130,7 +130,7 @@ static int vaapi_vp9_decode_slice(AVCodecContext *avctx,
                                   uint32_t        size)
 {
     const VP9SharedContext *h = avctx->priv_data;
-    VAAPIDecodePicture *pic = h->frames[CUR_FRAME].hwaccel_picture_private;
+    VAAPIDecodePicture *pic = h->frames[CUR_FRAME]->hwaccel_picture_private;
     VASliceParameterBufferVP9 slice_param;
     int err, i;
 

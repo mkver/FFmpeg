@@ -32,6 +32,7 @@
 #include "libavutil/thread.h"
 #include "libavutil/internal.h"
 
+#include "avcodec.h"
 #include "get_bits.h"
 #include "videodsp.h"
 #include "vp9.h"
@@ -120,7 +121,7 @@ typedef struct VP9Context {
     int w, h;
     enum AVPixelFormat pix_fmt, last_fmt, gf_fmt;
     unsigned sb_cols, sb_rows, rows, cols;
-    ThreadFrame next_refs[8];
+    const VP9Frame *next_refs[8];
 
     struct {
         uint8_t lim_lut[64];
@@ -160,6 +161,7 @@ typedef struct VP9Context {
     uint8_t mvstep[3][2];
 
     // frame specific buffer pools
+    struct FFRefStructPool *frame_pool;
     struct FFRefStructPool *frame_extradata_pool;
     int frame_extradata_pool_size;
 } VP9Context;

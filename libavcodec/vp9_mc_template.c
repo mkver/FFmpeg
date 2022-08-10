@@ -36,14 +36,14 @@ static void FN(inter_pred)(VP9TileData *td)
     const VP9Context *s = td->s;
     VP9Block *b = td->b;
     int row = td->row, col = td->col;
-    const ThreadFrame *tref1 = &s->s.refs[s->s.h.refidx[b->ref[0]]], *tref2;
+    const VP9Frame *tref1 = s->s.refs[s->s.h.refidx[b->ref[0]]], *tref2;
     const AVFrame *ref1 = tref1->f, *ref2;
     int w1 = ref1->width, h1 = ref1->height, w2, h2;
     ptrdiff_t ls_y = td->y_stride, ls_uv = td->uv_stride;
     int bytesperpixel = BYTES_PER_PIXEL;
 
     if (b->comp) {
-        tref2 = &s->s.refs[s->s.h.refidx[b->ref[1]]];
+        tref2 = s->s.refs[s->s.h.refidx[b->ref[1]]];
         ref2 = tref2->f;
         w2 = ref2->width;
         h2 = ref2->height;
