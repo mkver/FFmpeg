@@ -79,6 +79,10 @@
  * Codec supports embedded ICC profiles (AV_FRAME_DATA_ICC_PROFILE).
  */
 #define FF_CODEC_CAP_ICC_PROFILES           (1 << 9)
+/**
+ * The codec might make use of
+ */
+#define FF_CODEC_CAP_USES_PROGRESSFRAMES    (1 << 10)
 
 /**
  * FFCodec.codec_tags termination value

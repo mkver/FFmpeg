@@ -47,7 +47,9 @@
 #include "decode.h"
 #include "hwconfig.h"
 #include "internal.h"
+#include "refstruct.h"
 #include "thread.h"
+#include "threadframe_internal.h"
 
 static int apply_param_change(AVCodecContext *avctx, const AVPacket *avpkt)
 {
@@ -1585,6 +1587,31 @@ int ff_reget_buffer(AVCodecContext *avctx, AVFrame *frame, int flags)
     return ret;
 }
 
+static int progress_frame_pool_init_cb(void *opaque, void *data)
+{
+    ProgressInternal *progress = data;
+
+    progress->f = av_frame_alloc();
+    if (!progress->f)
+        return AVERROR(ENOMEM);
+    return 0;
+}
+
+static void progress_frame_pool_reset_cb(void *opaque, void *pool_opaque, void *data)
+{
+    AVCodecContext *avctx = opaque;
+    ProgressInternal *progress = data;
+
+    ff_thread_release_buffer(avctx, progress->f);
+}
+
+static void progress_frame_pool_free_entry_cb(void *opaque, void *data)
+{
+    ProgressInternal *progress = data;
+
+    av_frame_free(&progress->f);
+}
+
 int ff_decode_preinit(AVCodecContext *avctx)
 {
     AVCodecInternal *avci = avctx->internal;
@@ -1673,6 +1700,15 @@ FF_ENABLE_DEPRECATION_WARNINGS
     if (!avci->in_pkt || !avci->last_pkt_props || !avci->pkt_props)
         return AVERROR(ENOMEM);
 
+    if (ffcodec(avctx->codec)->caps_internal & FF_CODEC_CAP_USES_PROGRESSFRAMES) {
+        avci->progress_frame_pool = ff_refstruct_pool_alloc_ext2(sizeof(ProgressInternal),
+                                                                 FF_REFSTRUCT_POOL_FLAG_DYNAMIC_OPAQUE,
+                                                                 NULL, progress_frame_pool_init_cb,
+                                                                 (FFRefStructPoolResetCB){ .reset_ext = progress_frame_pool_reset_cb },
+                                                                 progress_frame_pool_free_entry_cb, NULL);
+        if (!avci->progress_frame_pool)
+            return AVERROR(ENOMEM);
+    }
     ret = decode_bsfs_init(avctx);
     if (ret < 0)
         return ret;

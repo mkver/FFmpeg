@@ -30,6 +30,11 @@ typedef struct ThreadFrame {
     struct ThreadFrameProgress *progress;
 } ThreadFrame;
 
+typedef struct ProgressFrame {
+    AVFrame *f;
+    struct ProgressInternal *progress;
+} ProgressFrame;
+
 /**
  * Notify later decoding threads when part of their reference picture is ready.
  * Call this when some part of the picture is finished decoding.
@@ -41,6 +46,7 @@ typedef struct ThreadFrame {
  * 0 for top field or frame pictures, 1 for bottom field.
  */
 void ff_thread_report_progress(ThreadFrame *f, int progress, int field);
+void ff_thread_progress_report(ProgressFrame *f, int progress);
 
 /**
  * Wait for earlier decoding threads to finish reference pictures.
@@ -55,6 +61,7 @@ void ff_thread_report_progress(ThreadFrame *f, int progress, int field);
  * 0 for top field or frame pictures, 1 for bottom field.
  */
 void ff_thread_await_progress(const ThreadFrame *f, int progress, int field);
+void ff_thread_progress_await(const ProgressFrame *f, int progress);
 
 /**
  * Wrapper around ff_get_buffer() for frame-multithreaded codecs.
@@ -68,6 +75,7 @@ void ff_thread_await_progress(const ThreadFrame *f, int progress, int field);
  *        frame threading.
  */
 int ff_thread_get_ext_buffer(AVCodecContext *avctx, ThreadFrame *f, int flags);
+int ff_thread_progress_get_buffer(AVCodecContext *avctx, ProgressFrame *f, int flags);
 
 /**
  * Unref a ThreadFrame.
@@ -79,8 +87,12 @@ int ff_thread_get_ext_buffer(AVCodecContext *avctx, ThreadFrame *f, int flags);
  * @param f The picture being released.
  */
 void ff_thread_release_ext_buffer(AVCodecContext *avctx, ThreadFrame *f);
+void ff_thread_progress_unref(AVCodecContext *avctx, ProgressFrame *f);
 
 int ff_thread_ref_frame(ThreadFrame *dst, const ThreadFrame *src);
+void ff_thread_progress_ref(ProgressFrame *dst, const ProgressFrame *src);
+void ff_thread_progress_replace(AVCodecContext *avctx,
+                                ProgressFrame *dst, const ProgressFrame *src);
 
 int ff_thread_can_start_frame(AVCodecContext *avctx);
 

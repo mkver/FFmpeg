@@ -40,6 +40,7 @@
 #include "refstruct.h"
 #include "thread.h"
 #include "threadframe.h"
+#include "threadframe_internal.h"
 #include "internal.h"
 #include "put_bits.h"
 #include "startcode.h"
@@ -908,6 +909,73 @@ int ff_thread_ref_frame(ThreadFrame *dst, const ThreadFrame *src)
     return 0;
 }
 
+static void check_progress_consistency(const ProgressFrame *f)
+{
+    av_assert1(!!f->f == !!f->progress);
+    av_assert1(!f->progress || f->progress->f == f->f);
+}
+
+static int thread_progress_get(AVCodecContext *avctx, ProgressFrame *f)
+{
+    FFRefStructPool *pool = avctx->internal->progress_frame_pool;
+
+    av_assert1(!f->f && !f->progress);
+
+    f->progress = ff_refstruct_pool_get(pool);
+    if (!f->progress)
+        return AVERROR(ENOMEM);
+
+    if (avctx->active_thread_type & FF_THREAD_FRAME) {
+        f->progress->owner[0] = f->progress->owner[1] = avctx->internal->thread_ctx;
+        atomic_init(&f->progress->progress[0], -1);
+        atomic_init(&f->progress->progress[1], -1);
+    } else
+        f->progress->owner[0] = f->progress->owner[1] = NULL;
+    f->f = f->progress->f;
+    return 0;
+}
+
+int ff_thread_progress_get_buffer(AVCodecContext *avctx, ProgressFrame *f, int flags)
+{
+    int ret;
+
+    ret = thread_progress_get(avctx, f);
+    if (ret < 0)
+        return ret;
+
+    ret = ff_thread_get_buffer(avctx, f->progress->f, flags);
+    if (ret < 0) {
+        f->f = NULL;
+        ff_refstruct_unref_ext(avctx, &f->progress);
+        return ret;
+    }
+    return 0;
+}
+
+void ff_thread_progress_ref(ProgressFrame *dst, const ProgressFrame *src)
+{
+    av_assert1(src->progress && src->f && src->f == src->progress->f);
+    av_assert1(!dst->f && !dst->progress);
+    dst->f = src->f;
+    dst->progress = ff_refstruct_ref(src->progress);
+}
+
+void ff_thread_progress_unref(AVCodecContext *avctx, ProgressFrame *f)
+{
+    check_progress_consistency(f);
+    f->f = NULL;
+    ff_refstruct_unref_ext(avctx, &f->progress);
+}
+
+void ff_thread_progress_replace(AVCodecContext *avctx,
+                                ProgressFrame *dst, const ProgressFrame *src)
+{
+    ff_thread_progress_unref(avctx, dst);
+    check_progress_consistency(src);
+    if (src->f)
+        ff_thread_progress_ref(dst, src);
+}
+
 #if !HAVE_THREADS
 
 enum AVPixelFormat ff_thread_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
@@ -948,6 +1016,14 @@ void ff_thread_report_progress(ThreadFrame *f, int progress, int field)
 }
 
 void ff_thread_await_progress(const ThreadFrame *f, int progress, int field)
+{
+}
+
+void ff_thread_progress_report(ProgressFrame *f, int n)
+{
+}
+
+void ff_thread_progress_await(const ProgressFrame *f, int n)
 {
 }
 
