@@ -3022,7 +3022,8 @@ static int hevc_frame_start(HEVCContext *s)
 
     s->ref->needs_fg = s->sei.film_grain_characteristics.present &&
         !(s->avctx->export_side_data & AV_CODEC_EXPORT_DATA_FILM_GRAIN) &&
-        !s->avctx->hwaccel;
+        !s->avctx->hwaccel &&
+        ff_h274_film_grain_params_supported(s->sei.film_grain_characteristics.model_id, s->ref->frame->format);
 
     if (s->ref->needs_fg) {
         s->ref->frame_grain->format = s->ref->frame->format;
@@ -3069,12 +3070,7 @@ static int hevc_frame_end(HEVCContext *s)
         av_assert0(out->frame_grain->buf[0] && sd);
         ret = ff_h274_apply_film_grain(out->frame_grain, out->frame, &s->h274db,
                                        (AVFilmGrainParams *) sd->data);
-
-        if (ret < 0) {
-            av_log(s->avctx, AV_LOG_WARNING, "Failed synthesizing film "
-                   "grain, ignoring: %s\n", av_err2str(ret));
-            out->needs_fg = 0;
-        }
+        av_assert1(ret >= 0);
     }
 
     return 0;
