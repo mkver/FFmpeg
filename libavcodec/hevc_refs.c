@@ -26,6 +26,7 @@
 #include "thread.h"
 #include "hevc.h"
 #include "hevcdec.h"
+#include "internal.h"
 #include "threadframe.h"
 
 void ff_hevc_unref_frame(HEVCContext *s, HEVCFrame *frame, int flags)
@@ -37,7 +38,6 @@ void ff_hevc_unref_frame(HEVCContext *s, HEVCFrame *frame, int flags)
     frame->flags &= ~flags;
     if (!frame->flags) {
         ff_thread_release_ext_buffer(s->avctx, &frame->tf);
-        ff_thread_release_buffer(s->avctx, frame->frame_grain);
         frame->needs_fg = 0;
 
         av_buffer_unref(&frame->tab_mvf_buf);
@@ -223,15 +223,22 @@ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
         if (nb_output) {
             HEVCFrame *frame = &s->DPB[min_idx];
 
-            ret = av_frame_ref(out, frame->needs_fg ? frame->frame_grain : frame->frame);
+            if (frame->needs_fg) {
+                out->format = frame->frame->format;
+                out->width  = frame->frame->width;
+                out->height = frame->frame->height;
+                if ((ret = ff_thread_get_buffer(s->avctx, out,
+                                                FF_GET_BUFFER_FLAG_PASSTHROUGH)) < 0 ||
+                    (ret = av_frame_copy_props(out, frame->frame)) < 0 ||
+                    (ret = ff_thread_ref_frame(&s->cur_output_frame, &frame->tf)) < 0)
+                    ff_thread_release_buffer(s->avctx, out);
+            } else
+                ret = av_frame_ref(out, frame->frame);
             if (frame->flags & HEVC_FRAME_FLAG_BUMPING)
                 ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT | HEVC_FRAME_FLAG_BUMPING);
             else
                 ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT);
             if (ret < 0)
-                return ret;
-
-            if (frame->needs_fg && (ret = av_frame_copy_props(out, frame->frame)) < 0)
                 return ret;
 
             if (!(s->avctx->export_side_data & AV_CODEC_EXPORT_DATA_FILM_GRAIN))

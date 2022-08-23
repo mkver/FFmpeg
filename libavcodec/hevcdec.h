@@ -400,7 +400,6 @@ typedef struct DBParams {
 
 typedef struct HEVCFrame {
     AVFrame *frame;
-    AVFrame *frame_grain;
     ThreadFrame tf;
     int needs_fg; /* 1 if grain needs to be applied by the decoder */
     MvField *tab_mvf;
@@ -593,6 +592,7 @@ typedef struct HEVCContext {
 
     AVBufferRef *rpu_buf;       ///< 0 or 1 Dolby Vision RPUs.
     DOVIContext dovi_ctx;       ///< Dolby Vision decoding context
+    ThreadFrame cur_output_frame; ///< Only set when film grain needs to be applied
 } HEVCContext;
 
 /**
