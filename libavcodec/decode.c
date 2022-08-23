@@ -1463,9 +1463,13 @@ int ff_get_buffer(AVCodecContext *avctx, AVFrame *frame, int flags)
 {
     const AVHWAccel *hwaccel = avctx->hwaccel;
     int override_dimensions = 1;
+    int user_flags = flags & 0xFFFF;
     int ret;
 
     av_assert0(av_codec_is_decoder(avctx->codec));
+
+    if (flags & FF_GET_BUFFER_FLAG_PASSTHROUGH)
+        goto get_buffer2;
 
     if (avctx->codec_type == AVMEDIA_TYPE_VIDEO) {
         if ((unsigned)avctx->width > INT_MAX - STRIDE_ALIGN ||
@@ -1514,7 +1518,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
     } else
         avctx->sw_pix_fmt = avctx->pix_fmt;
 
-    ret = avctx->get_buffer2(avctx, frame, flags);
+get_buffer2:
+    ret = avctx->get_buffer2(avctx, frame, user_flags);
     if (ret < 0)
         goto fail;
 

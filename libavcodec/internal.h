@@ -213,9 +213,17 @@ static av_always_inline float ff_exp2fi(int x) {
 }
 
 /**
+ * The caller has already set the necessary fields on the AVFrame itself;
+ * don't override them and don't set other properties.
+ */
+#define FF_GET_BUFFER_FLAG_PASSTHROUGH               (1 << 16)
+/**
  * Get a buffer for a frame. This is a wrapper around
  * AVCodecContext.get_buffer() and should be used instead calling get_buffer()
  * directly.
+ * @param flags A combination of AV_GET_BUFFER_FLAG_* and FF_GET_BUFFER_FLAG_*
+ *              values. The former will be passed through to get_buffer2,
+ *              the latter are only meant for ff_get_buffer().
  */
 int ff_get_buffer(AVCodecContext *avctx, AVFrame *frame, int flags);
 
