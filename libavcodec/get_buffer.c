@@ -284,10 +284,13 @@ int avcodec_default_get_buffer2(AVCodecContext *avctx, AVFrame *frame, int flags
     int ret;
 
     if (avctx->hw_frames_ctx) {
-        ret = av_hwframe_get_buffer(avctx->hw_frames_ctx, frame, 0);
-        frame->width  = avctx->coded_width;
-        frame->height = avctx->coded_height;
-        return ret;
+        const AVHWFramesContext *hwctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
+        if (hwctx->format == frame->format) {
+            ret = av_hwframe_get_buffer(avctx->hw_frames_ctx, frame, 0);
+            frame->width  = avctx->coded_width;
+            frame->height = avctx->coded_height;
+            return ret;
+        }
     }
 
     if ((ret = update_frame_pool(avctx, frame)) < 0)
