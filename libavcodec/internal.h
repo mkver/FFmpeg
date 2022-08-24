@@ -137,7 +137,8 @@ typedef struct AVCodecInternal {
     int draining;
 
     /**
-     * buffers for using new encode/decode API through legacy API
+     * Temporary buffers to hold newly received packets and newly decoded frames
+     * for decoding or newly received frames and newly encoded packets for encoding.
      */
     AVPacket *buffer_pkt;
     AVFrame *buffer_frame;
