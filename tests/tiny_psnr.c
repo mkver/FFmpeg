@@ -29,6 +29,14 @@
 #include "libavutil/intfloat.h"
 #include "libavutil/intreadwrite.h"
 
+enum SampleType {
+    U8,
+    S16LE,
+    S24LE,
+    F32LE,
+    F64LE,
+};
+
 #define FFMIN(a, b) ((a) > (b) ? (b) : (a))
 #define F 100
 // Needs to be divisible by all supported sizes
@@ -226,7 +234,7 @@ PSNR_FUNC(s24l, 3, int, int64_t, uint64_t, abs, print_int)
 PSNR_FUNC(f32l, 4, double, double, double, fabs, print_float)
 PSNR_FUNC(f64l, 8, double, double, double, fabs, print_float)
 
-static int run_psnr(FILE *f[2], int len, int shift, int skip_bytes)
+static int run_psnr(FILE *f[2], enum SampleType type, int shift, int skip_bytes)
 {
     uint64_t i;
     int noseek;
@@ -260,12 +268,12 @@ static int run_psnr(FILE *f[2], int len, int shift, int skip_bytes)
         fseek(f[1], skip_bytes, SEEK_CUR);
     }
 
-    switch (len) {
-    case 1: return run_psnr_u8(f);
-    case 2: return run_psnr_s16l(f);
-    case 3: return run_psnr_s24l(f);
-    case 4: return run_psnr_f32l(f);
-    case 8: return run_psnr_f64l(f);
+    switch (type) {
+    case    U8: return run_psnr_u8  (f);
+    case S16LE: return run_psnr_s16l(f);
+    case S24LE: return run_psnr_s24l(f);
+    case F32LE: return run_psnr_f32l(f);
+    case F64LE: return run_psnr_f64l(f);
     }
     return -1;
 }
@@ -273,7 +281,7 @@ static int run_psnr(FILE *f[2], int len, int shift, int skip_bytes)
 int main(int argc, char *argv[])
 {
     FILE *f[2];
-    int len = 1;
+    enum SampleType type = U8;
     int shift_first= argc < 5 ? 0 : atoi(argv[4]);
     int skip_bytes = argc < 6 ? 0 : atoi(argv[5]);
     int shift_last = shift_first + (argc < 7 ? 0 : atoi(argv[6]));
@@ -286,21 +294,26 @@ int main(int argc, char *argv[])
 
     if (argc > 3) {
         if (!strcmp(argv[3], "u8")) {
-            len = 1;
+            type = U8;
         } else if (!strcmp(argv[3], "s16")) {
-            len = 2;
+            type = S16LE;
         } else if (!strcmp(argv[3], "s24")) {
-            len = 3;
+            type = S24LE;
         } else if (!strcmp(argv[3], "f32")) {
-            len = 4;
+            type = F32LE;
         } else if (!strcmp(argv[3], "f64")) {
-            len = 8;
+            type = F64LE;
         } else {
             char *end;
-            len = strtol(argv[3], &end, 0);
+            long len = strtol(argv[3], &end, 0);
             if (*end || len < 1 || len > 3) {
                 fprintf(stderr, "Unsupported sample format: %s\nSupported: u8, s16, s24, f32, f64\n", argv[3]);
                 return 1;
+            }
+            switch (len) {
+            case 1: type = U8; break;
+            case 2: type = S16LE; break;
+            case 3: type = S24LE; break;
             }
         }
     }
@@ -319,7 +332,7 @@ int main(int argc, char *argv[])
     }
 
     for (shift = shift_first; shift <= shift_last; shift++) {
-        int psnr = run_psnr(f, len, shift, skip_bytes);
+        int psnr = run_psnr(f, type, shift, skip_bytes);
         if (psnr > max_psnr || (shift < 0 && psnr == max_psnr)) {
             max_psnr = psnr;
             max_psnr_shift = shift;
