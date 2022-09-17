@@ -1,0 +1,10 @@
+2d6d06a77f35ff6b3ab7ff4518391d1f *tests/data/fate/truehd-encode-s16-stereo.truehd
+344076 tests/data/fate/truehd-encode-s16-stereo.truehd
+37c3052496b7cf91350764062611c81c *tests/data/fate/truehd-encode-s16-stereo.out.s16le
+stddev:    0.00 PSNR:999.99 MAXDIFF:    0 bytes:   372836/   372836
+[STREAM]
+codec_name=truehd
+sample_rate=44100
+channel_layout=stereo
+bits_per_raw_sample=24
+[/STREAM]

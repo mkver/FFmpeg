@@ -1,0 +1,10 @@
+e2f3952b9c838bc39e0cee0e4a72c76f *tests/data/fate/mlp-encode-s16-4.0.mlp
+379602 tests/data/fate/mlp-encode-s16-4.0.mlp
+175a0e6a7535854635544fe5ff34eb67 *tests/data/fate/mlp-encode-s16-4.0.out.s16le
+stddev:    0.00 PSNR:999.99 MAXDIFF:    0 bytes:   761856/   761920
+[STREAM]
+codec_name=mlp
+sample_rate=48000
+channel_layout=4.0
+bits_per_raw_sample=16
+[/STREAM]

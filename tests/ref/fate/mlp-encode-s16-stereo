@@ -1,0 +1,10 @@
+a5037ddc22d4f082c2d46e326006c7b2 *tests/data/fate/mlp-encode-s16-stereo.mlp
+343924 tests/data/fate/mlp-encode-s16-stereo.mlp
+a2a9f7e82d8a6d352fdfa86038ff3fa1 *tests/data/fate/mlp-encode-s16-stereo.out.s16le
+stddev:    0.00 PSNR:999.99 MAXDIFF:    0 bytes:   372836/   372960
+[STREAM]
+codec_name=mlp
+sample_rate=44100
+channel_layout=stereo
+bits_per_raw_sample=16
+[/STREAM]
