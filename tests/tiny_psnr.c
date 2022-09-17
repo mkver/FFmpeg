@@ -31,7 +31,8 @@
 
 #define FFMIN(a, b) ((a) > (b) ? (b) : (a))
 #define F 100
-#define SIZE 2048
+// Needs to be divisible by all supported sizes
+#define SIZE (3 * 1024)
 
 uint64_t exp16_table[21] = {
            65537,
@@ -118,6 +119,16 @@ static int16_t get_s16l(uint8_t *p)
     return v.s;
 }
 
+static int32_t get_s24l(const uint8_t *p)
+{
+    union {
+        uint32_t u;
+        int32_t  s;
+    } v = { .u = AV_RL24(p) };
+    v.u <<= 8;
+    return v.s >> 8;
+}
+
 static float get_f32l(uint8_t *p)
 {
     union av_intfloat32 v;
@@ -179,10 +190,14 @@ static int run_psnr(FILE *f[2], int len, int shift, int skip_bytes)
         for (j = 0; j < FFMIN(s0, s1); j += len) {
             switch (len) {
             case 1:
-            case 2: {
+            case 2:
+            case 3: {
                 int64_t a, b;
                 int dist;
-                if (len == 2) {
+                if (len == 3) {
+                    a = get_s24l(buf[0] + j);
+                    b = get_s24l(buf[1] + j);
+                } if (len == 2) {
                     a = get_s16l(buf[0] + j);
                     b = get_s16l(buf[1] + j);
                 } else {
@@ -224,7 +239,8 @@ static int run_psnr(FILE *f[2], int len, int shift, int skip_bytes)
         i = 1;
     switch (len) {
     case 1:
-    case 2: {
+    case 2:
+    case 3: {
         uint64_t psnr;
         uint64_t dev = int_sqrt(((sse / i) * F * F) + (((sse % i) * F * F) + i / 2) / i);
         if (sse)
@@ -281,6 +297,8 @@ int main(int argc, char *argv[])
             len = 1;
         } else if (!strcmp(argv[3], "s16")) {
             len = 2;
+        } else if (!strcmp(argv[3], "s24")) {
+            len = 3;
         } else if (!strcmp(argv[3], "f32")) {
             len = 4;
         } else if (!strcmp(argv[3], "f64")) {
@@ -288,8 +306,8 @@ int main(int argc, char *argv[])
         } else {
             char *end;
             len = strtol(argv[3], &end, 0);
-            if (*end || len < 1 || len > 2) {
-                fprintf(stderr, "Unsupported sample format: %s\nSupported: u8, s16, f32, f64\n", argv[3]);
+            if (*end || len < 1 || len > 3) {
+                fprintf(stderr, "Unsupported sample format: %s\nSupported: u8, s16, s24, f32, f64\n", argv[3]);
                 return 1;
             }
         }
