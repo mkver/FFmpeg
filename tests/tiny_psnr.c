@@ -109,6 +109,11 @@ static uint64_t int_sqrt(uint64_t a)
     return ret;
 }
 
+static uint8_t get_u8(const uint8_t *p)
+{
+    return *p;
+}
+
 static int16_t get_s16l(uint8_t *p)
 {
     union {
@@ -141,17 +146,89 @@ static double get_f64l(uint8_t *p)
     return av_int2double(AV_RL64(p));
 }
 
+static int print_int(uint64_t maxdist, uint64_t sse, uint64_t nb_elems,
+                     uint64_t size0, uint64_t size1, unsigned elem_len)
+{
+    const int64_t max = (1LL << (8 * elem_len)) - 1;
+    uint64_t dev = int_sqrt(((sse / nb_elems) * F * F) + (((sse % nb_elems) * F * F) + nb_elems / 2) / nb_elems);
+    uint64_t psnr;
+
+    if (sse)
+        psnr = ((2 * log16(max << 16) + log16(nb_elems) - log16(sse)) *
+                284619LL * F + (1LL << 31)) / (1LL << 32);
+    else
+        psnr = 1000 * F - 1; // floating point free infinity :)
+
+    printf("stddev:%5d.%02d PSNR:%3d.%02d MAXDIFF:%5"PRIu64" bytes:%9"PRIu64"/%9"PRIu64"\n",
+            (int)(dev / F), (int)(dev % F),
+            (int)(psnr / F), (int)(psnr % F),
+            maxdist, size0, size1);
+    return psnr;
+}
+
+static int print_float(double maxdist_d, double sse, uint64_t nb_elems,
+                       uint64_t size0, uint64_t size1, unsigned elem_len)
+{
+    char psnr_str[64];
+    double psnr = INT_MAX;
+    double dev = sqrt(sse / nb_elems);
+    uint64_t scale = (elem_len == 4) ? (1ULL << 24) : (1ULL << 32);
+    uint64_t maxdist = maxdist_d * scale;
+
+    if (sse) {
+        psnr = 2 * log(DBL_MAX) - log(nb_elems / sse);
+        snprintf(psnr_str, sizeof(psnr_str), "%5.02f", psnr);
+    } else
+        snprintf(psnr_str, sizeof(psnr_str), "inf");
+
+    printf("stddev:%10.2f PSNR:%s MAXDIFF:%10"PRIu64" bytes:%9"PRIu64"/%9"PRIu64"\n",
+            dev * scale, psnr_str, maxdist, size0, size1);
+    return psnr;
+}
+
+#define PSNR_FUNC(suffix, elem_len, BASE_TYPE, SQUARE_TYPE, SSE_TYPE, abs_func, print_func) \
+static int run_psnr_ ## suffix(FILE *const f[2])                             \
+{                                                                            \
+    uint8_t buf[2][SIZE];                                                    \
+    uint64_t size0 = 0, size1 = 0;                                           \
+    BASE_TYPE maxdist = 0;                                                   \
+    SSE_TYPE sse = 0;                                                        \
+    uint64_t nb_elems;                                                       \
+                                                                             \
+    while (1) {                                                              \
+        int s0 = fread(buf[0], 1, SIZE, f[0]);                               \
+        int s1 = fread(buf[1], 1, SIZE, f[1]);                               \
+                                                                             \
+        for (int j = 0; j < FFMIN(s0, s1); j += elem_len) {                  \
+            BASE_TYPE a = get_ ## suffix(buf[0] + j);                        \
+            BASE_TYPE b = get_ ## suffix(buf[1] + j);                        \
+            BASE_TYPE dist = a - b;                                          \
+            dist = abs_func(dist);                                           \
+            sse += (SQUARE_TYPE)dist * dist;                                 \
+            if (dist > maxdist)                                              \
+                maxdist = dist;                                              \
+        }                                                                    \
+        size0 += s0;                                                         \
+        size1 += s1;                                                         \
+        if (s0 + s1 <= 0)                                                    \
+            break;                                                           \
+    }                                                                        \
+                                                                             \
+    nb_elems = FFMIN(size0, size1) / elem_len;                               \
+    if (!nb_elems)                                                           \
+        nb_elems = 1;                                                        \
+    return print_func(maxdist, sse, nb_elems, size0, size1, elem_len);       \
+}
+
+PSNR_FUNC(u8, 1, int, int, uint64_t, abs, print_int)
+PSNR_FUNC(s16l, 2, int, unsigned, uint64_t, abs, print_int)
+PSNR_FUNC(s24l, 3, int, int64_t, uint64_t, abs, print_int)
+PSNR_FUNC(f32l, 4, double, double, double, fabs, print_float)
+PSNR_FUNC(f64l, 8, double, double, double, fabs, print_float)
+
 static int run_psnr(FILE *f[2], int len, int shift, int skip_bytes)
 {
-    uint64_t i, j;
-    uint64_t sse = 0;
-    double sse_d = 0.0;
-    uint8_t buf[2][SIZE];
-    int64_t max    = (1LL << (8 * len)) - 1;
-    uint64_t size0   = 0;
-    uint64_t size1   = 0;
-    uint64_t maxdist = 0;
-    double maxdist_d = 0.0;
+    uint64_t i;
     int noseek;
 
     noseek = fseek(f[0], 0, SEEK_SET) ||
@@ -159,7 +236,7 @@ static int run_psnr(FILE *f[2], int len, int shift, int skip_bytes)
 
     if (!noseek) {
         for (i = 0; i < 2; i++) {
-            uint8_t *p = buf[i];
+            uint8_t p[12];
             if (fread(p, 1, 12, f[i]) != 12)
                 return -1;
             if (!memcmp(p, "RIFF", 4) &&
@@ -183,97 +260,12 @@ static int run_psnr(FILE *f[2], int len, int shift, int skip_bytes)
         fseek(f[1], skip_bytes, SEEK_CUR);
     }
 
-    for (;;) {
-        int s0 = fread(buf[0], 1, SIZE, f[0]);
-        int s1 = fread(buf[1], 1, SIZE, f[1]);
-
-        for (j = 0; j < FFMIN(s0, s1); j += len) {
-            switch (len) {
-            case 1:
-            case 2:
-            case 3: {
-                int64_t a, b;
-                int dist;
-                if (len == 3) {
-                    a = get_s24l(buf[0] + j);
-                    b = get_s24l(buf[1] + j);
-                } if (len == 2) {
-                    a = get_s16l(buf[0] + j);
-                    b = get_s16l(buf[1] + j);
-                } else {
-                    a = buf[0][j];
-                    b = buf[1][j];
-                }
-                sse += (a - b) * (a - b);
-                dist = llabs(a - b);
-                if (dist > maxdist)
-                    maxdist = dist;
-                break;
-            }
-            case 4:
-            case 8: {
-                double dist, a, b;
-                if (len == 8) {
-                    a = get_f64l(buf[0] + j);
-                    b = get_f64l(buf[1] + j);
-                } else {
-                    a = get_f32l(buf[0] + j);
-                    b = get_f32l(buf[1] + j);
-                }
-                dist = fabs(a - b);
-                sse_d += (a - b) * (a - b);
-                if (dist > maxdist_d)
-                    maxdist_d = dist;
-                break;
-            }
-            }
-        }
-        size0 += s0;
-        size1 += s1;
-        if (s0 + s1 <= 0)
-            break;
-    }
-
-    i = FFMIN(size0, size1) / len;
-    if (!i)
-        i = 1;
     switch (len) {
-    case 1:
-    case 2:
-    case 3: {
-        uint64_t psnr;
-        uint64_t dev = int_sqrt(((sse / i) * F * F) + (((sse % i) * F * F) + i / 2) / i);
-        if (sse)
-            psnr = ((2 * log16(max << 16) + log16(i) - log16(sse)) *
-                    284619LL * F + (1LL << 31)) / (1LL << 32);
-        else
-            psnr = 1000 * F - 1; // floating point free infinity :)
-
-        printf("stddev:%5d.%02d PSNR:%3d.%02d MAXDIFF:%5"PRIu64" bytes:%9"PRIu64"/%9"PRIu64"\n",
-               (int)(dev / F), (int)(dev % F),
-               (int)(psnr / F), (int)(psnr % F),
-               maxdist, size0, size1);
-        return psnr;
-        }
-    case 4:
-    case 8: {
-        char psnr_str[64];
-        double psnr = INT_MAX;
-        double dev = sqrt(sse_d / i);
-        uint64_t scale = (len == 4) ? (1ULL << 24) : (1ULL << 32);
-
-        if (sse_d) {
-            psnr = 2 * log(DBL_MAX) - log(i / sse_d);
-            snprintf(psnr_str, sizeof(psnr_str), "%5.02f", psnr);
-        } else
-            snprintf(psnr_str, sizeof(psnr_str), "inf");
-
-        maxdist = maxdist_d * scale;
-
-        printf("stddev:%10.2f PSNR:%s MAXDIFF:%10"PRIu64" bytes:%9"PRIu64"/%9"PRIu64"\n",
-               dev * scale, psnr_str, maxdist, size0, size1);
-        return psnr;
-    }
+    case 1: return run_psnr_u8(f);
+    case 2: return run_psnr_s16l(f);
+    case 3: return run_psnr_s24l(f);
+    case 4: return run_psnr_f32l(f);
+    case 8: return run_psnr_f64l(f);
     }
     return -1;
 }
