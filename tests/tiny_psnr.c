@@ -33,6 +33,7 @@ enum SampleType {
     U8,
     S16LE,
     S24LE,
+    S32LE,
     F32LE,
     F64LE,
 };
@@ -142,6 +143,11 @@ static int32_t get_s24l(const uint8_t *p)
     return v.s >> 8;
 }
 
+static int32_t get_s32l(const uint8_t *p)
+{
+    return AV_RL32(p);
+}
+
 static float get_f32l(uint8_t *p)
 {
     union av_intfloat32 v;
@@ -231,6 +237,7 @@ static int run_psnr_ ## suffix(FILE *const f[2])                             \
 PSNR_FUNC(u8, 1, int, int, uint64_t, abs, print_int)
 PSNR_FUNC(s16l, 2, int, unsigned, uint64_t, abs, print_int)
 PSNR_FUNC(s24l, 3, int, int64_t, uint64_t, abs, print_int)
+PSNR_FUNC(s32l, 4, int64_t, int64_t, uint64_t, llabs, print_int)
 PSNR_FUNC(f32l, 4, double, double, double, fabs, print_float)
 PSNR_FUNC(f64l, 8, double, double, double, fabs, print_float)
 
@@ -272,6 +279,7 @@ static int run_psnr(FILE *f[2], enum SampleType type, int shift, int skip_bytes)
     case    U8: return run_psnr_u8  (f);
     case S16LE: return run_psnr_s16l(f);
     case S24LE: return run_psnr_s24l(f);
+    case S32LE: return run_psnr_s32l(f);
     case F32LE: return run_psnr_f32l(f);
     case F64LE: return run_psnr_f64l(f);
     }
@@ -299,6 +307,8 @@ int main(int argc, char *argv[])
             type = S16LE;
         } else if (!strcmp(argv[3], "s24")) {
             type = S24LE;
+        } else if (!strcmp(argv[3], "s32")) {
+            type = S32LE;
         } else if (!strcmp(argv[3], "f32")) {
             type = F32LE;
         } else if (!strcmp(argv[3], "f64")) {
@@ -306,7 +316,7 @@ int main(int argc, char *argv[])
         } else {
             char *end;
             long len = strtol(argv[3], &end, 0);
-            if (*end || len < 1 || len > 3) {
+            if (*end || len < 1 || len > 4) {
                 fprintf(stderr, "Unsupported sample format: %s\nSupported: u8, s16, s24, f32, f64\n", argv[3]);
                 return 1;
             }
@@ -314,6 +324,7 @@ int main(int argc, char *argv[])
             case 1: type = U8; break;
             case 2: type = S16LE; break;
             case 3: type = S24LE; break;
+            case 4: type = S32LE; break;
             }
         }
     }
