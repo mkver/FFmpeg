@@ -101,7 +101,7 @@ static void h264_copy_picture_params(H264Picture *dst, const H264Picture *src)
     dst->mb_width      = src->mb_width;
     dst->mb_height     = src->mb_height;
     dst->mb_stride     = src->mb_stride;
-    dst->needs_fg      = src->needs_fg;
+    dst->fg_status     = src->fg_status;
 }
 
 int ff_h264_ref_picture(H264Context *h, H264Picture *dst, const H264Picture *src)
@@ -117,7 +117,7 @@ int ff_h264_ref_picture(H264Context *h, H264Picture *dst, const H264Picture *src
     if (ret < 0)
         goto fail;
 
-    if (src->needs_fg) {
+    if (src->fg_status != NO_FILM_GRAIN) {
         ret = av_frame_ref(dst->f_grain, src->f_grain);
         if (ret < 0)
             goto fail;
@@ -147,7 +147,7 @@ int ff_h264_replace_picture(H264Context *h, H264Picture *dst, const H264Picture 
     if (ret < 0)
         goto fail;
 
-    if (src->needs_fg) {
+    if (src->fg_status != NO_FILM_GRAIN) {
         ff_thread_release_buffer(h->avctx, dst->f_grain);
         ret = av_frame_ref(dst->f_grain, src->f_grain);
         if (ret < 0)
@@ -207,19 +207,14 @@ int ff_h264_field_end(H264Context *h, H264SliceContext *sl, int in_setup)
         if (err < 0)
             av_log(avctx, AV_LOG_ERROR,
                    "hardware accelerator failed to decode picture\n");
-    } else if (!in_setup && cur->needs_fg && (!FIELD_PICTURE(h) || !h->first_field)) {
+    } else if (!in_setup && cur->fg_status == FILM_GRAIN_APPLICABLE &&
+               (!FIELD_PICTURE(h) || !h->first_field)) {
         const AVFrameSideData *sd = av_frame_get_side_data(cur->f, AV_FRAME_DATA_FILM_GRAIN_PARAMS);
+        av_unused int ret;
 
-        err = AVERROR_INVALIDDATA;
-        if (sd) // a decoding error may have happened before the side data could be allocated
-            err = ff_h274_apply_film_grain(cur->f_grain, cur->f, &h->h274db,
-                                           (AVFilmGrainParams *) sd->data);
-        if (err < 0) {
-            av_log(h->avctx, AV_LOG_WARNING, "Failed synthesizing film "
-                   "grain, ignoring: %s\n", av_err2str(err));
-            cur->needs_fg = 0;
-            err = 0;
-        }
+        ret = ff_h274_apply_film_grain(cur->f_grain, cur->f, &h->h274db,
+                                       (AVFilmGrainParams *) sd->data);
+        av_assert1(ret >= 0);
     }
 
     if (!in_setup && !h->droppable)
