@@ -166,7 +166,7 @@ int ff_h2645_sei_to_frame(AVFrame *frame, H2645SEI *sei,
                           enum AVCodecID codec_id,
                           AVCodecContext *avctx, const H2645VUI *vui,
                           unsigned bit_depth_luma, unsigned bit_depth_chroma,
-                          int seed);
+                          int seed, int *added_film_grain_sei);
 
 int ff_h2645_sei_to_context(AVCodecContext *avctx, H2645SEI *sei);
 

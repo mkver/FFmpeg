@@ -153,7 +153,14 @@ typedef struct H264Picture {
     int recovered;          ///< picture at IDR or recovery point + recovery count
     int invalid_gap;
     int sei_recovery_frame_cnt;
-    int needs_fg;           ///< whether picture needs film grain synthesis (see `f_grain`)
+    enum {
+        /**
+         * Either film grain not present or applying not intended or impossible
+         */
+        NO_FILM_GRAIN = 0,
+        FILM_GRAIN_INTENDED, ///< film grain found and buffer has been allocated
+        FILM_GRAIN_APPLICABLE, ///< film grain buffer and side data allocated
+    } fg_status;
 
     const PPS   *pps;
 
@@ -558,6 +565,8 @@ typedef struct H264Context {
     int cur_chroma_format_idc;
     int cur_bit_depth_luma;
     int16_t slice_row[MAX_SLICES]; ///< to detect when MAX_SLICES is too low
+
+    int film_grain_warning_shown;
 
     /* original AVCodecContext dimensions, used to handle container
      * cropping */
