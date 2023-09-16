@@ -197,7 +197,7 @@ static int alloc_picture(H264Context *h, H264Picture *pic)
     if (ret < 0)
         goto fail;
 
-    if (pic->needs_fg) {
+    if (pic->fg_status != NO_FILM_GRAIN) {
         pic->f_grain->format = pic->f->format;
         pic->f_grain->width = pic->f->width;
         pic->f_grain->height = pic->f->height;
@@ -408,6 +408,8 @@ int ff_h264_update_thread_context(AVCodecContext *dst,
     h->workaround_bugs = h1->workaround_bugs;
     h->droppable       = h1->droppable;
 
+    h->film_grain_warning_shown = h1->film_grain_warning_shown;
+
     // extradata/NAL handling
     h->is_avc = h1->is_avc;
     h->nal_length_size = h1->nal_length_size;
@@ -516,8 +518,18 @@ static int h264_frame_start(H264Context *h)
     pic->f->crop_top    = h->crop_top;
     pic->f->crop_bottom = h->crop_bottom;
 
-    pic->needs_fg = h->sei.common.film_grain_characteristics.present && !h->avctx->hwaccel &&
-        !(h->avctx->export_side_data & AV_CODEC_EXPORT_DATA_FILM_GRAIN);
+    pic->fg_status = h->sei.common.film_grain_characteristics.present &&
+                     !h->avctx->hwaccel &&
+                     !(h->avctx->export_side_data & AV_CODEC_EXPORT_DATA_FILM_GRAIN) ?
+                         FILM_GRAIN_INTENDED : NO_FILM_GRAIN;
+
+    if (pic->fg_status != NO_FILM_GRAIN &&
+        !ff_h274_film_grain_params_supported(h->sei.common.film_grain_characteristics.model_id,
+                                             pic->f->format)) {
+        av_log_once(h->avctx, AV_LOG_WARNING, AV_LOG_DEBUG, &h->film_grain_warning_shown,
+                    "Unsupported film grain parameters. Ignoring film grain.\n");
+        pic->fg_status = NO_FILM_GRAIN;
+    }
 
     if ((ret = alloc_picture(h, pic)) < 0)
         return ret;
@@ -1162,6 +1174,7 @@ static int h264_export_frame_props(H264Context *h)
     H264Picture *cur = h->cur_pic_ptr;
     AVFrame *out = cur->f;
     int interlaced_frame = 0, top_field_first = 0;
+    int added_film_grain_sei = 0;
     int ret;
 
     out->flags &= ~AV_FRAME_FLAG_INTERLACED;
@@ -1245,9 +1258,16 @@ static int h264_export_frame_props(H264Context *h)
 
     ret = ff_h2645_sei_to_frame(out, &h->sei.common, AV_CODEC_ID_H264, h->avctx,
                                 &sps->vui, sps->bit_depth_luma, sps->bit_depth_chroma,
-                                cur->poc + (unsigned)(h->poc_offset << 5));
+                                cur->poc + (unsigned)(h->poc_offset << 5),
+                                &added_film_grain_sei);
     if (ret < 0)
         return ret;
+
+    // If the first field's film grain side data is later overridden
+    // in the second field, we may end up with f_grain allocated without
+    // frame side data (so no film grain can be applied).
+    if (cur->fg_status != NO_FILM_GRAIN && added_film_grain_sei)
+        cur->fg_status = FILM_GRAIN_APPLICABLE;
 
     if (h->sei.picture_timing.timecode_cnt > 0) {
         uint32_t *tc_sd;
