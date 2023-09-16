@@ -566,6 +566,17 @@ static inline const uint8_t *align_get_bits(GetBitContext *s)
     return s->buffer + (s->index >> 3);
 }
 
+#define RELOAD_IF_NEEDED(name, gb, bits, max_num)               \
+    do {                                                        \
+        if (av_builtin_constant_p((max_num) <= MIN_CACHE_BITS)  \
+            && (max_num) <= MIN_CACHE_BITS) {                   \
+                SKIP_BITS(name, gb, bits);                      \
+            } else {                                            \
+                LAST_SKIP_BITS(name, gb, bits);                 \
+                UPDATE_CACHE(name, gb);                         \
+            }                                                   \
+    } while (0)
+
 /**
  * If the vlc code is invalid and max_depth=1, then no bits will be removed.
  * If the vlc code is invalid and max_depth>1, then the number of bits removed
@@ -582,8 +593,7 @@ static inline const uint8_t *align_get_bits(GetBitContext *s)
         n     = table[index].len;                               \
                                                                 \
         if (max_depth > 1 && n < 0) {                           \
-            LAST_SKIP_BITS(name, gb, bits);                     \
-            UPDATE_CACHE(name, gb);                             \
+            RELOAD_IF_NEEDED(name, gb, bits, 2 * (bits));       \
                                                                 \
             nb_bits = -n;                                       \
                                                                 \
@@ -591,8 +601,7 @@ static inline const uint8_t *align_get_bits(GetBitContext *s)
             code  = table[index].sym;                           \
             n     = table[index].len;                           \
             if (max_depth > 2 && n < 0) {                       \
-                LAST_SKIP_BITS(name, gb, nb_bits);              \
-                UPDATE_CACHE(name, gb);                         \
+                RELOAD_IF_NEEDED(name, gb, bits, 3 * (bits));   \
                                                                 \
                 nb_bits = -n;                                   \
                                                                 \
