@@ -108,7 +108,6 @@ static inline int decode_alpha_block(const SHQContext *s, GetBitContext *gb, uin
         for ( ;; ) {
             int run, level;
 
-            UPDATE_CACHE_LE(re, gb);
             GET_VLC(run, re, gb, dc_alpha_run_vlc_le.table, ALPHA_VLC_BITS, 2);
 
             if (run < 0) break;
@@ -116,7 +115,6 @@ static inline int decode_alpha_block(const SHQContext *s, GetBitContext *gb, uin
             if (i >= 128)
                 return AVERROR_INVALIDDATA;
 
-            UPDATE_CACHE_LE(re, gb);
             GET_VLC(level, re, gb, dc_alpha_level_vlc_le.table, ALPHA_VLC_BITS, 2);
             block[i++] = level;
         }

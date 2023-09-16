@@ -850,7 +850,6 @@ static int decode_block(MJpegDecodeContext *s, int16_t *block, int component,
     i = 0;
     {OPEN_READER(re, &s->gb);
     do {
-        UPDATE_CACHE(re, &s->gb);
         GET_VLC(code, re, &s->gb, s->vlcs[1][ac_index].table, 9, 2);
 
         i += ((unsigned)code) >> 4;
@@ -914,7 +913,6 @@ static int decode_block_progressive(MJpegDecodeContext *s, int16_t *block,
     {
         OPEN_READER(re, &s->gb);
         for (i = ss; ; i++) {
-            UPDATE_CACHE(re, &s->gb);
             GET_VLC(code, re, &s->gb, s->vlcs[2][ac_index].table, 9, 2);
 
             run = ((unsigned) code) >> 4;
@@ -1010,7 +1008,6 @@ static int decode_block_refinement(MJpegDecodeContext *s, int16_t *block,
         (*EOBRUN)--;
     } else {
         for (; ; i++) {
-            UPDATE_CACHE(re, &s->gb);
             GET_VLC(code, re, &s->gb, s->vlcs[2][ac_index].table, 9, 2);
 
             if (code & 0xF) {

@@ -392,7 +392,6 @@ static av_always_inline int dnxhd_decode_dct_block(const DNXHDContext *ctx,
         }
     }
 
-    UPDATE_CACHE(bs, &row->gb);
     GET_VLC(len, bs, &row->gb, ctx->dc_vlc.table, DNXHD_DC_VLC_BITS, 1);
     if (len < 0) {
         ret = len;
@@ -409,7 +408,6 @@ static av_always_inline int dnxhd_decode_dct_block(const DNXHDContext *ctx,
 
     i = 0;
 
-    UPDATE_CACHE(bs, &row->gb);
     GET_VLC(index1, bs, &row->gb, ctx->ac_vlc.table,
             DNXHD_VLC_BITS, 2);
 
@@ -427,7 +425,6 @@ static av_always_inline int dnxhd_decode_dct_block(const DNXHDContext *ctx,
 
         if (flags & 2) {
             int run;
-            UPDATE_CACHE(bs, &row->gb);
             GET_VLC(run, bs, &row->gb, ctx->run_vlc.table,
                     DNXHD_VLC_BITS, 2);
             i += run;
@@ -448,7 +445,6 @@ static av_always_inline int dnxhd_decode_dct_block(const DNXHDContext *ctx,
 
         block[j] = (level ^ sign) - sign;
 
-        UPDATE_CACHE(bs, &row->gb);
         GET_VLC(index1, bs, &row->gb, ctx->ac_vlc.table,
                 DNXHD_VLC_BITS, 2);
     }

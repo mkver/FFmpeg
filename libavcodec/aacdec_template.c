@@ -1747,7 +1747,6 @@ static int decode_spectrum_and_dequant(AACContext *ac, INTFLOAT coef[1024],
                             int code;
                             unsigned cb_idx;
 
-                            UPDATE_CACHE(re, gb);
                             GET_VLC(code, re, gb, vlc_tab, 8, 2);
                             cb_idx = code;
 #if USE_FIXED
@@ -1770,7 +1769,6 @@ static int decode_spectrum_and_dequant(AACContext *ac, INTFLOAT coef[1024],
                             unsigned cb_idx;
                             uint32_t bits;
 
-                            UPDATE_CACHE(re, gb);
                             GET_VLC(code, re, gb, vlc_tab, 8, 2);
                             cb_idx = code;
                             nnz = cb_idx >> 8 & 15;
@@ -1794,7 +1792,6 @@ static int decode_spectrum_and_dequant(AACContext *ac, INTFLOAT coef[1024],
                             int code;
                             unsigned cb_idx;
 
-                            UPDATE_CACHE(re, gb);
                             GET_VLC(code, re, gb, vlc_tab, 8, 2);
                             cb_idx = code;
 #if USE_FIXED
@@ -1818,7 +1815,6 @@ static int decode_spectrum_and_dequant(AACContext *ac, INTFLOAT coef[1024],
                             unsigned cb_idx;
                             unsigned sign;
 
-                            UPDATE_CACHE(re, gb);
                             GET_VLC(code, re, gb, vlc_tab, 8, 2);
                             cb_idx = code;
                             nnz = cb_idx >> 8 & 15;
@@ -1851,7 +1847,6 @@ static int decode_spectrum_and_dequant(AACContext *ac, INTFLOAT coef[1024],
                             uint32_t bits;
                             int j;
 
-                            UPDATE_CACHE(re, gb);
                             GET_VLC(code, re, gb, vlc_tab, 8, 2);
                             cb_idx = code;
 

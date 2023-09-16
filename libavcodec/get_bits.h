@@ -576,6 +576,7 @@ static inline const uint8_t *align_get_bits(GetBitContext *s)
         int n, nb_bits;                                         \
         unsigned int index;                                     \
                                                                 \
+        UPDATE_CACHE(name, gb);                                 \
         index = SHOW_UBITS(name, gb, bits);                     \
         code  = table[index].sym;                               \
         n     = table[index].len;                               \
@@ -655,7 +656,6 @@ static av_always_inline int get_vlc2(GetBitContext *s, const VLCElem *table,
     int code;
 
     OPEN_READER(re, s);
-    UPDATE_CACHE(re, s);
 
     GET_VLC(code, re, s, table, bits, max_depth);
 
