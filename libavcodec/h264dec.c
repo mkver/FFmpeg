@@ -871,12 +871,15 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
 {
     int ret;
 
-    ret = av_frame_ref(dst, srcp->needs_fg ? srcp->f_grain : srcp->f);
+    ret = av_frame_ref(dst, srcp->fg_status == FILM_GRAIN_APPLICABLE ? srcp->f_grain : srcp->f);
     if (ret < 0)
         return ret;
 
-    if (srcp->needs_fg && (ret = av_frame_copy_props(dst, srcp->f)) < 0)
-        return ret;
+    if (srcp->fg_status == FILM_GRAIN_APPLICABLE) {
+        ret = av_frame_copy_props(dst, srcp->f);
+        if (ret < 0)
+            return ret;
+    }
 
     if (srcp->decode_error_flags) {
         atomic_int *decode_error = srcp->decode_error_flags;
