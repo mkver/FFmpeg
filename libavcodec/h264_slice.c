@@ -187,6 +187,7 @@ static int init_table_pools(H264Context *h)
 
 static int alloc_picture(H264Context *h, H264Picture *pic)
 {
+    H264SharedPicture *shared;
     int i, ret = 0;
 
     av_assert0(!pic->f->data[0]);
@@ -197,6 +198,12 @@ static int alloc_picture(H264Context *h, H264Picture *pic)
     if (ret < 0)
         goto fail;
 
+    shared = pic->shared = ff_refstruct_pool_get(h->shared_pic_pool);
+    if (!pic->shared) {
+        ret = AVERROR(ENOMEM);
+        goto fail;
+    }
+
     if (pic->fg_status != NO_FILM_GRAIN) {
         pic->f_grain->format = pic->f->format;
         pic->f_grain->width = pic->f->width;
@@ -206,7 +213,7 @@ static int alloc_picture(H264Context *h, H264Picture *pic)
             goto fail;
     }
 
-    ret = ff_hwaccel_frame_priv_alloc(h->avctx, &pic->hwaccel_picture_private);
+    ret = ff_hwaccel_frame_priv_alloc(h->avctx, &shared->hwaccel_picture_private);
     if (ret < 0)
         goto fail;
 
@@ -236,21 +243,22 @@ static int alloc_picture(H264Context *h, H264Picture *pic)
             goto fail;
     }
 
-    pic->qscale_table_base = ff_refstruct_pool_get(h->qscale_table_pool);
-    pic->mb_type_base      = ff_refstruct_pool_get(h->mb_type_pool);
-    if (!pic->qscale_table_base || !pic->mb_type_base)
+    shared->qscale_table_base = ff_refstruct_pool_get(h->qscale_table_pool);
+    shared->mb_type_base      = ff_refstruct_pool_get(h->mb_type_pool);
+    if (!shared->qscale_table_base || !shared->mb_type_base)
         goto fail;
 
-    pic->mb_type      = pic->mb_type_base + 2 * h->mb_stride + 1;
-    pic->qscale_table = pic->qscale_table_base + 2 * h->mb_stride + 1;
+    pic->mb_type      = shared->mb_type_base + 2 * h->mb_stride + 1;
+    pic->qscale_table = shared->qscale_table_base + 2 * h->mb_stride + 1;
 
     for (i = 0; i < 2; i++) {
-        pic->motion_val_base[i] = ff_refstruct_pool_get(h->motion_val_pool);
-        pic->ref_index[i]       = ff_refstruct_pool_get(h->ref_index_pool);
-        if (!pic->motion_val_base[i] || !pic->ref_index[i])
+        shared->motion_val_base[i] = ff_refstruct_pool_get(h->motion_val_pool);
+        shared->ref_index[i]       = ff_refstruct_pool_get(h->ref_index_pool);
+        if (!shared->motion_val_base[i] || !shared->ref_index[i])
             goto fail;
 
-        pic->motion_val[i] = pic->motion_val_base[i] + 4;
+        pic->motion_val[i] = shared->motion_val_base[i] + 4;
+        pic->ref_index[i]  = shared->ref_index[i];
     }
 
     pic->pps = ff_refstruct_ref_c(h->ps.pps);

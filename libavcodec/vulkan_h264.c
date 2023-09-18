@@ -60,7 +60,7 @@ static int vk_h264_fill_pict(AVCodecContext *avctx, H264Picture **ref_src,
                              int dpb_slot_index)
 {
     FFVulkanDecodeContext *dec = avctx->internal->hwaccel_priv_data;
-    H264VulkanDecodePicture *hp = pic->hwaccel_picture_private;
+    H264VulkanDecodePicture *hp = pic->shared->hwaccel_picture_private;
     FFVulkanDecodePicture *vkpic = &hp->vp;
 
     int err = ff_vk_decode_prepare_frame(dec, pic->f, vkpic, is_current,
@@ -365,7 +365,7 @@ static int vk_h264_start_frame(AVCodecContext          *avctx,
     H264Context *h = avctx->priv_data;
     H264Picture *pic = h->cur_pic_ptr;
     FFVulkanDecodeContext *dec = avctx->internal->hwaccel_priv_data;
-    H264VulkanDecodePicture *hp = pic->hwaccel_picture_private;
+    H264VulkanDecodePicture *hp = pic->shared->hwaccel_picture_private;
     FFVulkanDecodePicture *vp = &hp->vp;
 
     if (!dec->session_params) {
@@ -482,7 +482,7 @@ static int vk_h264_decode_slice(AVCodecContext *avctx,
 {
     const H264Context *h = avctx->priv_data;
     const H264SliceContext *sl  = &h->slice_ctx[0];
-    H264VulkanDecodePicture *hp = h->cur_pic_ptr->hwaccel_picture_private;
+    H264VulkanDecodePicture *hp = h->cur_pic_ptr->shared->hwaccel_picture_private;
     FFVulkanDecodePicture *vp = &hp->vp;
 
     int err = ff_vk_decode_add_slice(avctx, vp, data, size, 1,
@@ -505,7 +505,7 @@ static int vk_h264_end_frame(AVCodecContext *avctx)
 {
     const H264Context *h = avctx->priv_data;
     H264Picture *pic = h->cur_pic_ptr;
-    H264VulkanDecodePicture *hp = pic->hwaccel_picture_private;
+    H264VulkanDecodePicture *hp = pic->shared->hwaccel_picture_private;
     FFVulkanDecodeContext *dec = avctx->internal->hwaccel_priv_data;
     FFVulkanDecodePicture *vp = &hp->vp;
     FFVulkanDecodePicture *rvp[H264_MAX_PICTURE_COUNT] = { 0 };
@@ -528,7 +528,7 @@ static int vk_h264_end_frame(AVCodecContext *avctx)
 
     for (int i = 0; i < vp->decode_info.referenceSlotCount; i++) {
         H264Picture *rp = hp->ref_src[i];
-        H264VulkanDecodePicture *rhp = rp->hwaccel_picture_private;
+        H264VulkanDecodePicture *rhp = rp->shared->hwaccel_picture_private;
 
         rvp[i] = &rhp->vp;
         rav[i] = hp->ref_src[i]->f;
