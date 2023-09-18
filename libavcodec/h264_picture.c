@@ -39,22 +39,16 @@
 void ff_h264_unref_picture(H264Picture *pic)
 {
     int off = offsetof(H264Picture, f_grain) + sizeof(pic->f_grain);
-    int i;
 
     if (!pic->f || !pic->f->buf[0])
         return;
 
     ff_thread_release_ext_buffer(&pic->tf);
     av_frame_unref(pic->f_grain);
-    ff_refstruct_unref(&pic->hwaccel_picture_private);
 
-    ff_refstruct_unref(&pic->qscale_table_base);
-    ff_refstruct_unref(&pic->mb_type_base);
+    ff_refstruct_unref(&pic->shared);
+
     ff_refstruct_unref(&pic->pps);
-    for (i = 0; i < 2; i++) {
-        ff_refstruct_unref(&pic->motion_val_base[i]);
-        ff_refstruct_unref(&pic->ref_index[i]);
-    }
     ff_refstruct_unref(&pic->decode_error_flags);
 
     memset((uint8_t*)pic + off, 0, sizeof(*pic) - off);
@@ -62,25 +56,18 @@ void ff_h264_unref_picture(H264Picture *pic)
 
 static void h264_copy_picture_params(H264Picture *dst, const H264Picture *src)
 {
-    ff_refstruct_replace(&dst->qscale_table_base, src->qscale_table_base);
-    ff_refstruct_replace(&dst->mb_type_base,      src->mb_type_base);
+    ff_refstruct_replace(&dst->shared, src->shared);
     ff_refstruct_replace(&dst->pps, src->pps);
-
-    for (int i = 0; i < 2; i++) {
-        ff_refstruct_replace(&dst->motion_val_base[i], src->motion_val_base[i]);
-        ff_refstruct_replace(&dst->ref_index[i],       src->ref_index[i]);
-    }
-
-    ff_refstruct_replace(&dst->hwaccel_picture_private,
-                          src->hwaccel_picture_private);
 
     ff_refstruct_replace(&dst->decode_error_flags, src->decode_error_flags);
 
     dst->qscale_table = src->qscale_table;
     dst->mb_type      = src->mb_type;
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 2; i++) {
         dst->motion_val[i] = src->motion_val[i];
+        dst->ref_index[i]  = src->ref_index[i];
+    }
 
     for (int i = 0; i < 2; i++)
         dst->field_poc[i] = src->field_poc[i];
