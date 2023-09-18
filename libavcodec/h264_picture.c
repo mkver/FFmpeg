@@ -38,24 +38,27 @@
 
 void ff_h264_unref_picture(H264Context *h, H264Picture *pic)
 {
-    int off = offsetof(H264Picture, f_grain) + sizeof(pic->f_grain);
+    int off = offsetof(H264Picture, tf) + sizeof(pic->tf);
 
     if (!pic->f || !pic->f->buf[0])
         return;
 
     ff_thread_release_ext_buffer(h->avctx, &pic->tf);
-    ff_thread_release_buffer(h->avctx, pic->f_grain);
 
-    ff_refstruct_unref(&pic->shared);
+    ff_refstruct_unref_ext(h->avctx, &pic->shared);
 
     ff_refstruct_unref(&pic->pps);
 
     memset((uint8_t*)pic + off, 0, sizeof(*pic) - off);
 }
 
-static void h264_copy_picture_params(H264Picture *dst, const H264Picture *src)
+static void h264_copy_picture_params(H264Context *h, H264Picture *dst,
+                                     const H264Picture *src)
 {
-    ff_refstruct_replace(&dst->shared, src->shared);
+    av_assert1(dst != src);
+    ff_refstruct_unref_ext(h->avctx, &dst->shared);
+    dst->shared = ff_refstruct_ref(src->shared);
+
     ff_refstruct_replace(&dst->pps, src->pps);
 
     dst->qscale_table = src->qscale_table;
@@ -101,13 +104,7 @@ int ff_h264_ref_picture(H264Context *h, H264Picture *dst, const H264Picture *src
     if (ret < 0)
         goto fail;
 
-    if (src->fg_status != NO_FILM_GRAIN) {
-        ret = av_frame_ref(dst->f_grain, src->f_grain);
-        if (ret < 0)
-            goto fail;
-    }
-
-    h264_copy_picture_params(dst, src);
+    h264_copy_picture_params(h, dst, src);
 
     return 0;
 fail:
@@ -131,14 +128,7 @@ int ff_h264_replace_picture(H264Context *h, H264Picture *dst, const H264Picture 
     if (ret < 0)
         goto fail;
 
-    if (src->fg_status != NO_FILM_GRAIN) {
-        ff_thread_release_buffer(h->avctx, dst->f_grain);
-        ret = av_frame_ref(dst->f_grain, src->f_grain);
-        if (ret < 0)
-            goto fail;
-    }
-
-    h264_copy_picture_params(dst, src);
+    h264_copy_picture_params(h, dst, src);
 
     return 0;
 fail:
@@ -196,7 +186,7 @@ int ff_h264_field_end(H264Context *h, H264SliceContext *sl, int in_setup)
         const AVFrameSideData *sd = av_frame_get_side_data(cur->f, AV_FRAME_DATA_FILM_GRAIN_PARAMS);
         av_unused int ret;
 
-        ret = ff_h274_apply_film_grain(cur->f_grain, cur->f, &h->h274db,
+        ret = ff_h274_apply_film_grain(cur->shared->f_grain, cur->f, &h->h274db,
                                        (AVFilmGrainParams *) sd->data);
         av_assert1(ret >= 0);
     }

@@ -276,10 +276,6 @@ static int h264_init_pic(H264Picture *pic)
     if (!pic->f)
         return AVERROR(ENOMEM);
 
-    pic->f_grain = av_frame_alloc();
-    if (!pic->f_grain)
-        return AVERROR(ENOMEM);
-
     return 0;
 }
 
@@ -336,7 +332,6 @@ static void h264_free_pic(H264Context *h, H264Picture *pic)
 {
     ff_h264_unref_picture(h, pic);
     av_frame_free(&pic->f);
-    av_frame_free(&pic->f_grain);
 }
 
 static av_cold int h264_decode_end(AVCodecContext *avctx)
@@ -371,10 +366,23 @@ static av_cold int h264_decode_end(AVCodecContext *avctx)
 
 static AVOnce h264_vlc_init = AV_ONCE_INIT;
 
-static void h264_shared_pic_reset(FFRefStructOpaque unused, void *obj)
+static int h264_shared_pic_init(FFRefStructOpaque unused, void *obj)
 {
     H264SharedPicture *pic = obj;
 
+    pic->f_grain = av_frame_alloc();
+    if (!pic->f_grain)
+        return AVERROR(ENOMEM);
+    return 0;
+}
+
+static void h264_shared_pic_reset(FFRefStructOpaque dynamic_opaque,
+                                  FFRefStructOpaque unused, void *obj)
+{
+    AVCodecContext *avctx = dynamic_opaque.nc;
+    H264SharedPicture *pic = obj;
+
+    ff_thread_release_buffer(avctx, pic->f_grain);
     ff_refstruct_unref(&pic->mb_type_base);
     ff_refstruct_unref(&pic->qscale_table_base);
     for (int i = 0; i < 2; i++) {
@@ -385,6 +393,13 @@ static void h264_shared_pic_reset(FFRefStructOpaque unused, void *obj)
     pic->decode_error_flags[0] = pic->decode_error_flags[1] = 0;
 
     ff_refstruct_unref(&pic->hwaccel_picture_private);
+}
+
+static void h264_shared_pic_free(FFRefStructOpaque unused, void *obj)
+{
+    H264SharedPicture *pic = obj;
+
+    av_frame_free(&pic->f_grain);
 }
 
 static av_cold int h264_decode_init(AVCodecContext *avctx)
@@ -410,8 +425,12 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     if (!avctx->internal->is_copy) {
         h->shared_pic_pool =
-            ff_refstruct_pool_alloc_ext(sizeof(H264SharedPicture), 0, NULL,
-                                        NULL, h264_shared_pic_reset, NULL, NULL);
+            ff_refstruct_pool_alloc_ext_c(sizeof(H264SharedPicture),
+                                          FF_REFSTRUCT_POOL_FLAG_DYNAMIC_OPAQUE,
+                                          (FFRefStructOpaque){ NULL },
+                                          h264_shared_pic_init,
+                                          (FFRefStructUnrefCB) { .unref_ext = h264_shared_pic_reset },
+                                          h264_shared_pic_free, NULL);
         if (!h->shared_pic_pool)
             return AVERROR(ENOMEM);
         if (avctx->extradata_size > 0 && avctx->extradata) {
@@ -871,7 +890,7 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
     H264SharedPicture *shared = srcp->shared;
     int ret;
 
-    ret = av_frame_ref(dst, srcp->fg_status == FILM_GRAIN_APPLICABLE ? srcp->f_grain : srcp->f);
+    ret = av_frame_ref(dst, srcp->fg_status == FILM_GRAIN_APPLICABLE ? shared->f_grain : srcp->f);
     if (ret < 0)
         return ret;
 
