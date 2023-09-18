@@ -49,7 +49,6 @@ void ff_h264_unref_picture(H264Context *h, H264Picture *pic)
     ff_refstruct_unref(&pic->shared);
 
     ff_refstruct_unref(&pic->pps);
-    ff_refstruct_unref(&pic->decode_error_flags);
 
     memset((uint8_t*)pic + off, 0, sizeof(*pic) - off);
 }
@@ -58,8 +57,6 @@ static void h264_copy_picture_params(H264Picture *dst, const H264Picture *src)
 {
     ff_refstruct_replace(&dst->shared, src->shared);
     ff_refstruct_replace(&dst->pps, src->pps);
-
-    ff_refstruct_replace(&dst->decode_error_flags, src->decode_error_flags);
 
     dst->qscale_table = src->qscale_table;
     dst->mb_type      = src->mb_type;
