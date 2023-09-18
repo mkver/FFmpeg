@@ -236,7 +236,7 @@ static int vaapi_h264_start_frame(AVCodecContext          *avctx,
                                   av_unused uint32_t       size)
 {
     const H264Context *h = avctx->priv_data;
-    VAAPIDecodePicture *pic = h->cur_pic_ptr->hwaccel_picture_private;
+    VAAPIDecodePicture *pic = h->cur_pic_ptr->shared->hwaccel_picture_private;
     const PPS *pps = h->ps.pps;
     const SPS *sps = h->ps.sps;
     VAPictureParameterBufferH264 pic_param;
@@ -318,7 +318,7 @@ fail:
 static int vaapi_h264_end_frame(AVCodecContext *avctx)
 {
     const H264Context *h = avctx->priv_data;
-    VAAPIDecodePicture *pic = h->cur_pic_ptr->hwaccel_picture_private;
+    VAAPIDecodePicture *pic = h->cur_pic_ptr->shared->hwaccel_picture_private;
     H264SliceContext *sl = &h->slice_ctx[0];
     int ret;
 
@@ -338,7 +338,7 @@ static int vaapi_h264_decode_slice(AVCodecContext *avctx,
                                    uint32_t        size)
 {
     const H264Context *h = avctx->priv_data;
-    VAAPIDecodePicture *pic = h->cur_pic_ptr->hwaccel_picture_private;
+    VAAPIDecodePicture *pic = h->cur_pic_ptr->shared->hwaccel_picture_private;
     const H264SliceContext *sl  = &h->slice_ctx[0];
     VASliceParameterBufferH264 slice_param;
     int err;
