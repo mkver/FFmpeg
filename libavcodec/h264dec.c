@@ -352,6 +352,7 @@ static av_cold int h264_decode_end(AVCodecContext *avctx)
 
     ff_h264_remove_all_refs(h);
     ff_h264_free_tables(h);
+    ff_refstruct_pool_uninit(&h->shared_pic_pool);
 
     for (i = 0; i < H264_MAX_PICTURE_COUNT; i++) {
         h264_free_pic(h, &h->DPB[i]);
@@ -378,6 +379,20 @@ static av_cold int h264_decode_end(AVCodecContext *avctx)
 
 static AVOnce h264_vlc_init = AV_ONCE_INIT;
 
+static void h264_shared_pic_reset(FFRefStructOpaque unused, void *obj)
+{
+    H264SharedPicture *pic = obj;
+
+    ff_refstruct_unref(&pic->mb_type_base);
+    ff_refstruct_unref(&pic->qscale_table_base);
+    for (int i = 0; i < 2; i++) {
+        ff_refstruct_unref(&pic->motion_val_base[i]);
+        ff_refstruct_unref(&pic->ref_index[i]);
+    }
+
+    ff_refstruct_unref(&pic->hwaccel_picture_private);
+}
+
 static av_cold int h264_decode_init(AVCodecContext *avctx)
 {
     H264Context *h = avctx->priv_data;
@@ -400,6 +415,11 @@ FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 
     if (!avctx->internal->is_copy) {
+        h->shared_pic_pool =
+            ff_refstruct_pool_alloc_ext(sizeof(H264SharedPicture), 0, NULL,
+                                        NULL, h264_shared_pic_reset, NULL, NULL);
+        if (!h->shared_pic_pool)
+            return AVERROR(ENOMEM);
         if (avctx->extradata_size > 0 && avctx->extradata) {
             ret = ff_h264_decode_extradata(avctx->extradata, avctx->extradata_size,
                                            &h->ps, &h->is_avc, &h->nal_length_size,
