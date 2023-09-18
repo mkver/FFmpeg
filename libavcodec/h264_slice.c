@@ -204,10 +204,10 @@ static int alloc_picture(H264Context *h, H264Picture *pic)
     }
 
     if (pic->fg_status != NO_FILM_GRAIN) {
-        pic->f_grain->format = pic->f->format;
-        pic->f_grain->width = pic->f->width;
-        pic->f_grain->height = pic->f->height;
-        ret = ff_thread_get_buffer(h->avctx, pic->f_grain, 0);
+        shared->f_grain->format = pic->f->format;
+        shared->f_grain->width  = pic->f->width;
+        shared->f_grain->height = pic->f->height;
+        ret = ff_thread_get_buffer(h->avctx, shared->f_grain, 0);
         if (ret < 0)
             goto fail;
     }
