@@ -124,6 +124,8 @@ typedef struct H264SharedPicture {
     uint32_t *mb_type_base;           ///< RefStruct reference
     int8_t *ref_index[2];             ///< RefStruct reference
 
+    int decode_error_flags[2];        ///< [1] for bottom field, else [0]
+
     /// RefStruct reference for hardware accelerator private data
     void *hwaccel_picture_private;
 } H264SharedPicture;
@@ -177,9 +179,6 @@ typedef struct H264Picture {
 
     int mb_width, mb_height;
     int mb_stride;
-
-    /// RefStruct reference; its pointee is shared between decoding threads.
-    atomic_int *decode_error_flags;
 
     int gray;
     H264SharedPicture *shared; ///< RefStruct reference
@@ -595,7 +594,6 @@ typedef struct H264Context {
     struct FFRefStructPool *mb_type_pool;
     struct FFRefStructPool *motion_val_pool;
     struct FFRefStructPool *ref_index_pool;
-    struct FFRefStructPool *decode_error_flags_pool;
     struct FFRefStructPool *shared_pic_pool;
     int ref2frm[MAX_SLICES][2][64];     ///< reference to frame number lists, used in the loop filter, the first 2 are for -2,-1
 
