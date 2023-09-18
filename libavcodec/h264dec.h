@@ -119,6 +119,8 @@ typedef struct MMCO {
  * It is attached to an H264Picture when the frame is allocated.
  */
 typedef struct H264SharedPicture {
+    AVFrame *f_grain;
+
     int8_t *qscale_table_base;        ///< RefStruct reference
     int16_t (*motion_val_base[2])[2]; ///< RefStruct reference
     uint32_t *mb_type_base;           ///< RefStruct reference
@@ -133,8 +135,6 @@ typedef struct H264SharedPicture {
 typedef struct H264Picture {
     AVFrame *f;
     ThreadFrame tf;
-
-    AVFrame *f_grain;
 
     int8_t *qscale_table;
 
