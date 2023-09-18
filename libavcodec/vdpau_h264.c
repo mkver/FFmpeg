@@ -69,7 +69,7 @@ static void vdpau_h264_set_rf(VdpReferenceFrameH264 *rf, H264Picture *pic,
 static void vdpau_h264_set_reference_frames(AVCodecContext *avctx)
 {
     H264Context * const h = avctx->priv_data;
-    struct vdpau_picture_context *pic_ctx = h->cur_pic_ptr->hwaccel_picture_private;
+    struct vdpau_picture_context *pic_ctx = h->cur_pic_ptr->shared->hwaccel_picture_private;
     VdpPictureInfoH264 *info = &pic_ctx->info.h264;
     int list;
 
@@ -124,7 +124,7 @@ static int vdpau_h264_start_frame(AVCodecContext *avctx,
     const PPS *pps = h->ps.pps;
     const SPS *sps = h->ps.sps;
     H264Picture *pic = h->cur_pic_ptr;
-    struct vdpau_picture_context *pic_ctx = pic->hwaccel_picture_private;
+    struct vdpau_picture_context *pic_ctx = pic->shared->hwaccel_picture_private;
     VdpPictureInfoH264 *info = &pic_ctx->info.h264;
 #ifdef VDP_DECODER_PROFILE_H264_HIGH_444_PREDICTIVE
     VdpPictureInfoH264Predictive *info2 = &pic_ctx->info.h264_predictive;
@@ -183,7 +183,7 @@ static int vdpau_h264_decode_slice(AVCodecContext *avctx,
 {
     H264Context *h = avctx->priv_data;
     H264Picture *pic = h->cur_pic_ptr;
-    struct vdpau_picture_context *pic_ctx = pic->hwaccel_picture_private;
+    struct vdpau_picture_context *pic_ctx = pic->shared->hwaccel_picture_private;
     int val;
 
     val = ff_vdpau_add_buffer(pic_ctx, start_code_prefix, 3);
@@ -203,7 +203,7 @@ static int vdpau_h264_end_frame(AVCodecContext *avctx)
     H264Context *h = avctx->priv_data;
     H264SliceContext *sl = &h->slice_ctx[0];
     H264Picture *pic = h->cur_pic_ptr;
-    struct vdpau_picture_context *pic_ctx = pic->hwaccel_picture_private;
+    struct vdpau_picture_context *pic_ctx = pic->shared->hwaccel_picture_private;
     int val;
 
     val = ff_vdpau_common_end_frame(avctx, pic->f, pic_ctx);

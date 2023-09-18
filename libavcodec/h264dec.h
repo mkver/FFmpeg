@@ -103,24 +103,35 @@ typedef struct MMCO {
     int long_arg;       ///< index, pic_num, or num long refs depending on opcode
 } MMCO;
 
+/**
+ * The following structure is propagated across ff_h264_ref_picture()
+ * and ff_h264_replace_picture() calls; in particular, it is shared
+ * between different threads.
+ *
+ * It is attached to an H264Picture when the frame is allocated.
+ */
+typedef struct H264SharedPicture {
+    int8_t *qscale_table_base;        ///< RefStruct reference
+    int16_t (*motion_val_base[2])[2]; ///< RefStruct reference
+    uint32_t *mb_type_base;           ///< RefStruct reference
+    int8_t *ref_index[2];             ///< RefStruct reference
+
+    void *hwaccel_picture_private;    ///< hardware accelerator private data
+} H264SharedPicture;
+
 typedef struct H264Picture {
     AVFrame *f;
     ThreadFrame tf;
 
     AVFrame *f_grain;
 
-    int8_t *qscale_table_base;        ///< RefStruct reference
     int8_t *qscale_table;
 
-    int16_t (*motion_val_base[2])[2]; ///< RefStruct reference
     int16_t (*motion_val[2])[2];
 
-    uint32_t *mb_type_base;           ///< RefStruct reference
     uint32_t *mb_type;
 
-    void *hwaccel_picture_private; ///< hardware accelerator private data
-
-    int8_t *ref_index[2];   ///< RefStruct reference
+    int8_t *ref_index[2];
 
     int field_poc[2];       ///< top/bottom POC
     int poc;                ///< frame POC
@@ -160,6 +171,8 @@ typedef struct H264Picture {
 
     /// RefStruct reference; its pointee is shared between decoding threads.
     atomic_int *decode_error_flags;
+
+    H264SharedPicture *shared; ///< RefStruct reference
 } H264Picture;
 
 typedef struct H264Ref {
@@ -560,6 +573,7 @@ typedef struct H264Context {
     struct FFRefStructPool *motion_val_pool;
     struct FFRefStructPool *ref_index_pool;
     struct FFRefStructPool *decode_error_flags_pool;
+    struct FFRefStructPool *shared_pic_pool;
     int ref2frm[MAX_SLICES][2][64];     ///< reference to frame number lists, used in the loop filter, the first 2 are for -2,-1
 } H264Context;
 
