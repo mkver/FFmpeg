@@ -53,9 +53,9 @@ thread.
 Add AV_CODEC_CAP_FRAME_THREADS to the codec capabilities. There will be very little
 speed gain at this point but it should work.
 
-If there are inter-frame dependencies, so the codec calls
-ff_thread_report/await_progress(), set FF_CODEC_CAP_ALLOCATE_PROGRESS in
-FFCodec.caps_internal and use ff_thread_get_buffer() to allocate frames.
+Use ff_thread_get_buffer() (or ff_thread_progress_get_buffer()
+in case you have inter-frame dependencies and use the ProgressFrame API)
+to allocate frames.
 Otherwise decode directly into the user-supplied frames.
 
 Call ff_thread_report_progress() after some part of the current picture has decoded.
