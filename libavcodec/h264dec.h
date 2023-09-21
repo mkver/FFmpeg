@@ -164,7 +164,7 @@ typedef struct H264Ref {
     int poc;
     int pic_id;
 
-    H264Picture *parent;
+    const H264Picture *parent;
 } H264Ref;
 
 typedef struct H264SliceContext {
@@ -652,7 +652,7 @@ static av_always_inline int get_chroma_qp(const PPS *pps, int t, int qscale)
 
 int ff_h264_field_end(H264Context *h, H264SliceContext *sl, int in_setup);
 
-int ff_h264_ref_picture(H264Picture *dst, H264Picture *src);
+int ff_h264_ref_picture(H264Picture *dst, const H264Picture *src);
 int ff_h264_replace_picture(H264Picture *dst, const H264Picture *src);
 void ff_h264_unref_picture(H264Picture *pic);
 
@@ -677,6 +677,6 @@ void ff_h264_flush_change(H264Context *h);
 
 void ff_h264_free_tables(H264Context *h);
 
-void ff_h264_set_erpic(ERPicture *dst, H264Picture *src);
+void ff_h264_set_erpic(ERPicture *dst, const H264Picture *src);
 
 #endif /* AVCODEC_H264DEC_H */
