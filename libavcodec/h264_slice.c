@@ -2005,16 +2005,16 @@ static int h264_slice_init(H264Context *h, H264SliceContext *sl,
         for (i = 0; i < 16; i++) {
             id_list[i] = 60;
             if (j < sl->list_count && i < sl->ref_count[j] &&
-                sl->ref_list[j][i].parent->f->buf[0]) {
+                sl->ref_list[j][i].parent->shared) {
                 int k;
-                const AVBuffer *buf = sl->ref_list[j][i].parent->f->buf[0]->buffer;
+                const H264SharedPicture *shared = sl->ref_list[j][i].parent->shared;
                 for (k = 0; k < h->short_ref_count; k++)
-                    if (h->short_ref[k]->f->buf[0]->buffer == buf) {
+                    if (h->short_ref[k]->shared == shared) {
                         id_list[i] = k;
                         break;
                     }
                 for (k = 0; k < h->long_ref_count; k++)
-                    if (h->long_ref[k] && h->long_ref[k]->f->buf[0]->buffer == buf) {
+                    if (h->long_ref[k] && h->long_ref[k]->shared == shared) {
                         id_list[i] = h->short_ref_count + k;
                         break;
                     }
