@@ -136,13 +136,9 @@ Component options:
   --disable-w32threads     disable Win32 threads [autodetect]
   --disable-os2threads     disable OS/2 threads [autodetect]
   --disable-network        disable network support [no]
-  --disable-dct            disable DCT code
   --disable-dwt            disable DWT code
   --disable-error-resilience disable error resilience code
   --disable-lsp            disable LSP code
-  --disable-mdct           disable MDCT code
-  --disable-rdft           disable RDFT code
-  --disable-fft            disable FFT code
   --disable-faan           disable floating point AAN (I)DCT code
   --disable-pixelutils     disable pixel utils in libavutil
 
@@ -2004,17 +2000,13 @@ PROGRAM_LIST="
 "
 
 SUBSYSTEM_LIST="
-    dct
     dwt
     error_resilience
     faan
     fast_unaligned
-    fft
     lsp
-    mdct
     pixelutils
     network
-    rdft
 "
 
 # COMPONENT_LIST needs to come last to ensure correct dependency checking
