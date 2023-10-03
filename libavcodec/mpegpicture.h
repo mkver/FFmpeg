@@ -97,7 +97,7 @@ int ff_alloc_picture(AVCodecContext *avctx, Picture *pic, MotionEstContext *me,
 int ff_mpeg_framesize_alloc(AVCodecContext *avctx, MotionEstContext *me,
                             ScratchpadContext *sc, int linesize);
 
-int ff_mpeg_ref_picture(Picture *dst, Picture *src);
+int ff_mpeg_ref_picture(Picture *dst, const Picture *src);
 void ff_mpeg_unref_picture(Picture *picture);
 
 void ff_mpv_picture_free(Picture *pic);

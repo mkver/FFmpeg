@@ -227,7 +227,7 @@ static void update_picture_tables(Picture *dst, const Picture *src)
     dst->alloc_mb_stride = src->alloc_mb_stride;
 }
 
-int ff_mpeg_ref_picture(Picture *dst, Picture *src)
+int ff_mpeg_ref_picture(Picture *dst, const Picture *src)
 {
     int ret;
 
