@@ -193,7 +193,6 @@ fail:
  */
 void ff_mpeg_unref_picture(Picture *pic)
 {
-    pic->tf.f = pic->f;
     ff_thread_release_ext_buffer(&pic->tf);
 
     ff_refstruct_unref(&pic->hwaccel_picture_private);
@@ -235,8 +234,6 @@ int ff_mpeg_ref_picture(Picture *dst, Picture *src)
     av_assert0(!dst->f->buf[0]);
     av_assert0(src->f->buf[0]);
 
-    src->tf.f = src->f;
-    dst->tf.f = dst->f;
     ret = ff_thread_ref_frame(&dst->tf, &src->tf);
     if (ret < 0)
         goto fail;
@@ -286,4 +283,5 @@ void av_cold ff_mpv_picture_free(Picture *pic)
 {
     ff_mpeg_unref_picture(pic);
     av_frame_free(&pic->f);
+    pic->tf.f = NULL;
 }
