@@ -186,7 +186,7 @@ static void vc1_draw_sprites(VC1Context *v, SpriteData* sd)
 {
     int i, plane, row, sprite;
     int sr_cache[2][2] = { { -1, -1 }, { -1, -1 } };
-    uint8_t* src_h[2][2];
+    const uint8_t *src_h[2][2];
     int xoff[2], xadv[2], yoff[2], yadv[2], alpha;
     int ysub[2];
     MpegEncContext *s = &v->s;
@@ -210,7 +210,7 @@ static void vc1_draw_sprites(VC1Context *v, SpriteData* sd)
                            v->sprite_output_frame->linesize[plane] * row;
 
             for (sprite = 0; sprite <= v->two_sprites; sprite++) {
-                uint8_t *iplane = s->cur_pic.data[plane];
+                const uint8_t *iplane = s->cur_pic.data[plane];
                 int      iline  = s->cur_pic.linesize[plane];
                 int      ycoord = yoff[sprite] + yadv[sprite] * row;
                 int      yline  = ycoord >> 16;
@@ -668,7 +668,7 @@ static av_cold int vc1_decode_init(AVCodecContext *avctx)
         }
     } else { // VC1/WVC1/WVP2
         const uint8_t *start = avctx->extradata;
-        uint8_t *end = avctx->extradata + avctx->extradata_size;
+        const uint8_t *end = avctx->extradata + avctx->extradata_size;
         const uint8_t *next;
         int size, buf2_size;
         uint8_t *buf2 = NULL;

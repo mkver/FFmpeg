@@ -78,7 +78,7 @@ static inline double qp2bits(RateControlEntry *rce, double qp)
     return rce->qscale * (double)(rce->i_tex_bits + rce->p_tex_bits + 1) / qp;
 }
 
-static inline double bits2qp(RateControlEntry *rce, double bits)
+static inline double bits2qp(const RateControlEntry *rce, double bits)
 {
     if (bits < 0.9) {
         av_log(NULL, AV_LOG_ERROR, "bits<0.9\n");
@@ -86,7 +86,7 @@ static inline double bits2qp(RateControlEntry *rce, double bits)
     return rce->qscale * (double)(rce->i_tex_bits + rce->p_tex_bits + 1) / bits;
 }
 
-static double get_diff_limited_q(MpegEncContext *s, RateControlEntry *rce, double q)
+static double get_diff_limited_q(MpegEncContext *s, const RateControlEntry *rce, double q)
 {
     RateControlContext *rcc   = &s->rc_context;
     AVCodecContext *a         = s->avctx;
@@ -153,7 +153,7 @@ static void get_qminmax(int *qmin_ret, int *qmax_ret, MpegEncContext *s, int pic
     *qmax_ret = qmax;
 }
 
-static double modify_qscale(MpegEncContext *s, RateControlEntry *rce,
+static double modify_qscale(MpegEncContext *s, const RateControlEntry *rce,
                             double q, int frame_num)
 {
     RateControlContext *rcc  = &s->rc_context;
@@ -375,7 +375,7 @@ static int init_pass2(MpegEncContext *s)
 
         /* find qscale */
         for (i = 0; i < rcc->num_entries; i++) {
-            RateControlEntry *rce = &rcc->entry[i];
+            const RateControlEntry *rce = &rcc->entry[i];
 
             qscale[i] = get_qscale(s, &rcc->entry[i], rate_factor, i);
             rcc->last_qscale_for[rce->pict_type] = qscale[i];
@@ -384,20 +384,20 @@ static int init_pass2(MpegEncContext *s)
 
         /* fixed I/B QP relative to P mode */
         for (i = FFMAX(0, rcc->num_entries - 300); i < rcc->num_entries; i++) {
-            RateControlEntry *rce = &rcc->entry[i];
+            const RateControlEntry *rce = &rcc->entry[i];
 
             qscale[i] = get_diff_limited_q(s, rce, qscale[i]);
         }
 
         for (i = rcc->num_entries - 1; i >= 0; i--) {
-            RateControlEntry *rce = &rcc->entry[i];
+            const RateControlEntry *rce = &rcc->entry[i];
 
             qscale[i] = get_diff_limited_q(s, rce, qscale[i]);
         }
 
         /* smooth curve */
         for (i = 0; i < rcc->num_entries; i++) {
-            RateControlEntry *rce = &rcc->entry[i];
+            const RateControlEntry *rce = &rcc->entry[i];
             const int pict_type   = rce->new_pict_type;
             int j;
             double q = 0.0, sum = 0.0;
@@ -864,8 +864,8 @@ static void adaptive_quantization(MpegEncContext *s, double q)
 
 void ff_get_2pass_fcode(MpegEncContext *s)
 {
-    RateControlContext *rcc = &s->rc_context;
-    RateControlEntry *rce   = &rcc->entry[s->picture_number];
+    const RateControlContext *rcc = &s->rc_context;
+    const RateControlEntry   *rce = &rcc->entry[s->picture_number];
 
     s->f_code = rce->f_code;
     s->b_code = rce->b_code;
@@ -916,7 +916,7 @@ float ff_rate_estimate_qscale(MpegEncContext *s, int dry_run)
         rce         = &rcc->entry[picture_number];
         wanted_bits = rce->expected_bits;
     } else {
-        Picture *dts_pic;
+        const Picture *dts_pic;
         rce = &local_rce;
 
         /* FIXME add a dts field to AVFrame and ensure it is set and use it

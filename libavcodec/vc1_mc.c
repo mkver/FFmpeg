@@ -58,7 +58,7 @@ static av_always_inline void vc1_scale_chroma(uint8_t *srcU, uint8_t *srcV,
 }
 
 static av_always_inline void vc1_lut_scale_luma(uint8_t *srcY,
-                                                uint8_t *lut1, uint8_t *lut2,
+                                                const uint8_t *lut1, const uint8_t *lut2,
                                                 int k, int linesize)
 {
     int i, j;
@@ -78,7 +78,7 @@ static av_always_inline void vc1_lut_scale_luma(uint8_t *srcY,
 }
 
 static av_always_inline void vc1_lut_scale_chroma(uint8_t *srcU, uint8_t *srcV,
-                                                  uint8_t *lut1, uint8_t *lut2,
+                                                  const uint8_t *lut1, const uint8_t *lut2,
                                                   int k, int uvlinesize)
 {
     int i, j;

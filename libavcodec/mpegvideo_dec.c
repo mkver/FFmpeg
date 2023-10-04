@@ -62,7 +62,7 @@ void ff_mpv_decode_init(MpegEncContext *s, AVCodecContext *avctx)
 int ff_mpeg_update_thread_context(AVCodecContext *dst,
                                   const AVCodecContext *src)
 {
-    MpegEncContext *const s1 = src->priv_data;
+    const MpegEncContext *const s1 = src->priv_data;
     MpegEncContext *const s  = dst->priv_data;
     int ret;
 
