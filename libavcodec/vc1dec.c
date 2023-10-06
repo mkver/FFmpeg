@@ -741,9 +741,6 @@ static av_cold int vc1_decode_init(AVCodecContext *avctx)
     if (v->matrix_coef == 1 || v->matrix_coef == 6 || v->matrix_coef == 7)
         avctx->colorspace = v->matrix_coef;
 
-    s->mb_width  = (avctx->coded_width  + 15) >> 4;
-    s->mb_height = (avctx->coded_height + 15) >> 4;
-
     if (v->profile == PROFILE_ADVANCED || v->res_fasttx) {
         ff_vc1_init_transposed_scantables(v);
     } else {
