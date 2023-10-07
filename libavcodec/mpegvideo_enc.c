@@ -1103,6 +1103,10 @@ static int alloc_picture(MpegEncContext *s, Picture *pic)
     if (ret < 0)
         return ret;
 
+    ret = ff_mpv_pic_check_linesize(avctx, pic->f, &s->linesize, &s->uvlinesize);
+    if (ret < 0)
+        goto fail;
+
     for (int i = 0; pic->f->data[i]; i++) {
         int offset = (EDGE_WIDTH >> (i ? s->chroma_y_shift : 0)) *
                      pic->f->linesize[i] +
@@ -1112,9 +1116,12 @@ static int alloc_picture(MpegEncContext *s, Picture *pic)
     pic->f->width  = avctx->width;
     pic->f->height = avctx->height;
 
-    return ff_alloc_picture(s->avctx, pic, &s->me, &s->sc, &s->buffer_pools,
-                            s->mb_stride, s->mb_width, s->mb_height,
-                            &s->linesize, &s->uvlinesize);
+    return ff_mpv_alloc_pic_accessories(s->avctx, pic, &s->me, &s->sc,
+                                        &s->buffer_pools,
+                                        s->mb_stride, s->mb_width, s->mb_height);
+fail:
+    ff_mpeg_unref_picture(pic);
+    return ret;
 }
 
 static int load_input_picture(MpegEncContext *s, const AVFrame *pic_arg)
