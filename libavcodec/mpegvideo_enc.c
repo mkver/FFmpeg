@@ -1116,9 +1116,7 @@ static int alloc_picture(MpegEncContext *s, Picture *pic)
     pic->f->width  = avctx->width;
     pic->f->height = avctx->height;
 
-    return ff_mpv_alloc_pic_accessories(s->avctx, pic, &s->me, &s->sc,
-                                        &s->buffer_pools,
-                                        s->mb_stride, s->mb_width, s->mb_height);
+    return 0;
 fail:
     ff_mpeg_unref_picture(pic);
     return ret;
@@ -1604,42 +1602,33 @@ no_output_pic:
            s->reordered_input_picture[0]->f->pict_type !=
                AV_PICTURE_TYPE_B ? 3 : 0;
 
-        if ((ret = av_frame_ref(s->new_pic,
-                                s->reordered_input_picture[0]->f)))
-            goto fail;
-
         if (s->reordered_input_picture[0]->shared || s->avctx->rc_buffer_size) {
             // input is a shared pix, so we can't modify it -> allocate a new
             // one & ensure that the shared one is reuseable
-            Picture *pic = ff_get_unused_picture(s->avctx, s->picture);
-            if (!pic)
-                return AVERROR(ENOMEM);
-
-            pic->reference = s->reordered_input_picture[0]->reference;
-            ret = alloc_picture(s, pic);
+            av_frame_move_ref(s->new_pic, s->reordered_input_picture[0]->f);
+            ret = alloc_picture(s, s->reordered_input_picture[0]);
             if (ret < 0)
                 goto fail;
 
-            ret = av_frame_copy_props(pic->f, s->reordered_input_picture[0]->f);
-            if (ret < 0) {
-                ff_mpeg_unref_picture(pic);
+            ret = av_frame_copy_props(s->reordered_input_picture[0]->f, s->new_pic);
+            if (ret < 0)
                 goto fail;
-            }
-            pic->coded_picture_number = s->reordered_input_picture[0]->coded_picture_number;
-            pic->display_picture_number = s->reordered_input_picture[0]->display_picture_number;
-
-            /* mark us unused / free shared pic */
-            ff_mpeg_unref_picture(s->reordered_input_picture[0]);
-
-            s->cur_pic_ptr = pic;
         } else {
             // input is not a shared pix -> reuse buffer for current_pix
-            s->cur_pic_ptr = s->reordered_input_picture[0];
+            if ((ret = av_frame_ref(s->new_pic,
+                                    s->reordered_input_picture[0]->f)))
+                goto fail;
             for (int i = 0; i < MPV_MAX_PLANES; i++) {
                 if (s->new_pic->data[i])
                     s->new_pic->data[i] += INPLACE_OFFSET;
             }
         }
+        s->cur_pic_ptr = s->reordered_input_picture[0];
+        ret = ff_mpv_alloc_pic_accessories(s->avctx, s->cur_pic_ptr, &s->me,
+                                           &s->sc, &s->buffer_pools,
+                                           s->mb_stride, s->mb_width, s->mb_height);
+        if (ret < 0)
+            return ret;
         s->picture_number = s->cur_pic_ptr->display_picture_number;
 
     }
