@@ -460,18 +460,6 @@ FF_ENABLE_DEPRECATION_WARNINGS
     av_assert0(s->pict_type == AV_PICTURE_TYPE_I || (s->last_picture_ptr &&
                                                  s->last_picture_ptr->f->buf[0]));
 
-    if (s->picture_structure != PICT_FRAME) {
-        for (int i = 0; i < 4; i++) {
-            if (s->picture_structure == PICT_BOTTOM_FIELD) {
-                s->current_picture.f->data[i] = FF_PTR_ADD(s->current_picture.f->data[i],
-                                                           s->current_picture.f->linesize[i]);
-            }
-            s->current_picture.f->linesize[i] *= 2;
-            s->last_picture.f->linesize[i]    *= 2;
-            s->next_picture.f->linesize[i]    *= 2;
-        }
-    }
-
     /* set dequantizer, we can't do it during init as
      * it might change for MPEG-4 and we can't do it in the header
      * decode as init is not called for MPEG-4 there yet */
