@@ -233,7 +233,7 @@ int ff_mpv_common_frame_size_change(MpegEncContext *s)
     return err;
 }
 
-static int alloc_picture(MpegEncContext *s, Picture *pic)
+static int alloc_picture(MpegEncContext *s, MPVPicture *pic)
 {
     AVCodecContext *avctx = s->avctx;
     int ret;
@@ -294,7 +294,7 @@ static void color_frame(AVFrame *frame, int luma)
  */
 int ff_mpv_frame_start(MpegEncContext *s, AVCodecContext *avctx)
 {
-    Picture *pic;
+    MPVPicture *pic;
     int ret;
 
     s->mb_skipped = 0;
@@ -482,14 +482,15 @@ void ff_mpv_frame_end(MpegEncContext *s)
         ff_thread_report_progress(&s->cur_pic_ptr->tf, INT_MAX, 0);
 }
 
-void ff_print_debug_info(const MpegEncContext *s, const Picture *p, AVFrame *pict)
+void ff_print_debug_info(const MpegEncContext *s, const MPVPicture *p, AVFrame *pict)
 {
     ff_print_debug_info2(s->avctx, pict, s->mbskip_table, p->mb_type,
                          p->qscale_table, p->motion_val,
                          s->mb_width, s->mb_height, s->mb_stride, s->quarter_sample);
 }
 
-int ff_mpv_export_qp_table(const MpegEncContext *s, AVFrame *f, const Picture *p, int qp_type)
+int ff_mpv_export_qp_table(const MpegEncContext *s, AVFrame *f,
+                           const MPVPicture *p, int qp_type)
 {
     AVVideoEncParams *par;
     int mult = (qp_type == FF_MPV_QSCALE_TYPE_MPEG1) ? 2 : 1;

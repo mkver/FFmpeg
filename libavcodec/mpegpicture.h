@@ -50,9 +50,9 @@ typedef struct BufferPoolContext {
 } BufferPoolContext;
 
 /**
- * Picture.
+ * MPVPicture.
  */
-typedef struct Picture {
+typedef struct MPVPicture {
     struct AVFrame *f;
     ThreadFrame tf;
 
@@ -88,12 +88,12 @@ typedef struct Picture {
 
     int display_picture_number;
     int coded_picture_number;
-} Picture;
+} MPVPicture;
 
 /**
- * Allocate a Picture's accessories, but not the AVFrame's buffer itself.
+ * Allocate an MPVPicture's accessories, but not the AVFrame's buffer itself.
  */
-int ff_mpv_alloc_pic_accessories(AVCodecContext *avctx, Picture *pic,
+int ff_mpv_alloc_pic_accessories(AVCodecContext *avctx, MPVPicture *pic,
                                  MotionEstContext *me, ScratchpadContext *sc,
                                  BufferPoolContext *pools,
                                  int mb_stride, int mb_width, int mb_height);
@@ -110,11 +110,11 @@ int ff_mpv_pic_check_linesize(void *logctx, const AVFrame *f,
 int ff_mpeg_framesize_alloc(AVCodecContext *avctx, MotionEstContext *me,
                             ScratchpadContext *sc, int linesize);
 
-int ff_mpeg_ref_picture(Picture *dst, const Picture *src);
-void ff_mpeg_unref_picture(Picture *picture);
+int ff_mpeg_ref_picture(MPVPicture *dst, const MPVPicture *src);
+void ff_mpeg_unref_picture(MPVPicture *picture);
 
-void ff_mpv_picture_free(Picture *pic);
+void ff_mpv_picture_free(MPVPicture *pic);
 
-Picture *ff_get_unused_picture(void *logctx, Picture picture[]);
+MPVPicture *ff_get_unused_picture(void *logctx, MPVPicture picture[]);
 
 #endif /* AVCODEC_MPEGPICTURE_H */

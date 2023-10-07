@@ -45,7 +45,7 @@ static void fill_picture_parameters(AVCodecContext *avctx,
                                     DXVA_PictureParameters *pp)
 {
     const MpegEncContext *s = &v->s;
-    const Picture *current_picture = s->cur_pic_ptr;
+    const MPVPicture *current_picture = s->cur_pic_ptr;
     int intcomp = 0;
 
     // determine if intensity compensation is needed
@@ -335,7 +335,7 @@ static int dxva2_vc1_decode_slice(AVCodecContext *avctx,
                                   uint32_t size)
 {
     const VC1Context *v = avctx->priv_data;
-    const Picture *current_picture = v->s.cur_pic_ptr;
+    const MPVPicture *current_picture = v->s.cur_pic_ptr;
     struct dxva2_picture_context *ctx_pic = current_picture->hwaccel_picture_private;
     unsigned position;
 

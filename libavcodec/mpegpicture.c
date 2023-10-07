@@ -32,7 +32,7 @@
 #include "refstruct.h"
 #include "threadframe.h"
 
-static void av_noinline free_picture_tables(Picture *pic)
+static void av_noinline free_picture_tables(MPVPicture *pic)
 {
     pic->alloc_mb_width  =
     pic->alloc_mb_height = 0;
@@ -109,7 +109,7 @@ int ff_mpv_pic_check_linesize(void *logctx, const AVFrame *f,
     return 0;
 }
 
-static int alloc_picture_tables(BufferPoolContext *pools, Picture *pic,
+static int alloc_picture_tables(BufferPoolContext *pools, MPVPicture *pic,
                                 int mb_stride, int mb_width, int mb_height)
 {
 #define GET_BUFFER(name, buf_suffix, idx_suffix) do { \
@@ -135,7 +135,7 @@ static int alloc_picture_tables(BufferPoolContext *pools, Picture *pic,
     return 0;
 }
 
-int ff_mpv_alloc_pic_accessories(AVCodecContext *avctx, Picture *pic,
+int ff_mpv_alloc_pic_accessories(AVCodecContext *avctx, MPVPicture *pic,
                                  MotionEstContext *me, ScratchpadContext *sc,
                                  BufferPoolContext *pools,
                                  int mb_stride, int mb_width, int mb_height)
@@ -176,7 +176,7 @@ fail:
  * Deallocate a picture; frees the picture tables in case they
  * need to be reallocated anyway.
  */
-void ff_mpeg_unref_picture(Picture *pic)
+void ff_mpeg_unref_picture(MPVPicture *pic)
 {
     ff_thread_release_ext_buffer(&pic->tf);
 
@@ -195,7 +195,7 @@ void ff_mpeg_unref_picture(Picture *pic)
     pic->coded_picture_number   = 0;
 }
 
-static void update_picture_tables(Picture *dst, const Picture *src)
+static void update_picture_tables(MPVPicture *dst, const MPVPicture *src)
 {
     ff_refstruct_replace(&dst->mbskip_table, src->mbskip_table);
     ff_refstruct_replace(&dst->qscale_table_base, src->qscale_table_base);
@@ -215,7 +215,7 @@ static void update_picture_tables(Picture *dst, const Picture *src)
     dst->alloc_mb_stride = src->alloc_mb_stride;
 }
 
-int ff_mpeg_ref_picture(Picture *dst, const Picture *src)
+int ff_mpeg_ref_picture(MPVPicture *dst, const MPVPicture *src)
 {
     int ret;
 
@@ -249,7 +249,7 @@ fail:
     return ret;
 }
 
-Picture *ff_get_unused_picture(void *logctx, Picture picture[])
+MPVPicture *ff_get_unused_picture(void *logctx, MPVPicture picture[])
 {
     for (int i = 0; i < MAX_PICTURE_COUNT; i++)
         if (!picture[i].f->buf[0])
@@ -272,7 +272,7 @@ Picture *ff_get_unused_picture(void *logctx, Picture picture[])
     return NULL;
 }
 
-void av_cold ff_mpv_picture_free(Picture *pic)
+void av_cold ff_mpv_picture_free(MPVPicture *pic)
 {
     ff_mpeg_unref_picture(pic);
     av_frame_free(&pic->f);

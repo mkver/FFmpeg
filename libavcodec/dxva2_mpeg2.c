@@ -45,7 +45,7 @@ static void fill_picture_parameters(AVCodecContext *avctx,
                                     const struct MpegEncContext *s,
                                     DXVA_PictureParameters *pp)
 {
-    const Picture *current_picture = s->cur_pic_ptr;
+    const MPVPicture *current_picture = s->cur_pic_ptr;
     int is_field = s->picture_structure != PICT_FRAME;
 
     memset(pp, 0, sizeof(*pp));
