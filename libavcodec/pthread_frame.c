@@ -1110,3 +1110,24 @@ void ff_thread_progress_await2(const ThreadProgress *pro, int n)
         pthread_cond_wait(&p->progress_cond, &p->progress_mutex);
     pthread_mutex_unlock(&p->progress_mutex);
 }
+
+int ff_thread_sync_ref(AVCodecContext *avctx, size_t offset)
+{
+    PerThreadContext *p;
+    void *ref;
+    char *priv_data;
+
+    if (!avctx->internal->is_copy)
+        return 1;
+
+    p = avctx->internal->thread_ctx;
+    priv_data = p->parent->threads[0].avctx->priv_data;
+
+    // Copy reference
+    memcpy((char*)avctx->priv_data + offset, priv_data + offset, sizeof(ref));
+    // Increment refcount:
+    memcpy(&ref, priv_data + offset, sizeof(ref));
+    ff_refstruct_ref(ref);
+
+    return 0;
+}

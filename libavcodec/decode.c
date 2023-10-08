@@ -1817,6 +1817,11 @@ void ff_thread_progress_report(ProgressFrame *f, int n)
 void ff_thread_progress_await(const ProgressFrame *f, int n)
 {
 }
+
+int ff_thread_sync_ref(AVCodecContext *avctx, size_t offset)
+{
+    return 1;
+}
 #endif /* !HAVE_THREADS */
 
 static int progress_frame_pool_init_cb(FFRefStructOpaque unused, void *obj)
