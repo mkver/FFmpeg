@@ -511,7 +511,7 @@ static inline void apply_obmc(MpegEncContext *s,
                               op_pixels_func (*pix_op)[4])
 {
     LOCAL_ALIGNED_8(int16_t, mv_cache, [4], [4][2]);
-    const MPVPicture *cur_frame = &s->cur_pic;
+    const MPVWorkPicture *cur_frame = &s->cur_pic;
     int mb_x = s->mb_x;
     int mb_y = s->mb_y;
     const int xy         = mb_x + mb_y * s->mb_stride;
@@ -741,7 +741,7 @@ static av_always_inline void mpv_motion_internal(MpegEncContext *s,
         } else {
             if (   s->picture_structure != s->field_select[dir][0] + 1 && s->pict_type != AV_PICTURE_TYPE_B && !s->first_field
                 || !ref_picture[0]) {
-                ref_picture = s->cur_pic_ptr->f->data;
+                ref_picture = s->cur_pic.ptr->f->data;
             }
 
             mpeg_motion(s, dest_y, dest_cb, dest_cr,
@@ -760,7 +760,7 @@ static av_always_inline void mpv_motion_internal(MpegEncContext *s,
                     ref_picture[0]) {
                     ref2picture = ref_picture;
                 } else {
-                    ref2picture = s->cur_pic_ptr->f->data;
+                    ref2picture = s->cur_pic.ptr->f->data;
                 }
 
                 mpeg_motion(s, dest_y, dest_cb, dest_cr,
@@ -788,7 +788,7 @@ static av_always_inline void mpv_motion_internal(MpegEncContext *s,
                 }
             } else {
                 if (!ref_picture[0]) {
-                    ref_picture = s->cur_pic_ptr->f->data;
+                    ref_picture = s->cur_pic.ptr->f->data;
                 }
                 for (i = 0; i < 2; i++) {
                     mpeg_motion(s, dest_y, dest_cb, dest_cr,
@@ -803,7 +803,7 @@ static av_always_inline void mpv_motion_internal(MpegEncContext *s,
                     /* opposite parity is always in the same frame if this is
                      * second field */
                     if (!s->first_field)
-                        ref_picture = s->cur_pic_ptr->f->data;
+                        ref_picture = s->cur_pic.ptr->f->data;
                 }
             }
             break;

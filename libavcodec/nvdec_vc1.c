@@ -38,7 +38,7 @@ static int nvdec_vc1_start_frame(AVCodecContext *avctx, const uint8_t *buffer, u
     CUVIDPICPARAMS     *pp = &ctx->pic_params;
     FrameDecodeData *fdd;
     NVDECFrame *cf;
-    AVFrame *cur_frame = s->cur_pic.f;
+    AVFrame *cur_frame = s->cur_pic.ptr->f;
 
     int ret;
 
@@ -63,8 +63,8 @@ static int nvdec_vc1_start_frame(AVCodecContext *avctx, const uint8_t *buffer, u
                              s->pict_type == AV_PICTURE_TYPE_P,
 
         .CodecSpecific.vc1 = {
-            .ForwardRefIdx     = ff_nvdec_get_ref_idx(s->last_pic.f),
-            .BackwardRefIdx    = ff_nvdec_get_ref_idx(s->next_pic.f),
+            .ForwardRefIdx     = s->last_pic.ptr ? ff_nvdec_get_ref_idx(s->last_pic.ptr->f) : -1,
+            .BackwardRefIdx    = s->next_pic.ptr ? ff_nvdec_get_ref_idx(s->next_pic.ptr->f) : -1,
             .FrameWidth        = cur_frame->width,
             .FrameHeight       = cur_frame->height,
 
