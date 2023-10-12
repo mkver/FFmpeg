@@ -116,7 +116,7 @@ static int vp8_alloc_frame(VP8Context *s, VP8Frame *f, int ref)
 
 fail:
     ff_refstruct_unref(&f->seg_map);
-    ff_thread_release_ext_buffer(s->avctx, &f->tf);
+    ff_thread_release_ext_buffer(&f->tf);
     return ret;
 }
 
@@ -124,7 +124,7 @@ static void vp8_release_frame(VP8Context *s, VP8Frame *f)
 {
     ff_refstruct_unref(&f->seg_map);
     ff_refstruct_unref(&f->hwaccel_picture_private);
-    ff_thread_release_ext_buffer(s->avctx, &f->tf);
+    ff_thread_release_ext_buffer(&f->tf);
 }
 
 #if CONFIG_VP8_DECODER
