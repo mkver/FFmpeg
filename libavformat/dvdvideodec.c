@@ -1389,12 +1389,13 @@ static const AVClass dvdvideo_class = {
     .version    = LIBAVUTIL_VERSION_INT
 };
 
-const AVInputFormat ff_dvdvideo_demuxer = {
-    .name           = "dvdvideo",
-    .long_name      = NULL_IF_CONFIG_SMALL("DVD-Video"),
-    .priv_class     = &dvdvideo_class,
+const FFInputFormat ff_dvdvideo_demuxer = {
+    .p.name         = "dvdvideo",
+    .p.long_name    = NULL_IF_CONFIG_SMALL("DVD-Video"),
+    .p.priv_class   = &dvdvideo_class,
+    .p.flags        = AVFMT_NOFILE | AVFMT_SHOW_IDS | AVFMT_TS_DISCONT |
+                      AVFMT_NO_BYTE_SEEK | AVFMT_NOGENSEARCH | AVFMT_NOBINSEARCH,
     .priv_data_size = sizeof(DVDVideoDemuxContext),
-    .flags          = AVFMT_NOFILE | AVFMT_SHOW_IDS | AVFMT_TS_DISCONT | AVFMT_NO_BYTE_SEEK | AVFMT_NOGENSEARCH | AVFMT_NOBINSEARCH,
     .flags_internal = FF_FMT_INIT_CLEANUP,
     .read_close     = dvdvideo_close,
     .read_header    = dvdvideo_read_header,
