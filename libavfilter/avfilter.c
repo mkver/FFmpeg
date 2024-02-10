@@ -36,6 +36,7 @@
 
 #include "audio.h"
 #include "avfilter.h"
+#include "avfilter_internal.h"
 #include "filters.h"
 #include "formats.h"
 #include "framequeue.h"
