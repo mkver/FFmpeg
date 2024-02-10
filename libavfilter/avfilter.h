@@ -798,8 +798,6 @@ int avfilter_insert_filter(AVFilterLink *link, AVFilterContext *filt,
  */
 const AVClass *avfilter_get_class(void);
 
-typedef struct AVFilterGraphInternal AVFilterGraphInternal;
-
 /**
  * A function pointer passed to the @ref AVFilterGraph.execute callback to be
  * executed multiple times, possibly in parallel.
@@ -856,11 +854,6 @@ typedef struct AVFilterGraph {
      * default) means that the number of threads is determined automatically.
      */
     int nb_threads;
-
-    /**
-     * Opaque object for libavfilter internal use.
-     */
-    AVFilterGraphInternal *internal;
 
     /**
      * Opaque user data. May be set by the caller to an arbitrary value, e.g. to
