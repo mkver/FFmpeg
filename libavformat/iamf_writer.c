@@ -240,12 +240,12 @@ int ff_iamf_add_audio_element(IAMFContext *iamf, const AVStreamGroup *stg, void 
 
     audio_element->substreams = av_calloc(stg->nb_streams, sizeof(*audio_element->substreams));
     if (!audio_element->substreams)
-        return AVERROR(ENOMEM);
+        goto fail_enomem;
     audio_element->nb_substreams = stg->nb_streams;
 
     audio_element->layers = av_calloc(iamf_audio_element->nb_layers, sizeof(*audio_element->layers));
     if (!audio_element->layers)
-        return AVERROR(ENOMEM);
+        goto fail_enomem;
 
     for (int i = 0, j = 0; i < iamf_audio_element->nb_layers; i++) {
         int nb_channels = iamf_audio_element->layers[i]->ch_layout.nb_channels;
@@ -266,7 +266,8 @@ int ff_iamf_add_audio_element(IAMFContext *iamf, const AVStreamGroup *stg, void 
         if (nb_channels) {
             av_log(log_ctx, AV_LOG_ERROR, "Invalid channel count across substreams in layer %u from stream group %u\n",
                    i, stg->index);
-            return AVERROR(EINVAL);
+            ret = AVERROR(EINVAL);
+            goto fail;
         }
     }
 
@@ -276,13 +277,14 @@ int ff_iamf_add_audio_element(IAMFContext *iamf, const AVStreamGroup *stg, void 
 
         if (param->nb_subblocks != 1) {
             av_log(log_ctx, AV_LOG_ERROR, "nb_subblocks in demixing_info for stream group %u is not 1\n", stg->index);
-            return AVERROR(EINVAL);
+            ret = AVERROR(EINVAL);
+            goto fail;
         }
 
         if (!param_definition) {
             param_definition = add_param_definition(iamf, param, audio_element, log_ctx);
             if (!param_definition)
-                return AVERROR(ENOMEM);
+                goto fail_enomem;
         }
     }
     if (iamf_audio_element->recon_gain_info) {
@@ -291,29 +293,36 @@ int ff_iamf_add_audio_element(IAMFContext *iamf, const AVStreamGroup *stg, void 
 
         if (param->nb_subblocks != 1) {
             av_log(log_ctx, AV_LOG_ERROR, "nb_subblocks in recon_gain_info for stream group %u is not 1\n", stg->index);
-            return AVERROR(EINVAL);
+            ret = AVERROR(EINVAL);
+            goto fail;
         }
 
         if (!param_definition) {
             param_definition = add_param_definition(iamf, param, audio_element, log_ctx);
             if (!param_definition)
-                return AVERROR(ENOMEM);
+                goto fail_enomem;
         }
     }
 
     tmp = av_realloc_array(iamf->audio_elements, iamf->nb_audio_elements + 1, sizeof(*iamf->audio_elements));
     if (!tmp)
-        return AVERROR(ENOMEM);
+        goto fail_enomem;
 
     iamf->audio_elements = tmp;
     iamf->audio_elements[iamf->nb_audio_elements++] = audio_element;
 
     return 0;
+fail_enomem:
+    ret = AVERROR(ENOMEM);
+fail:
+    ff_iamf_free_audio_element(&audio_element);
+    return ret;
 }
 
 int ff_iamf_add_mix_presentation(IAMFContext *iamf, const AVStreamGroup *stg, void *log_ctx)
 {
     IAMFMixPresentation **tmp, *mix_presentation;
+    int ret;
 
     if (stg->type != AV_STREAM_GROUP_PARAMS_IAMF_MIX_PRESENTATION)
         return AVERROR(EINVAL);
@@ -340,14 +349,15 @@ int ff_iamf_add_mix_presentation(IAMFContext *iamf, const AVStreamGroup *stg, vo
         if (!param) {
             av_log(log_ctx, AV_LOG_ERROR, "output_mix_config is not present in submix %u from "
                                           "Mix Presentation ID %"PRId64"\n", i, stg->id);
-            return AVERROR(EINVAL);
+            ret = AVERROR(EINVAL);
+            goto fail;
         }
 
         param_definition = ff_iamf_get_param_definition(iamf, param->parameter_id);
         if (!param_definition) {
             param_definition = add_param_definition(iamf, param, NULL, log_ctx);
             if (!param_definition)
-                return AVERROR(ENOMEM);
+                goto fail_enomem;
         }
 
         for (int j = 0; j < submix->nb_elements; j++) {
@@ -357,25 +367,31 @@ int ff_iamf_add_mix_presentation(IAMFContext *iamf, const AVStreamGroup *stg, vo
             if (!param) {
                 av_log(log_ctx, AV_LOG_ERROR, "element_mix_config is not present for element %u in submix %u from "
                                               "Mix Presentation ID %"PRId64"\n", j, i, stg->id);
-                return AVERROR(EINVAL);
+                ret = AVERROR(EINVAL);
+                goto fail;
             }
             param_definition = ff_iamf_get_param_definition(iamf, param->parameter_id);
             if (!param_definition) {
                 param_definition = add_param_definition(iamf, param, NULL, log_ctx);
                 if (!param_definition)
-                    return AVERROR(ENOMEM);
+                    goto fail_enomem;
             }
         }
     }
 
     tmp = av_realloc_array(iamf->mix_presentations, iamf->nb_mix_presentations + 1, sizeof(*iamf->mix_presentations));
     if (!tmp)
-        return AVERROR(ENOMEM);
+        goto fail_enomem;
 
     iamf->mix_presentations = tmp;
     iamf->mix_presentations[iamf->nb_mix_presentations++] = mix_presentation;
 
     return 0;
+fail_enomem:
+    ret = AVERROR(ENOMEM);
+fail:
+    ff_iamf_free_mix_presentation(&mix_presentation);
+    return ret;
 }
 
 static int iamf_write_codec_config(const IAMFContext *iamf,
