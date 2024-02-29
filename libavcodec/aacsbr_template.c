@@ -64,13 +64,17 @@ static void sbr_turnoff(SpectralBandReplication *sbr) {
     memset(&sbr->spectrum_params, -1, sizeof(SpectrumParameters));
 }
 
-av_cold int AAC_RENAME(ff_aac_sbr_ctx_init)(AACDecContext *ac, SpectralBandReplication *sbr, int id_aac)
+av_cold int AAC_RENAME(ff_aac_sbr_ctx_alloc_init)(AACDecContext *ac, ChannelElement **che, int id_aac)
 {
+    SpectralBandReplication *sbr;
+    ExtChannelElement *ext = av_mallocz(sizeof(*ext));
     int ret;
     float scale;
 
-    if (sbr->mdct)
-        return 0;
+    if (!ext)
+        return AVERROR(ENOMEM);
+    *che = &ext->ch;
+    sbr = &ext->sbr;
 
     sbr->kx[0] = sbr->kx[1];
     sbr->id_aac = id_aac;
