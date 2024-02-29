@@ -414,7 +414,7 @@ static void apply_dependent_coupling_fixed(AACDecContext *ac,
     for (g = 0; g < ics->num_window_groups; g++) {
         for (i = 0; i < ics->max_sfb; i++, idx++) {
             if (cce->ch[0].band_type[idx] != ZERO_BT) {
-                const int gain = cce->coup.gain[index][idx];
+                const int gain = cce->coup.gain_fixed[index][idx];
                 int shift, round, c, tmp;
 
                 if (gain < 0) {
@@ -466,9 +466,9 @@ static void apply_independent_coupling_fixed(AACDecContext *ac,
                                        ChannelElement *cce, int index)
 {
     int i, c, shift, round, tmp;
-    const int gain = cce->coup.gain[index][0];
-    const int *src = cce->ch[0].ret;
-    unsigned int *dest = target->ret;
+    const int gain = cce->coup.gain_fixed[index][0];
+    const int *src = cce->ch[0].output_fixed;
+    unsigned int *dest = target->output_fixed;
     const int len = 1024 << (ac->oc[1].m4ac.sbr == 1);
 
     c = cce_scale_fixed[gain & 7];

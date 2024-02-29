@@ -166,8 +166,8 @@ static int frame_configure_elements(AVCodecContext *avctx)
         for (id = 0; id < MAX_ELEM_ID; id++) {
             ChannelElement *che = ac->che[type][id];
             if (che) {
-                che->ch[0].ret = che->ch[0].ret_buf;
-                che->ch[1].ret = che->ch[1].ret_buf;
+                che->ch[0].output = che->ch[0].ret_buf;
+                che->ch[1].output = che->ch[1].ret_buf;
             }
         }
     }
@@ -184,7 +184,7 @@ static int frame_configure_elements(AVCodecContext *avctx)
     /* map output channel pointers to AVFrame data */
     for (ch = 0; ch < avctx->ch_layout.nb_channels; ch++) {
         if (ac->output_element[ch])
-            ac->output_element[ch]->ret = (INTFLOAT *)ac->frame->extended_data[ch];
+            ac->output_element[ch]->output = (INTFLOAT *)ac->frame->extended_data[ch];
     }
 
     return 0;
@@ -2287,7 +2287,7 @@ static int decode_cce(AACDecContext *ac, GetBitContext *gb, ChannelElement *che)
 #endif
         }
         if (coup->coupling_point == AFTER_IMDCT) {
-            coup->gain[c][0] = gain_cache;
+            AAC_RENAME(coup->gain)[c][0] = gain_cache;
         } else {
             for (g = 0; g < sce->ics.num_window_groups; g++) {
                 for (sfb = 0; sfb < sce->ics.max_sfb; sfb++, idx++) {
@@ -2308,7 +2308,7 @@ static int decode_cce(AACDecContext *ac, GetBitContext *gb, ChannelElement *che)
 #endif
                             }
                         }
-                        coup->gain[c][idx] = gain_cache;
+                        AAC_RENAME(coup->gain)[c][idx] = gain_cache;
                     }
                 }
             }
@@ -2584,7 +2584,7 @@ static void apply_ltp(AACDecContext *ac, SingleChannelElement *sce)
     int i, sfb;
 
     if (sce->ics.window_sequence[0] != EIGHT_SHORT_SEQUENCE) {
-        INTFLOAT *predTime = sce->ret;
+        INTFLOAT *predTime = sce->output;
         INTFLOAT *predFreq = ac->buf_mdct;
         int16_t num_samples = 2048;
 
@@ -2640,7 +2640,7 @@ static void update_ltp(AACDecContext *ac, SingleChannelElement *sce)
     }
 
     memcpy(sce->ltp_state,      sce->ltp_state+1024, 1024 * sizeof(*sce->ltp_state));
-    memcpy(sce->ltp_state+1024, sce->ret,            1024 * sizeof(*sce->ltp_state));
+    memcpy(sce->ltp_state+1024, sce->output,         1024 * sizeof(*sce->ltp_state));
     memcpy(sce->ltp_state+2048, saved_ltp,           1024 * sizeof(*sce->ltp_state));
 }
 
@@ -2651,7 +2651,7 @@ static void imdct_and_windowing(AACDecContext *ac, SingleChannelElement *sce)
 {
     IndividualChannelStream *ics = &sce->ics;
     INTFLOAT *in    = sce->coeffs;
-    INTFLOAT *out   = sce->ret;
+    INTFLOAT *out   = sce->output;
     INTFLOAT *saved = sce->saved;
     const INTFLOAT *swindow      = ics->use_kb_window[0] ? AAC_RENAME2(aac_kbd_short_128) : AAC_RENAME2(sine_128);
     const INTFLOAT *lwindow_prev = ics->use_kb_window[1] ? AAC_RENAME2(aac_kbd_long_1024) : AAC_RENAME2(sine_1024);
@@ -2715,7 +2715,7 @@ static void imdct_and_windowing_960(AACDecContext *ac, SingleChannelElement *sce
 {
     IndividualChannelStream *ics = &sce->ics;
     INTFLOAT *in    = sce->coeffs;
-    INTFLOAT *out   = sce->ret;
+    INTFLOAT *out   = sce->output;
     INTFLOAT *saved = sce->saved;
     const INTFLOAT *swindow      = ics->use_kb_window[0] ? AAC_RENAME(aac_kbd_short_120) : AAC_RENAME(sine_120);
     const INTFLOAT *lwindow_prev = ics->use_kb_window[1] ? AAC_RENAME(aac_kbd_long_960) : AAC_RENAME(sine_960);
@@ -2776,7 +2776,7 @@ static void imdct_and_windowing_ld(AACDecContext *ac, SingleChannelElement *sce)
 {
     IndividualChannelStream *ics = &sce->ics;
     INTFLOAT *in    = sce->coeffs;
-    INTFLOAT *out   = sce->ret;
+    INTFLOAT *out   = sce->output;
     INTFLOAT *saved = sce->saved;
     INTFLOAT *buf  = ac->buf_mdct;
 
@@ -2800,7 +2800,7 @@ static void imdct_and_windowing_ld(AACDecContext *ac, SingleChannelElement *sce)
 static void imdct_and_windowing_eld(AACDecContext *ac, SingleChannelElement *sce)
 {
     UINTFLOAT *in   = sce->coeffs;
-    INTFLOAT *out   = sce->ret;
+    INTFLOAT *out   = sce->output;
     INTFLOAT *saved = sce->saved;
     INTFLOAT *buf  = ac->buf_mdct;
     int i;
@@ -2945,7 +2945,7 @@ static void spectral_to_sample(AACDecContext *ac, int samples)
                             ac->update_ltp(ac, &che->ch[1]);
                     }
                     if (ac->oc[1].m4ac.sbr > 0) {
-                        AAC_RENAME(ff_sbr_apply)(ac, get_sbr(che), type, che->ch[0].ret, che->ch[1].ret);
+                        AAC_RENAME(ff_sbr_apply)(ac, get_sbr(che), type, che->ch[0].output, che->ch[1].output);
                     }
                 }
                 if (type <= TYPE_CCE)
@@ -2956,9 +2956,11 @@ static void spectral_to_sample(AACDecContext *ac, int samples)
                     int j;
                     /* preparation for resampler */
                     for(j = 0; j<samples; j++){
-                        che->ch[0].ret[j] = (int32_t)av_clip64((int64_t)che->ch[0].ret[j]*128, INT32_MIN, INT32_MAX-0x8000)+0x8000;
+                        che->ch[0].output_fixed[j] = (int32_t)av_clip64((int64_t)che->ch[0].output_fixed[j]*128,
+                                                                    INT32_MIN, INT32_MAX-0x8000)+0x8000;
                         if (type == TYPE_CPE || (type == TYPE_SCE && ac->oc[1].m4ac.ps == 1))
-                            che->ch[1].ret[j] = (int32_t)av_clip64((int64_t)che->ch[1].ret[j]*128, INT32_MIN, INT32_MAX-0x8000)+0x8000;
+                            che->ch[1].output_fixed[j] = (int32_t)av_clip64((int64_t)che->ch[1].output_fixed[j]*128,
+                                                                        INT32_MIN, INT32_MAX-0x8000)+0x8000;
                     }
                 }
 #endif /* USE_FIXED */
