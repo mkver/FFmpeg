@@ -224,6 +224,7 @@ typedef struct AACDecContext {
      * @{
      */
     INTFLOAT_ALIGNED_UNION(32, buf_mdct, 1024);
+    INTFLOAT_ALIGNED_UNION(32, temp, 128);
     /** @} */
 
     /**
@@ -269,8 +270,6 @@ typedef struct AACDecContext {
     /** @} */
 
     enum AACOutputChannelOrder output_channel_order;
-
-    INTFLOAT_ALIGNED_UNION(32, temp, 128);
 
     OutputConfiguration oc[2];
     int warned_num_aac_frames;
