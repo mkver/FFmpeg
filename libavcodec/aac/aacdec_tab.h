@@ -25,8 +25,8 @@
  * @author Maxim Gavrilov ( maxim.gavrilov gmail com )
  */
 
-#ifndef AVCODEC_AACDEC_TAB_H
-#define AVCODEC_AACDEC_TAB_H
+#ifndef AVCODEC_AAC_AACDEC_TAB_H
+#define AVCODEC_AAC_AACDEC_TAB_H
 
 #include <stdint.h>
 
@@ -56,4 +56,4 @@ extern const uint64_t ff_aac_channel_layout[];
 extern const AVChannelLayout ff_aac_ch_layout[];
 FF_VISIBILITY_POP_HIDDEN
 
-#endif /* AVCODEC_AACDEC_TAB_H */
+#endif /* AVCODEC_AAC_AACDEC_TAB_H */
