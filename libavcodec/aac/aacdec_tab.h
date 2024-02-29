@@ -30,7 +30,7 @@
 
 #include <stdint.h>
 
-#include "vlc.h"
+#include "libavcodec/vlc.h"
 
 #include "libavutil/attributes_internal.h"
 #include "libavutil/channel_layout.h"
