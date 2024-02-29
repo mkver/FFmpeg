@@ -69,6 +69,7 @@ enum {
 
 typedef struct ExtChannelElement {
     ChannelElement ch;
+    PredictorState predictor_state[2][MAX_PREDICTORS];
     SpectralBandReplication sbr;
 } ExtChannelElement;
 

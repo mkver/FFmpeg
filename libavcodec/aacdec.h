@@ -67,6 +67,9 @@ enum CouplingPoint {
     AFTER_IMDCT = 3,
 };
 
+// Supposed to be equal to AAC_RENAME() in case of USE_FIXED.
+#define RENAME_FIXED(name) name ## _fixed
+
 /**
  * Long Term Prediction
  */
@@ -137,7 +140,10 @@ typedef struct SingleChannelElement {
     DECLARE_ALIGNED(32, INTFLOAT, saved)[1536];     ///< overlap
     DECLARE_ALIGNED(32, INTFLOAT, ret_buf)[2048];   ///< PCM output buffer
     DECLARE_ALIGNED(16, INTFLOAT, ltp_state)[3072]; ///< time signal for LTP
-    PredictorState predictor_state[MAX_PREDICTORS];
+    union {
+        struct PredictorStateFixed *RENAME_FIXED(predictor_state);
+        struct PredictorState      *predictor_state;
+    };
     INTFLOAT *ret;                                  ///< PCM output
 } SingleChannelElement;
 
