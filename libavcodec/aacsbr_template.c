@@ -109,8 +109,9 @@ av_cold int AAC_RENAME(ff_aac_sbr_ctx_alloc_init)(AACDecContext *ac,
     return 0;
 }
 
-av_cold void AAC_RENAME(ff_aac_sbr_ctx_close)(SpectralBandReplication *sbr)
+av_cold void AAC_RENAME(ff_aac_sbr_ctx_close)(ChannelElement *che)
 {
+    SpectralBandReplication *sbr = get_sbr(che);
     av_tx_uninit(&sbr->mdct);
     av_tx_uninit(&sbr->mdct_ana);
 }

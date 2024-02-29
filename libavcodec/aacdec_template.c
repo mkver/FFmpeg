@@ -150,7 +150,7 @@ static av_cold int che_configure(AACDecContext *ac,
         }
     } else {
         if (ac->che[type][id])
-            AAC_RENAME(ff_aac_sbr_ctx_close)(get_sbr(ac->che[type][id]));
+            AAC_RENAME(ff_aac_sbr_ctx_close)(ac->che[type][id]);
         av_freep(&ac->che[type][id]);
     }
     return 0;
@@ -1154,6 +1154,8 @@ static av_cold int aac_decode_init(AVCodecContext *avctx)
     float scale;
     AACDecContext *ac = avctx->priv_data;
     int ret;
+
+    ac->is_fixed = USE_FIXED;
 
     if (avctx->sample_rate > 96000)
         return AVERROR_INVALIDDATA;
@@ -3385,31 +3387,6 @@ static int aac_decode_frame(AVCodecContext *avctx, AVFrame *frame,
             break;
 
     return buf_size > buf_offset ? buf_consumed : buf_size;
-}
-
-static av_cold int aac_decode_close(AVCodecContext *avctx)
-{
-    AACDecContext *ac = avctx->priv_data;
-    int i, type;
-
-    for (i = 0; i < MAX_ELEM_ID; i++) {
-        for (type = 0; type < 4; type++) {
-            if (ac->che[type][i])
-                AAC_RENAME(ff_aac_sbr_ctx_close)(get_sbr(ac->che[type][i]));
-            av_freep(&ac->che[type][i]);
-        }
-    }
-
-    av_tx_uninit(&ac->mdct120);
-    av_tx_uninit(&ac->mdct128);
-    av_tx_uninit(&ac->mdct480);
-    av_tx_uninit(&ac->mdct512);
-    av_tx_uninit(&ac->mdct960);
-    av_tx_uninit(&ac->mdct1024);
-    av_tx_uninit(&ac->mdct_ltp);
-
-    av_freep(&ac->fdsp);
-    return 0;
 }
 
 static void aacdec_init(AACDecContext *c)

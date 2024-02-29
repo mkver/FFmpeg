@@ -85,8 +85,6 @@ void AAC_RENAME(ff_aac_sbr_init)(void);
  * initialize the SBR context contained in it.
  */
 int AAC_RENAME(ff_aac_sbr_ctx_alloc_init)(struct AACDecContext *ac, ChannelElement **che, int id_aac);
-/** Close one SBR context. */
-void AAC_RENAME(ff_aac_sbr_ctx_close)(SpectralBandReplication *sbr);
 /** Decode one SBR element. */
 int AAC_RENAME(ff_decode_sbr_extension)(struct AACDecContext *ac, SpectralBandReplication *sbr,
                             GetBitContext *gb, int crc, int cnt, int id_aac);
