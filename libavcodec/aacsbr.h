@@ -31,12 +31,11 @@
 
 #include "get_bits.h"
 #include "aac_defines.h"
+#include "aacdec.h"
 #include "sbr.h"
 
 #define ENVELOPE_ADJUSTMENT_OFFSET 2
 #define NOISE_FLOOR_OFFSET 6
-
-struct AACDecContext;
 
 /**
  * SBR VLC tables
@@ -68,10 +67,23 @@ enum {
     EXTENSION_ID_PS = 2,
 };
 
+typedef struct ExtChannelElement {
+    ChannelElement ch;
+    SpectralBandReplication sbr;
+} ExtChannelElement;
+
+static inline SpectralBandReplication *get_sbr(ChannelElement *ch)
+{
+    return &((ExtChannelElement*)ch)->sbr;
+}
+
 /** Initialize SBR. */
 void AAC_RENAME(ff_aac_sbr_init)(void);
-/** Initialize one SBR context. */
-int AAC_RENAME(ff_aac_sbr_ctx_init)(struct AACDecContext *ac, SpectralBandReplication *sbr, int id_aac);
+/**
+ * Allocate an ExtChannelElement (if necessary) and
+ * initialize the SBR context contained in it.
+ */
+int AAC_RENAME(ff_aac_sbr_ctx_alloc_init)(struct AACDecContext *ac, ChannelElement **che, int id_aac);
 /** Close one SBR context. */
 void AAC_RENAME(ff_aac_sbr_ctx_close)(SpectralBandReplication *sbr);
 /** Decode one SBR element. */
