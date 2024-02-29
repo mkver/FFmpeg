@@ -74,6 +74,8 @@ av_cold int AAC_RENAME(ff_aac_sbr_ctx_alloc_init)(AACDecContext *ac, ChannelElem
     if (!ext)
         return AVERROR(ENOMEM);
     *che = &ext->ch;
+    ext->ch.ch[0].predictor_state = ext->predictor_state[0];
+    ext->ch.ch[1].predictor_state = ext->predictor_state[1];
     sbr = &ext->sbr;
 
     sbr->kx[0] = sbr->kx[1];
