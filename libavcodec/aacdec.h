@@ -226,11 +226,10 @@ typedef struct AACDecContext {
     av_tx_fn mdct960_fn;
     av_tx_fn mdct1024_fn;
     av_tx_fn mdct_ltp_fn;
-#if USE_FIXED
-    AVFixedDSPContext *fdsp;
-#else
-    AVFloatDSPContext *fdsp;
-#endif /* USE_FIXED */
+    union {
+        AVFixedDSPContext *fdsp_fixed;
+        AVFloatDSPContext *fdsp;
+    };
     int random_state;
     /** @} */
 
@@ -272,6 +271,10 @@ typedef struct AACDecContext {
     void (*vector_pow43)(int *coefs, int len);
     void (*subband_scale)(int *dst, int *src, int scale, int offset, int len, void *log_context);
 } AACDecContext;
+
+#if defined(USE_FIXED) && USE_FIXED
+#define fdsp          fdsp_fixed
+#endif
 
 void ff_aacdec_init_mips(AACDecContext *c);
 
