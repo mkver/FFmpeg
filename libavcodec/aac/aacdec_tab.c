@@ -25,8 +25,9 @@
  * Common code and tables of the AAC fixed- and floating-point decoders
  */
 
+#include "aacdec_tab.h"
+
 #include "aac.h"
-#include "aacdectab.h"
 #include "aacps.h"
 #include "aactab.h"
 #include "vlc.h"
