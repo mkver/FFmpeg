@@ -304,6 +304,8 @@ typedef struct AACDecContext {
 #define fdsp          fdsp_fixed
 #endif
 
+extern const struct AVClass ff_aac_decoder_class;
+
 int ff_aac_decode_close(struct AVCodecContext *avctx);
 /** Close the SBR context implicitly contained in a ChannelElement. */
 void RENAME_FIXED(ff_aac_sbr_ctx_close)(ChannelElement *che);
