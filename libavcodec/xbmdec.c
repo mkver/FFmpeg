@@ -20,12 +20,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/reverse.h"
-
 #include "avcodec.h"
 #include "codec_internal.h"
 #include "decode.h"
 
+#define INVALID_HEX 1
 static int get_nibble(uint8_t x)
 {
 #define TIMES256(idx) \
@@ -36,9 +35,11 @@ TIMES16(4 * (idx)) TIMES16(4 * (idx) + 1) TIMES16(4 * (idx) + 2) TIMES16(4 * (id
 TIMES4(4 * (idx)) TIMES4(4 * (idx) + 1) TIMES4(4 * (idx) + 2) TIMES4(4 * (idx) + 3)
 #define TIMES4(idx) \
 ENTRY(4 * (idx)) ENTRY(4 * (idx) + 1) ENTRY(4 * (idx) + 2) ENTRY(4 * (idx) + 3)
-#define ENTRY(x) [x] = ((x) >= 'a' && (x) <= 'f') ? (x) - ('a' - 10) : \
-                       ((x) >= 'A' && (x) <= 'F') ? (x) - ('A' - 10) : \
-                       ((x) >= '0' && (x) <= '9') ? (x) - '0' : 255,
+// Bitreverse for numbers up to 0xF
+#define REVERSE(x) (((x) & 1) << 7 | ((x) & 2) << 5 | ((x) & 4) << 3 | ((x) & 8) << 1)
+#define ENTRY(x) [x] = ((x) >= 'a' && (x) <= 'f') ? REVERSE((x) - ('a' - 10)) : \
+                       ((x) >= 'A' && (x) <= 'F') ? REVERSE((x) - ('A' - 10)) : \
+                       ((x) >= '0' && (x) <= '9') ? REVERSE((x) - '0') : INVALID_HEX,
 
     static const uint8_t lut[] = {
         TIMES256(0)
@@ -111,21 +112,21 @@ static int xbm_decode_frame(AVCodecContext *avctx, AVFrame *p,
                 ptr++;
 
             ptr ++;
-            if (ptr < end && (val = get_nibble(*ptr)) <= 15) {
+            if (ptr < end && (val = get_nibble(*ptr)) != INVALID_HEX) {
                 ptr++;
-                if ((nib = get_nibble(*ptr)) <= 15) {
-                    val = (val << 4) + nib;
+                if ((nib = get_nibble(*ptr)) != INVALID_HEX) {
+                    val = (val >> 4) | nib;
                     ptr++;
                 }
-                *dst++ = ff_reverse[val];
-                if ((val = get_nibble(*ptr)) <= 15 && j+1 < linesize) {
+                *dst++ = val;
+                if ((val = get_nibble(*ptr)) != INVALID_HEX && j+1 < linesize) {
                     j++;
                     ptr++;
-                    if ((nib = get_nibble(*ptr)) <= 15) {
-                        val = (val << 4) + nib;
+                    if ((nib = get_nibble(*ptr)) != INVALID_HEX) {
+                        val = (val >> 4) | nib;
                         ptr++;
                     }
-                    *dst++ = ff_reverse[val];
+                    *dst++ = val;
                 }
             } else {
                 av_log(avctx, AV_LOG_ERROR,
