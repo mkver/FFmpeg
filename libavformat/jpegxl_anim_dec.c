@@ -177,6 +177,8 @@ static int jpegxl_anim_read_packet(AVFormatContext *s, AVPacket *pkt)
     if (ret < size - offset)
         pkt->size = ret + offset;
 
+    pkt->pos = 0;
+
     return 0;
 }
 
