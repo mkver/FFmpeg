@@ -448,19 +448,6 @@ typedef struct HEVCParamSets {
     const HEVCPPS *pps;
 } HEVCParamSets;
 
-/**
- * Parse the SPS from the bitstream into the provided HEVCSPS struct.
- *
- * @param sps_id the SPS id will be written here
- * @param apply_defdispwin if set 1, the default display window from the VUI
- *                         will be applied to the video dimensions
- * @param vps_list if non-NULL, this function will validate that the SPS refers
- *                 to an existing VPS
- */
-int ff_hevc_parse_sps(HEVCSPS *sps, GetBitContext *gb, unsigned int *sps_id,
-                      int apply_defdispwin, const HEVCVPS * const *vps_list,
-                      AVCodecContext *avctx);
-
 int ff_hevc_decode_nal_vps(GetBitContext *gb, AVCodecContext *avctx,
                            HEVCParamSets *ps);
 int ff_hevc_decode_nal_sps(GetBitContext *gb, AVCodecContext *avctx,
