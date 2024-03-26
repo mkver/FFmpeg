@@ -24,19 +24,15 @@
 
 #include <mfxvideo.h>
 
-#include "libavutil/common.h"
 #include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/mastering_display_metadata.h"
 
 #include "avcodec.h"
-#include "bytestream.h"
+#include "cbs.h"
+#include "cbs_h265.h"
 #include "codec_internal.h"
-#include "get_bits.h"
 #include "hevc.h"
-#include "hevcdec.h"
-#include "h2645_parse.h"
-#include "qsv.h"
 #include "qsvenc.h"
 
 enum LoadPlugin {
@@ -51,115 +47,100 @@ typedef struct QSVHEVCEncContext {
     int load_plugin;
 } QSVHEVCEncContext;
 
-static int generate_fake_vps(QSVEncContext *q, AVCodecContext *avctx)
+static int generate_fake_vps(AVCodecContext *avctx)
 {
-    GetByteContext gbc;
-    PutByteContext pbc;
+    CodedBitstreamContext *cbc;
+    CodedBitstreamFragment frag = { NULL };
+    H265RawVPS *vps = NULL;
+    const H265RawSPS *sps;
 
-    GetBitContext gb;
-    H2645RBSP sps_rbsp = { NULL };
-    H2645NAL sps_nal = { NULL };
-    HEVCSPS sps = { 0 };
-    HEVCVPS vps = { 0 };
-    uint8_t vps_buf[128], vps_rbsp_buf[128];
     uint8_t *new_extradata;
-    unsigned int sps_id;
-    int ret, i, type, vps_size;
+    int ret;
 
     if (!avctx->extradata_size) {
         av_log(avctx, AV_LOG_ERROR, "No extradata returned from libmfx\n");
         return AVERROR_UNKNOWN;
     }
 
-    av_fast_padded_malloc(&sps_rbsp.rbsp_buffer, &sps_rbsp.rbsp_buffer_alloc_size, avctx->extradata_size);
-    if (!sps_rbsp.rbsp_buffer)
-        return AVERROR(ENOMEM);
-
-    /* parse the SPS */
-    ret = ff_h2645_extract_rbsp(avctx->extradata + 4, avctx->extradata_size - 4, &sps_rbsp, &sps_nal, 1);
-    if (ret < 0) {
-        av_log(avctx, AV_LOG_ERROR, "Error unescaping the SPS buffer\n");
+    ret = ff_cbs_init(&cbc, AV_CODEC_ID_HEVC, avctx);
+    if (ret < 0)
         return ret;
-    }
 
-    ret = init_get_bits8(&gb, sps_nal.data, sps_nal.size);
-    if (ret < 0) {
-        av_freep(&sps_rbsp.rbsp_buffer);
-        return ret;
-    }
+    ret = ff_cbs_read_extradata_from_codec(cbc, &frag, avctx);
+    if (ret < 0)
+        goto fail;
 
-    get_bits(&gb, 1);
-    type = get_bits(&gb, 6);
-    if (type != HEVC_NAL_SPS) {
-        av_log(avctx, AV_LOG_ERROR, "Unexpected NAL type in the extradata: %d\n",
-               type);
-        av_freep(&sps_rbsp.rbsp_buffer);
-        return AVERROR_INVALIDDATA;
+    if (frag.nb_units == 0) {
+        ret = AVERROR_EXTERNAL;
+        goto fail;
     }
-    get_bits(&gb, 9);
-
-    ret = ff_hevc_parse_sps(&sps, &gb, &sps_id, 0, NULL, avctx);
-    av_freep(&sps_rbsp.rbsp_buffer);
-    if (ret < 0) {
-        av_log(avctx, AV_LOG_ERROR, "Error parsing the SPS\n");
-        return ret;
+    if (frag.units[0].type != HEVC_NAL_SPS) {
+        av_log(avctx, AV_LOG_ERROR, "Unexpected NALU type in extradata: %u\n",
+               (unsigned)frag.units[0].type);
+        ret = AVERROR_EXTERNAL;
+        goto fail;
     }
+    vps = av_mallocz(sizeof(*vps));
+    if (!vps) {
+        ret = AVERROR(ENOMEM);
+        goto fail;
+    }
+    sps = frag.units[0].content;
 
     /* generate the VPS */
-    vps.vps_max_layers     = 1;
-    vps.vps_max_sub_layers = sps.max_sub_layers;
-    vps.vps_temporal_id_nesting_flag = sps.temporal_id_nesting_flag;
-    memcpy(&vps.ptl, &sps.ptl, sizeof(vps.ptl));
-    vps.vps_sub_layer_ordering_info_present_flag = 1;
-    for (i = 0; i < HEVC_MAX_SUB_LAYERS; i++) {
-        vps.vps_max_dec_pic_buffering[i] = sps.temporal_layer[i].max_dec_pic_buffering;
-        vps.vps_num_reorder_pics[i]      = sps.temporal_layer[i].num_reorder_pics;
-        vps.vps_max_latency_increase[i]  = sps.temporal_layer[i].max_latency_increase;
+    vps->nal_unit_header = (H265RawNALUnitHeader){
+        .nal_unit_type         = HEVC_NAL_VPS,
+        .nuh_layer_id          = 0,
+        .nuh_temporal_id_plus1 = 1,
+    };
+    vps->vps_video_parameter_set_id    = sps->sps_video_parameter_set_id;
+    vps->vps_base_layer_available_flag = 1;
+    vps->vps_base_layer_internal_flag  = 1;
+    vps->vps_max_layers_minus1         = 0;
+    vps->vps_max_sub_layers_minus1     = sps->sps_max_sub_layers_minus1;
+    vps->layer_id_included_flag[0][0]  = 1;
+    vps->vps_temporal_id_nesting_flag  = sps->sps_temporal_id_nesting_flag;
+    memcpy(&vps->profile_tier_level, &sps->profile_tier_level, sizeof(vps->profile_tier_level));
+    vps->vps_sub_layer_ordering_info_present_flag = 1;
+    for (int i = 0; i < HEVC_MAX_SUB_LAYERS; i++) {
+        vps->vps_max_dec_pic_buffering_minus1[i] = sps->sps_max_dec_pic_buffering_minus1[i];
+        vps->vps_max_num_reorder_pics[i]         = sps->sps_max_num_reorder_pics[i];
+        vps->vps_max_latency_increase_plus1[i]   = sps->sps_max_latency_increase_plus1[i];
     }
 
-    vps.vps_num_layer_sets                  = 1;
-    vps.vps_timing_info_present_flag        = sps.vui.vui_timing_info_present_flag;
-    vps.vps_num_units_in_tick               = sps.vui.vui_num_units_in_tick;
-    vps.vps_time_scale                      = sps.vui.vui_time_scale;
-    vps.vps_poc_proportional_to_timing_flag = sps.vui.vui_poc_proportional_to_timing_flag;
-    vps.vps_num_ticks_poc_diff_one          = sps.vui.vui_num_ticks_poc_diff_one_minus1 + 1;
-    vps.vps_num_hrd_parameters              = 0;
+    vps->vps_num_layer_sets_minus1           = 0;
+    vps->vps_timing_info_present_flag        = sps->vui.vui_timing_info_present_flag;
+    vps->vps_num_units_in_tick               = sps->vui.vui_num_units_in_tick;
+    vps->vps_time_scale                      = sps->vui.vui_time_scale;
+    vps->vps_poc_proportional_to_timing_flag = sps->vui.vui_poc_proportional_to_timing_flag;
+    vps->vps_num_ticks_poc_diff_one_minus1   = sps->vui.vui_num_ticks_poc_diff_one_minus1;
+    vps->vps_num_hrd_parameters              = 0;
 
-    /* generate the encoded RBSP form of the VPS */
-    ret = ff_hevc_encode_nal_vps(&vps, sps.vps_id, vps_rbsp_buf, sizeof(vps_rbsp_buf));
-    if (ret < 0) {
-        av_log(avctx, AV_LOG_ERROR, "Error writing the VPS\n");
-        return ret;
+    ret = ff_cbs_insert_unit_content(&frag, 0, HEVC_NAL_VPS, vps, NULL);
+    if (ret < 0)
+        goto fail;
+
+    ret = ff_cbs_write_fragment_data(cbc, &frag);
+    if (ret < 0)
+        goto fail;
+
+    /* Fragment's data is already padded, so we can copy data + padding */
+    new_extradata = av_memdup(frag.data, frag.data_size + AV_INPUT_BUFFER_PADDING_SIZE);
+    if (!new_extradata) {
+        ret = AVERROR(ENOMEM);
+        goto fail;
     }
-
-    /* escape and add the startcode */
-    bytestream2_init(&gbc, vps_rbsp_buf, ret);
-    bytestream2_init_writer(&pbc, vps_buf, sizeof(vps_buf));
-
-    bytestream2_put_be32(&pbc, 1);                 // startcode
-    bytestream2_put_byte(&pbc, HEVC_NAL_VPS << 1); // NAL
-    bytestream2_put_byte(&pbc, 1);                 // header
-
-    while (bytestream2_get_bytes_left(&gbc)) {
-        if (bytestream2_get_bytes_left(&gbc) >= 3 && bytestream2_peek_be24(&gbc) <= 3) {
-            bytestream2_put_be24(&pbc, 3);
-            bytestream2_skip(&gbc, 2);
-        } else
-            bytestream2_put_byte(&pbc, bytestream2_get_byte(&gbc));
-    }
-
-    vps_size = bytestream2_tell_p(&pbc);
-    new_extradata = av_mallocz(vps_size + avctx->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
-    if (!new_extradata)
-        return AVERROR(ENOMEM);
-    memcpy(new_extradata, vps_buf, vps_size);
-    memcpy(new_extradata + vps_size, avctx->extradata, avctx->extradata_size);
-
     av_freep(&avctx->extradata);
-    avctx->extradata       = new_extradata;
-    avctx->extradata_size += vps_size;
+    avctx->extradata      = new_extradata;
+    avctx->extradata_size = frag.data_size;
 
-    return 0;
+    ret = 0;
+fail:
+    av_free(vps);
+    ff_cbs_fragment_free(&frag);
+    ff_cbs_close(&cbc);
+
+    return ret;
 }
 
 static int qsv_hevc_set_encode_ctrl(AVCodecContext *avctx,
@@ -275,7 +256,7 @@ static av_cold int qsv_enc_init(AVCodecContext *avctx)
         return ret;
 
     if (!q->qsv.hevc_vps) {
-        ret = generate_fake_vps(&q->qsv, avctx);
+        ret = generate_fake_vps(avctx);
         if (ret < 0) {
             ff_qsv_enc_close(avctx, &q->qsv);
             return ret;
