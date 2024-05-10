@@ -714,6 +714,7 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
         s->modified_quant  = s->h263_aic;
         s->loop_filter     = (avctx->flags & AV_CODEC_FLAG_LOOP_FILTER) ? 1 : 0;
         s->unrestricted_mv = s->obmc || s->loop_filter || s->umvplus;
+        s->flipflop_rounding = 1;
 
         /* /Fx */
         /* These are just to be sure */
@@ -747,6 +748,7 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
         s->out_format      = FMT_H263;
         s->h263_pred       = 1;
         s->unrestricted_mv = 1;
+        s->flipflop_rounding = 1;
         s->low_delay       = s->max_b_frames ? 0 : 1;
         avctx->delay       = s->low_delay ? 0 : (s->max_b_frames + 1);
         break;
@@ -1830,10 +1832,7 @@ vbv_retry:
                 s->mb_skipped = 0;        // done in frame_start()
                 // done in encode_picture() so we must undo it
                 if (s->pict_type == AV_PICTURE_TYPE_P) {
-                    if (s->flipflop_rounding          ||
-                        s->codec_id == AV_CODEC_ID_H263P ||
-                        s->codec_id == AV_CODEC_ID_MPEG4)
-                        s->no_rounding ^= 1;
+                    s->no_rounding ^= s->flipflop_rounding;
                 }
                 if (s->pict_type != AV_PICTURE_TYPE_B) {
                     s->time_base       = s->last_time_base;
@@ -3577,8 +3576,7 @@ static int encode_picture(MpegEncContext *s, const AVPacket *pkt)
     if(s->pict_type==AV_PICTURE_TYPE_I){
         s->no_rounding = s->msmpeg4_version >= MSMP4_V3;
     }else if(s->pict_type!=AV_PICTURE_TYPE_B){
-        if(s->flipflop_rounding || s->codec_id == AV_CODEC_ID_H263P || s->codec_id == AV_CODEC_ID_MPEG4)
-            s->no_rounding ^= 1;
+        s->no_rounding ^= s->flipflop_rounding;
     }
 
     if (s->avctx->flags & AV_CODEC_FLAG_PASS2) {
