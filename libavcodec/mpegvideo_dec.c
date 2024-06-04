@@ -604,6 +604,12 @@ static av_always_inline void mpeg_motion_lowres(MpegEncContext *s,
 
     if ((unsigned) src_x > FFMAX( h_edge_pos - (!!sx) - 2 * block_s,       0) || uvsrc_y<0 ||
         (unsigned) src_y > FFMAX((v_edge_pos >> field_based) - (!!sy) - FFMAX(h, hc<<s->chroma_y_shift), 0)) {
+        if (s->out_format == FMT_MPEG1) {
+            av_log(s->avctx, AV_LOG_DEBUG,
+                   "MPEG motion vector out of boundary (%d %d)\n", src_x,
+                   src_y);
+            return;
+        }
         s->vdsp.emulated_edge_mc(s->sc.edge_emu_buffer, ptr_y,
                                  linesize >> field_based, linesize >> field_based,
                                  17, 17 + field_based,
