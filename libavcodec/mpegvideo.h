@@ -593,7 +593,7 @@ void ff_mpv_common_end(MpegEncContext *s);
 
 void ff_clean_intra_table_entries(MpegEncContext *s);
 
-int ff_update_duplicate_context(MpegEncContext *dst, const MpegEncContext *src);
+void ff_update_duplicate_context(MpegEncContext *dst, const MpegEncContext *src);
 void ff_set_qscale(MpegEncContext * s, int qscale);
 
 void ff_mpv_idct_init(MpegEncContext *s);

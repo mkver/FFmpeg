@@ -2470,9 +2470,7 @@ static int decode_chunks(AVCodecContext *avctx, AVFrame *picture,
                         thread_context->end_mb_y   = s2->mb_height;
                         if (s->slice_count) {
                             s2->thread_context[s->slice_count - 1]->end_mb_y = mb_y;
-                            ret = ff_update_duplicate_context(thread_context, s2);
-                            if (ret < 0)
-                                return ret;
+                            ff_update_duplicate_context(thread_context, s2);
                         }
                         ret = init_get_bits8(&thread_context->gb, buf_ptr, input_size);
                         if (ret < 0)

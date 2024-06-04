@@ -459,22 +459,14 @@ static void backup_duplicate_context(MpegEncContext *bak, MpegEncContext *src)
 #undef COPY
 }
 
-int ff_update_duplicate_context(MpegEncContext *dst, const MpegEncContext *src)
+void ff_update_duplicate_context(MpegEncContext *dst, const MpegEncContext *src)
 {
     MpegEncContext bak;
-    int ret;
+
     // FIXME copy only needed parts
     backup_duplicate_context(&bak, dst);
     memcpy(dst, src, sizeof(MpegEncContext));
     backup_duplicate_context(dst, &bak);
-
-    ret = ff_mpv_framesize_alloc(dst->avctx, &dst->sc, dst->linesize);
-    if (ret < 0) {
-        av_log(dst->avctx, AV_LOG_ERROR, "failed to allocate context "
-               "scratch buffers.\n");
-        return ret;
-    }
-    return 0;
 }
 
 /**

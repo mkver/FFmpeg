@@ -3705,7 +3705,8 @@ static int encode_picture(MpegEncContext *s, const AVPacket *pkt)
         int h;
 
         if (i) {
-            ret = ff_update_duplicate_context(slice, s);
+            ff_update_duplicate_context(slice, s);
+            ret = ff_mpv_framesize_alloc(slice->avctx, &slice->sc, slice->linesize);
             if (ret < 0)
                 return ret;
         }
