@@ -2564,6 +2564,10 @@ static int decode_vol_header(Mpeg4DecContext *ctx, GetBitContext *gb)
         ctx->vo_type == SIMPLE_STUDIO_VO_TYPE) {
         if (s->avctx->profile != AV_PROFILE_UNKNOWN && s->avctx->profile != AV_PROFILE_MPEG4_SIMPLE_STUDIO)
             return AVERROR_INVALIDDATA;
+        if (s->avctx->lowres) {
+            av_log(s->avctx, AV_LOG_ERROR, "MPEG-4 studio profile with lowres unsupported.\n");
+            return AVERROR_PATCHWELCOME;
+        }
         s->studio_profile = 1;
         s->avctx->profile = AV_PROFILE_MPEG4_SIMPLE_STUDIO;
         return decode_studio_vol_header(ctx, gb);
