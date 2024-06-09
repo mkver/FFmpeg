@@ -67,6 +67,16 @@ enum OutputFormat {
     FMT_SPEEDHQ,
 };
 
+enum MSMpeg4Version {
+    MSMP4_UNUSED,
+    MSMP4_V1,
+    MSMP4_V2,
+    MSMP4_V3,
+    MSMP4_WMV1,
+    MSMP4_WMV2,
+    MSMP4_VC1,        ///< for VC1 (image), WMV3 (image) and MSS2.
+};
+
 /**
  * MpegEncContext.
  */
@@ -416,15 +426,7 @@ typedef struct MpegEncContext {
     int slice_height;      ///< in macroblocks
     int first_slice_line;  ///< used in MPEG-4 too to handle resync markers
     int flipflop_rounding;
-    enum {
-        MSMP4_UNUSED,
-        MSMP4_V1,
-        MSMP4_V2,
-        MSMP4_V3,
-        MSMP4_WMV1,
-        MSMP4_WMV2,
-        MSMP4_VC1,        ///< for VC1 (image), WMV3 (image) and MSS2.
-    } msmpeg4_version;
+    enum MSMpeg4Version msmpeg4_version;
     int per_mb_rl_table;
     int esc3_level_length;
     int esc3_run_length;
