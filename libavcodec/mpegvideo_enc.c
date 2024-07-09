@@ -788,7 +788,6 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
         avctx->delay       = 0;
         s->low_delay       = 1;
         s->modified_quant  = 1;
-        s->h263_aic        = 1;
         s->h263_plus       = 1;
         s->loop_filter     = 1;
         s->unrestricted_mv = 0;
