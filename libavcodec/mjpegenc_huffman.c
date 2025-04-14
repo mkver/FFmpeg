@@ -148,16 +148,9 @@ void ff_mjpeg_encode_huffman_init(MJpegEncHuffmanContext *s)
     memset(s->val_count, 0, sizeof(s->val_count));
 }
 
-/**
- * Produces a Huffman encoding with a given input
- *
- * @param s         input to encode
- * @param bits      output array where the ith character represents how many input values have i length encoding
- * @param val       output array of input values sorted by their encoded length
- * @param max_nval  maximum number of distinct input values
- */
-void ff_mjpeg_encode_huffman_close(MJpegEncHuffmanContext *s, uint8_t bits[17],
-                                   uint8_t val[], int max_nval)
+void ff_mjpeg_encode_huffman_close(const MJpegEncHuffmanContext *s, uint8_t bits[17],
+                                   uint8_t val[], int max_nval,
+                                   uint8_t huff_len[], uint16_t huff_code[])
 {
     PTable val_counts[257];
 
@@ -181,6 +174,13 @@ void ff_mjpeg_encode_huffman_close(MJpegEncHuffmanContext *s, uint8_t bits[17],
     av_assert1(val_counts[0].prob == 0 && val_counts[0].value == 256);
     // The following loop puts the values with higher occurence first,
     // ensuring that they get the shorter codes.
-    for (int i = 0; i < nval; ++i)
-        val[i] = val_counts[nval - i].value;
+    unsigned code = 0;
+    for (int len = 1, i = 0; len <= 16; ++len) {
+        for (const int end = i + bits[len]; i < end; ++i) {
+            unsigned sym = val[i] = val_counts[nval - i].value;
+            huff_len[sym]  = len;
+            huff_code[sym] = code++;
+        }
+        code <<= 1;
+    }
 }

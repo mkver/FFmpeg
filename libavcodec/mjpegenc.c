@@ -196,33 +196,24 @@ static void mjpeg_build_optimal_huffman(MJpegContext *m)
 
     ff_mjpeg_encode_huffman_close(&dc_luminance_ctx,
                                   m->bits_dc_luminance,
-                                  m->val_dc_luminance, 12);
+                                  m->val_dc_luminance, 12,
+                                  m->huff_size_dc_luminance,
+                                  m->huff_code_dc_luminance);
     ff_mjpeg_encode_huffman_close(&dc_chrominance_ctx,
                                   m->bits_dc_chrominance,
-                                  m->val_dc_chrominance, 12);
+                                  m->val_dc_chrominance, 12,
+                                  m->huff_size_dc_chrominance,
+                                  m->huff_code_dc_chrominance);
     ff_mjpeg_encode_huffman_close(&ac_luminance_ctx,
                                   m->bits_ac_luminance,
-                                  m->val_ac_luminance, 256);
+                                  m->val_ac_luminance, 256,
+                                  m->huff_size_ac_luminance,
+                                  m->huff_code_ac_luminance);
     ff_mjpeg_encode_huffman_close(&ac_chrominance_ctx,
                                   m->bits_ac_chrominance,
-                                  m->val_ac_chrominance, 256);
-
-    ff_mjpeg_build_huffman_codes(m->huff_size_dc_luminance,
-                                 m->huff_code_dc_luminance,
-                                 m->bits_dc_luminance,
-                                 m->val_dc_luminance);
-    ff_mjpeg_build_huffman_codes(m->huff_size_dc_chrominance,
-                                 m->huff_code_dc_chrominance,
-                                 m->bits_dc_chrominance,
-                                 m->val_dc_chrominance);
-    ff_mjpeg_build_huffman_codes(m->huff_size_ac_luminance,
-                                 m->huff_code_ac_luminance,
-                                 m->bits_ac_luminance,
-                                 m->val_ac_luminance);
-    ff_mjpeg_build_huffman_codes(m->huff_size_ac_chrominance,
-                                 m->huff_code_ac_chrominance,
-                                 m->bits_ac_chrominance,
-                                 m->val_ac_chrominance);
+                                  m->val_ac_chrominance, 256,
+                                  m->huff_size_ac_chrominance,
+                                  m->huff_code_ac_chrominance);
 }
 #endif
 
