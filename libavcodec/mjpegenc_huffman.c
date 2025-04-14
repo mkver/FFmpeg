@@ -19,9 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#define __STDC_WANT_IEC_60559_BFP_EXT__
+#include <limits.h>
+#ifndef UINT_WIDTH
+#define UINT_WIDTH (CHAR_BIT * sizeof(unsigned))
+#endif
+
 #include <string.h>
 #include <stdint.h>
 #include "libavutil/avassert.h"
+#include "libavutil/intmath.h"
 #include "libavutil/qsort.h"
 #include "mjpegenc_huffman.h"
 
@@ -176,11 +183,40 @@ void ff_mjpeg_encode_huffman_close(const MJpegEncHuffmanContext *s, uint8_t bits
     // ensuring that they get the shorter codes.
     unsigned code = 0;
     for (int len = 1, i = 0; len <= 16; ++len) {
-        for (const int end = i + bits[len]; i < end; ++i) {
-            unsigned sym = val[i] = val_counts[nval - i].value;
+        // Values with the same length are ordered so that codes which are
+        // likely to lead to 0xFF escape values (i.e. codes with initial
+        // and trailing 1 bits) occur with lower frequency.
+        uint8_t penalty[255];
+        uint8_t penalty_counts[16] = { 0 };
+        unsigned offsets[16];
+
+        for (int j = 0; j < bits[len]; ++j) {
+            // Negate j + code to be able to use ff_ctz()/ff_clz().
+            unsigned tmp = ~(j + code);
+
+            // Due to the fake element j + code is not the length len 1...1 code.
+            av_assert2(tmp & ((1 << len) - 1));
+
+            penalty[j] = ff_ctz(tmp) + ff_clz(tmp << (UINT_WIDTH - len));
+
+            // tmp has a 1 bit among its lowest len bits. This also ensures
+            // that no zero bit is counted twice.
+            av_assert2(penalty[j] < len);
+            penalty_counts[penalty[j]]++;
+        }
+
+        offsets[0] = 0;
+        for (size_t j = 1; j < FF_ARRAY_ELEMS(offsets); ++j)
+            offsets[j] = penalty_counts[j - 1] + offsets[j - 1];
+
+        for (int j = 0; j < bits[len]; ++j) {
+            unsigned idx = offsets[penalty[j]]++;
+            unsigned sym = val[i + j] = val_counts[nval - (i + idx)].value;
             huff_len[sym]  = len;
             huff_code[sym] = code++;
         }
+
+        i += bits[len];
         code <<= 1;
     }
 }
