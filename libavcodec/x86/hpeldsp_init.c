@@ -63,16 +63,10 @@ void ff_put_no_rnd_pixels16_y2_sse2(uint8_t *block, const uint8_t *pixels,
                                     ptrdiff_t line_size, int h);
 void ff_avg_no_rnd_pixels16_y2_sse2(uint8_t *block, const uint8_t *pixels,
                                     ptrdiff_t line_size, int h);
-void ff_avg_pixels8_xy2_sse2(uint8_t *block, const uint8_t *pixels,
-                             ptrdiff_t line_size, int h);
-void ff_put_pixels8_xy2_sse2(uint8_t *block, const uint8_t *pixels,
-                             ptrdiff_t line_size, int h);
 void ff_avgfoo_pixels8_xy2_ssse3(uint8_t *block, const uint8_t *pixels,
                                  ptrdiff_t line_size, int h);
 void ff_putfoo_pixels8_xy2_ssse3(uint8_t *block, const uint8_t *pixels,
                                  ptrdiff_t line_size, int h);
-void ff_put_no_rnd_pixels8_xy2_sse2(uint8_t *block, const uint8_t *pixels,
-                                    ptrdiff_t line_size, int h);
 void ff_put_no_rnd_pixels8_xy2_ssse3(uint8_t *block, const uint8_t *pixels,
                                     ptrdiff_t line_size, int h);
 void ff_put_no_rnd_pixels16_xy2_sse2(uint8_t *block, const uint8_t *pixels,
@@ -119,19 +113,16 @@ static void hpeldsp_init_sse2(HpelDSPContext *c, int flags)
     c->put_pixels_tab[0][1]        = ff_put_pixels16_x2_sse2;
     c->put_pixels_tab[0][2]        = ff_put_pixels16_y2_sse2;
     c->put_pixels_tab[0][3]        = ff_put_pixels16_xy2_sse2;
-    c->put_pixels_tab[1][3]        = ff_put_pixels8_xy2_sse2;
 
     c->put_no_rnd_pixels_tab[0][0] = ff_put_pixels16_sse2;
     c->put_no_rnd_pixels_tab[0][1] = ff_put_no_rnd_pixels16_x2_sse2;
     c->put_no_rnd_pixels_tab[0][2] = ff_put_no_rnd_pixels16_y2_sse2;
     c->put_no_rnd_pixels_tab[0][3] = ff_put_no_rnd_pixels16_xy2_sse2;
-    c->put_no_rnd_pixels_tab[1][3] = ff_put_no_rnd_pixels8_xy2_sse2;
 
     c->avg_pixels_tab[0][0]        = ff_avg_pixels16_sse2;
     c->avg_pixels_tab[0][1]        = ff_avg_pixels16_x2_sse2;
     c->avg_pixels_tab[0][2]        = ff_avg_pixels16_y2_sse2;
     c->avg_pixels_tab[0][3]        = ff_avg_pixels16_xy2_sse2;
-    c->avg_pixels_tab[1][3]        = ff_avg_pixels8_xy2_sse2;
 
     c->avg_no_rnd_pixels_tab[0]    = ff_avg_pixels16_sse2;
     c->avg_no_rnd_pixels_tab[1]    = ff_avg_no_rnd_pixels16_x2_sse2;

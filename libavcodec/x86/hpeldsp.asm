@@ -408,41 +408,52 @@ AVG_PIXELS8_Y2
 
 ; void ff_put_no_rnd_pixels8_xy2(uint8_t *block, const uint8_t *pixels, ptrdiff_t line_size, int h)
 %macro SET_PIXELS8_XY2 2-3
-cglobal %1%3_pixels8_xy2, 4,4,7
+cglobal %1%3_pixels8_xy2, 4,5,5
+    mova        m4, [pb_1]
+    mova        m3, [%2]
     movh        m0, [r1]
     movh        m2, [r1+1]
-    pxor        m4, m4
+    punpcklbw   m2, m0
+    pmaddubsw   m2, m4
+    xor         r4, r4
     add         r1, r2
     mova        m3, [%2]
     punpcklbw   m0, m4
     punpcklbw   m2, m4
     paddw       m2, m0
 .loop:
-    movh        m0, [r1]
-    movh        m1, [r1+1]
-    movh        m5, [r1+r2]
-    movh        m6, [r1+r2+1]
-    punpcklbw   m0, m4
-    punpcklbw   m1, m4
-    punpcklbw   m5, m4
-    punpcklbw   m6, m4
-    paddw       m0, m1
-    paddw       m5, m6
-%ifidn %1, avg
-    movh        m1, [r0]
-    movh        m6, [r0+r2]
-%endif
-    paddw       m0, m3
-    paddw       m2, m0
-    paddw       m0, m5
-    lea         r1, [r1+2*r2]
+    movh        m0, [r1+r4]
+    movh        m1, [r1+r4+1]
+    punpcklbw   m0, m1
+    pmaddubsw   m0, m4
+    paddusw     m2, m3
+    paddusw     m2, m0
     psrlw       m2, 2
+%ifidn %1, avg
+    movh        m1, [r0+r4]
+    packuswb    m2, m2
+    pavgb       m2, m1
+%else
+    packuswb    m2, m2
+%endif
+    movh   [r0+r4], m2
+    add         r4, r2
+
+    movh        m1, [r1+r4]
+    movh        m2, [r1+r4+1]
+    punpcklbw   m2, m1
+    pmaddubsw   m2, m4
+    paddusw     m0, m3
+    paddusw     m0, m2
     psrlw       m0, 2
     packuswb    m2, m4
     packuswb    m0, m4
 %ifidn %1, avg
-    pavgb       m2, m1
-    pavgb       m0, m6
+    movh        m1, [r0+r4]
+    packuswb    m0, m0
+    pavgb       m0, m1
+%else
+    packuswb    m0, m0
 %endif
     movh      [r0], m2
     movh   [r0+r2], m0
@@ -453,9 +464,7 @@ cglobal %1%3_pixels8_xy2, 4,4,7
     RET
 %endmacro
 
-INIT_XMM sse2
-SET_PIXELS8_XY2 avg, pw_2
-SET_PIXELS8_XY2 put, pw_2
+INIT_XMM ssse3
 SET_PIXELS8_XY2 put, pw_1, _no_rnd
 
 
@@ -513,7 +522,6 @@ cglobal %1%3_pixels8_xy2, 4,5,5
 INIT_XMM ssse3
 SET_PIXELS8_XY2_SSSE3 avg, pw_2, foo
 SET_PIXELS8_XY2_SSSE3 put, pw_2, foo
-SET_PIXELS8_XY2_SSSE3 put, pw_1, _no_rnd
 
 
 ; void ff_avg_pixels16_xy2(uint8_t *block, const uint8_t *pixels, ptrdiff_t line_size, int h)
@@ -600,6 +608,7 @@ SET_PIXELS_XY2 avg, pw_1, _no_rnd
 %macro SSSE3_PIXELS8_XY2 1-2
 cglobal %1_pixels8_xy2, 4,5,%2
     mova        m5, [pb_1]
+    mova        m4, [pw_8192]
     movh        m0, [r1]
     movh        m1, [r1+1]
     add         r1, r2
@@ -611,8 +620,8 @@ cglobal %1_pixels8_xy2, 4,5,%2
     movh        m3, [r1+r4+1]
     punpcklbw   m2, m3
     pmaddubsw   m2, m5
-    paddw       m0, m2
-    pmulhrsw    m0, [pw_8192]
+    paddusw     m0, m2
+    pmulhrsw    m0, m4
 %ifidn %1, avg
     movh        m6, [r0+r4]
     packuswb    m0, m0
@@ -627,8 +636,8 @@ cglobal %1_pixels8_xy2, 4,5,%2
     movh        m1, [r1+r4+1]
     punpcklbw   m0, m1
     pmaddubsw   m0, m5
-    paddw       m2, m0
-    pmulhrsw    m2, [pw_8192]
+    paddusw     m2, m0
+    pmulhrsw    m2, m4
 %ifidn %1, avg
     movh        m6, [r0+r4]
     packuswb    m2, m2
