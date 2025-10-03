@@ -32,7 +32,6 @@ cextern pb_1
 cextern pw_1
 cextern pw_2
 pb_interleave16: db 0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15
-pb_interleave8:  db 0, 4, 1, 5, 2, 6, 3, 7
 
 cextern pw_8192
 
@@ -461,7 +460,66 @@ cglobal %1%3_pixels8_xy2, 4,5,5
 %endmacro
 
 INIT_XMM sse2
+SET_PIXELS8_XY2 avg, pw_2
+SET_PIXELS8_XY2 put, pw_2
 SET_PIXELS8_XY2 put, pw_1, _no_rnd
+
+
+; void ff_put_no_rnd_pixels8_xy2(uint8_t *block, const uint8_t *pixels, ptrdiff_t line_size, int h)
+%macro SET_PIXELS8_XY2_SSSE3 2-3
+cglobal %1%3_pixels8_xy2, 4,5,5
+    mova        m5, [pb_1]
+    pxor        m4, m4
+    mova        m3, [%2]
+    movh        m2, [r1]
+    movh        m0, [r1+1]
+    punpcklbw   m2, m0
+    pmaddubsw   m2, m5
+    xor         r4, r4
+    add         r1, r2
+.loop:
+    movh        m0, [r1+r4]
+    movh        m1, [r1+r4+1]
+    punpcklbw   m0, m1
+    pmaddubsw   m0, m5
+    paddw       m2, m3
+    paddw       m2, m0
+    psrlw       m2, 2
+%ifidn %1, avg
+    movh        m1, [r0+r4]
+    packuswb    m2, m4
+    pavgb       m2, m1
+%else
+    packuswb    m2, m4
+%endif
+    movh   [r0+r4], m2
+    add         r4, r2
+
+    movh        m2, [r1+r4]
+    movh        m1, [r1+r4+1]
+    punpcklbw   m2, m1
+    pmaddubsw   m2, m5
+    paddw       m0, m3
+    paddw       m0, m2
+    psrlw       m0, 2
+%ifidn %1, avg
+    movh        m1, [r0+r4]
+    packuswb    m0, m4
+    pavgb       m0, m1
+%else
+    packuswb    m0, m4
+%endif
+    movh   [r0+r4], m0
+    add         r4, r2
+    sub        r3d, 2
+    jnz .loop
+    RET
+%endmacro
+
+INIT_XMM ssse3
+SET_PIXELS8_XY2_SSSE3 avg, pw_2, foo
+SET_PIXELS8_XY2_SSSE3 put, pw_2, foo
+SET_PIXELS8_XY2_SSSE3 put, pw_1, _no_rnd
 
 
 ; void ff_avg_pixels16_xy2(uint8_t *block, const uint8_t *pixels, ptrdiff_t line_size, int h)
@@ -544,14 +602,60 @@ SET_PIXELS_XY2 avg, pw_2
 SET_PIXELS_XY2 put, pw_1, _no_rnd
 SET_PIXELS_XY2 avg, pw_1, _no_rnd
 
+
+%macro SSSE3_PIXELS8_XY2 1-2
+cglobal %1_pixels8_xy2, 4,5,%2
+    mova        m5, [pb_1]
+    movh        m0, [r1]
+    movh        m1, [r1+1]
+    add         r1, r2
+    xor         r4, r4
+    punpcklbw   m0, m1
+    pmaddubsw   m0, m5
+.loop:
+    movh        m2, [r1+r4]
+    movh        m3, [r1+r4+1]
+    punpcklbw   m2, m3
+    pmaddubsw   m2, m5
+    paddw       m0, m2
+    pmulhrsw    m0, [pw_8192]
+%ifidn %1, avg
+    movh        m6, [r0+r4]
+    packuswb    m0, m0
+    pavgb       m0, m6
+%else
+    packuswb    m0, m1
+%endif
+    movh   [r0+r4], m0
+    add         r4, r2
+
+    movh        m0, [r1+r4]
+    movh        m1, [r1+r4+1]
+    punpcklbw   m0, m1
+    pmaddubsw   m0, m5
+    paddw       m2, m0
+    pmulhrsw    m2, [pw_8192]
+%ifidn %1, avg
+    movh        m6, [r0+r4]
+    packuswb    m2, m2
+    pavgb       m2, m6
+%else
+    packuswb    m2, m2
+%endif
+    movh   [r0+r4], m2
+    add         r4, r2
+    sub        r3d, 2
+    jnz .loop
+    RET
+%endmacro
+
+INIT_XMM ssse3
+SSSE3_PIXELS8_XY2 avg, 8
+SSSE3_PIXELS8_XY2 put, 8
+
 %macro SSSE3_PIXELS_XY2 1-2
-%if %0 == 2 ; sse2
 cglobal %1_pixels16_xy2, 4,5,%2
     mova        m4, [pb_interleave16]
-%else
-cglobal %1_pixels8_xy2, 4,5
-    mova        m4, [pb_interleave8]
-%endif
     mova        m5, [pb_1]
     movu        m0, [r1]
     movu        m1, [r1+1]
@@ -604,9 +708,6 @@ cglobal %1_pixels8_xy2, 4,5
     RET
 %endmacro
 
-INIT_MMX ssse3
-SSSE3_PIXELS_XY2 put
-SSSE3_PIXELS_XY2 avg
 INIT_XMM ssse3
 SSSE3_PIXELS_XY2 put, 6
 SSSE3_PIXELS_XY2 avg, 7
