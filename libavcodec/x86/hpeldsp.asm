@@ -408,52 +408,46 @@ AVG_PIXELS8_Y2
 
 ; void ff_put_no_rnd_pixels8_xy2(uint8_t *block, const uint8_t *pixels, ptrdiff_t line_size, int h)
 %macro SET_PIXELS8_XY2 2-3
-cglobal %1%3_pixels8_xy2, 4,5,5
-    pxor        m4, m4
-    mova        m3, [%2]
+cglobal %1%3_pixels8_xy2, 4,4,7
     movh        m0, [r1]
     movh        m2, [r1+1]
-    punpcklbw   m0, m4
-    punpcklbw   m2, m4
-    paddw       m2, m0
-    xor         r4, r4
+    pxor        m4, m4
     add         r1, r2
+    mova        m3, [%2]
+    punpcklbw   m0, m4
+    punpcklbw   m2, m4
+    paddw       m2, m0
 .loop:
-    movh        m0, [r1+r4]
-    movh        m1, [r1+r4+1]
+    movh        m0, [r1]
+    movh        m1, [r1+1]
+    movh        m5, [r1+r2]
+    movh        m6, [r1+r2+1]
     punpcklbw   m0, m4
     punpcklbw   m1, m4
+    punpcklbw   m5, m4
+    punpcklbw   m6, m4
     paddw       m0, m1
-    paddw       m2, m3
-    paddw       m2, m0
-    psrlw       m2, 2
+    paddw       m5, m6
 %ifidn %1, avg
-    movh        m1, [r0+r4]
-    packuswb    m2, m4
-    pavgb       m2, m1
-%else
-    packuswb    m2, m4
+    movh        m1, [r0]
+    movh        m6, [r0+r2]
 %endif
-    movh   [r0+r4], m2
-    add         r4, r2
-
-    movh        m1, [r1+r4]
-    movh        m2, [r1+r4+1]
-    punpcklbw   m1, m4
-    punpcklbw   m2, m4
-    paddw       m2, m1
     paddw       m0, m3
-    paddw       m0, m2
+    paddw       m2, m0
+    paddw       m0, m5
+    lea         r1, [r1+2*r2]
+    psrlw       m2, 2
     psrlw       m0, 2
+    packuswb    m2, m4
+    packuswb    m0, m4
 %ifidn %1, avg
-    movh        m1, [r0+r4]
-    packuswb    m0, m4
-    pavgb       m0, m1
-%else
-    packuswb    m0, m4
+    pavgb       m2, m1
+    pavgb       m0, m6
 %endif
-    movh   [r0+r4], m0
-    add         r4, r2
+    movh      [r0], m2
+    movh   [r0+r2], m0
+    lea         r0, [r0+2*r2]
+    mova        m2, m5
     sub        r3d, 2
     jnz .loop
     RET
