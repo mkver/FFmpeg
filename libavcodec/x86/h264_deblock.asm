@@ -41,6 +41,15 @@ cextern pb_3
 ; %3-%10 positions to write
 %macro STORE8x4B 10
     movd        %3, %1
+%if cpuflag(sse4)
+    pextrd      %4, %1, 1
+    pextrd      %5, %1, 2
+    pextrd      %6, %1, 3
+    movd        %7, %2
+    pextrd      %8, %2, 1
+    pextrd      %9, %2, 2
+    pextrd     %10, %2, 3
+%else
     pshufd      m6, %1, 00110001b
     punpckhqdq  %1, %1
     movd        %4, m6
@@ -54,6 +63,7 @@ cextern pb_3
     punpckhqdq  m7, m7
     movd        %9, %2
     movd       %10, m7
+%endif
 %endmacro
 
 ; in: 4 rows of 8 bytes in m0..m3
