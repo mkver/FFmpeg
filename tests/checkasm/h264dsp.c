@@ -385,7 +385,7 @@ static void check_loop_filter(void)
     int alphas[N], betas[N];
     int8_t tc0[N][4];
 
-    declare_func_emms(AV_CPU_FLAG_MMX, void, uint8_t *pix, ptrdiff_t stride,
+    declare_func(void, uint8_t *pix, ptrdiff_t stride,
                       int alpha, int beta, int8_t *tc0);
 
     for (bit_depth = 8; bit_depth <= 10; bit_depth++) {
