@@ -37,61 +37,25 @@ cextern pb_0
 cextern pb_1
 cextern pb_3
 
-; %1, %2: xmm registers containing dwords
-; %3-%10 positions to write
-%macro STORE8x4B 10
-    movd        %3, %1
-%if cpuflag(sse4)
-    pextrd      %4, %1, 1
-    pextrd      %5, %1, 2
-    pextrd      %6, %1, 3
-    movd        %7, %2
-    pextrd      %8, %2, 1
-    pextrd      %9, %2, 2
-    pextrd     %10, %2, 3
-%else
-    pshufd      m6, %1, 00110001b
-    punpckhqdq  %1, %1
-    movd        %4, m6
+; in: 2 rows of 8 words in %1, %2
+; out: 8 rows of 4 bytes in %3..%10
+%macro TRANSPOSE8x4B_STORE 10
+    punpcklwd   m6, %1, %2
+    movd        %3, m6
+    pshufd      m7, m6, 00110001b
     punpckhqdq  m6, m6
-    movd        %5, %1
-    pshufd      m7, %2, 00110001b
-    movd        %6, m6
-    movd        %7, %2
-    punpckhqdq  %2, %2
-    movd        %8, m7
+    movd        %4, m7
     punpckhqdq  m7, m7
-    movd        %9, %2
-    movd       %10, m7
-%endif
-%endmacro
-
-; in: 4 rows of 8 bytes in m0..m3
-; out: 8 rows of 4 bytes in %1..%8
-%macro TRANSPOSE8x4B_STORE 8
-    punpckhbw  m4, m0, m1
-    punpckhbw  m6, m2, m3
-
-    punpcklbw  m0, m1
-    punpcklbw  m2, m3
-
-    punpcklwd  m1, m0, m2
-    punpckhwd  m0, m2
-    movh       %1, m1
-    punpckhdq  m1, m1
-    movh       %2, m1
-    movh       %3, m0
-    punpckhdq  m0, m0
-    movh       %4, m0
-
-    punpcklwd  m5, m4, m6
-    punpckhwd  m4, m6
-    movh       %5, m5
-    punpckhdq  m5, m5
-    movh       %6, m5
-    movh       %7, m4
-    punpckhdq  m4, m4
-    movh       %8, m4
+    punpckhwd   %1, %2
+    movd        %5, m6
+    movd        %6, m7
+    pshufd      m6, %1, 00110001b
+    movd        %7, %1
+    punpckhqdq  %1, %1
+    movd        %8, m6
+    punpckhqdq  m6, m6
+    movd        %9, %1
+    movd       %10, m6
 %endmacro
 
 %macro SBUTTERFLY3 4
@@ -380,19 +344,17 @@ cglobal deblock_h_luma_8, 5,9,8,0x60+16*WIN64
 
     punpckhbw  m4, m0, m1
     punpckhbw  m5, m2, m3
-    SBUTTERFLY wd, 4, 5, 6
 
-    STORE8x4B m4, m5, PASS8ROWS(r6, r5, r7, r8)
+    TRANSPOSE8x4B_STORE m4, m5, PASS8ROWS(r6, r5, r7, r8)
 
     punpcklbw  m0, m1
     punpcklbw  m2, m3
-    SBUTTERFLY wd, 0, 2, 4
     shl    r7,  3
     sub    r6,  r7
     sub    r5,  r7
     shr    r7,  3
 
-    STORE8x4B m0, m2, PASS8ROWS(r6, r5, r7, r8)
+    TRANSPOSE8x4B_STORE m0, m2, PASS8ROWS(r6, r5, r7, r8)
     RET
 %endmacro
 
@@ -569,25 +531,25 @@ cglobal deblock_h_luma_8, 0,5,8,0x60+12
     call   deblock_v_luma_8
     ADD    esp, 20
 
-    INIT_MMX cpuname
-    ; transpose 16x4 -> original space  (only the middle 4 rows were changed by the filter)
-    mov    r0, r0mp
-    sub    r0, 2
+    ; transpose 16x4 (only the middle 4 rows were changed by the filter)
+    mova       m0, [pix_tmp+0x10]
+    ; the two middle rows are still in the proper registers
+    mova       m3, [pix_tmp+0x40]
 
-    movq   m0, [pix_tmp+0x10]
-    movq   m1, [pix_tmp+0x20]
-    lea    r1, [r0+r4]
-    movq   m2, [pix_tmp+0x30]
-    movq   m3, [pix_tmp+0x40]
-    TRANSPOSE8x4B_STORE  PASS8ROWS(r0, r1, r3, r4)
+    mov        r0, r0mp
+    punpcklbw  m4, m0, m1
+    sub        r0, 2
+    punpcklbw  m5, m2, m3
+    lea        r1, [r0+r4]
 
+    TRANSPOSE8x4B_STORE m4, m5, PASS8ROWS(r0, r1, r3, r4)
+
+    punpckhbw   m0, m1
     lea    r0, [r0+r3*8]
+    punpckhbw   m2, m3
     lea    r1, [r1+r3*8]
-    movq   m0, [pix_tmp+0x18]
-    movq   m1, [pix_tmp+0x28]
-    movq   m2, [pix_tmp+0x38]
-    movq   m3, [pix_tmp+0x48]
-    TRANSPOSE8x4B_STORE  PASS8ROWS(r0, r1, r3, r4)
+
+    TRANSPOSE8x4B_STORE m0, m1, PASS8ROWS(r0, r1, r3, r4)
 
     RET
 %endmacro ; DEBLOCK_LUMA
