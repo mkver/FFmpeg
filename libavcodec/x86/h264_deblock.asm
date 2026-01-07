@@ -40,12 +40,12 @@ cextern pb_3
 ; in: 4 rows of 8 bytes in m0..m3
 ; out: 8 rows of 4 bytes in %1..%8
 %macro TRANSPOSE8x4B_STORE 8
-    punpckhdq  m4, m0, m0
-    punpckhdq  m5, m1, m1
-    punpckhdq  m6, m2, m2
+    punpckhbw  m4, m0, m1
+    punpckhbw  m6, m2, m3
 
     punpcklbw  m0, m1
     punpcklbw  m2, m3
+
     punpcklwd  m1, m0, m2
     punpckhwd  m0, m2
     movh       %1, m1
@@ -55,9 +55,6 @@ cextern pb_3
     punpckhdq  m0, m0
     movh       %4, m0
 
-    punpckhdq  m3, m3
-    punpcklbw  m4, m5
-    punpcklbw  m6, m3
     punpcklwd  m5, m4, m6
     punpckhwd  m4, m6
     movh       %5, m5
