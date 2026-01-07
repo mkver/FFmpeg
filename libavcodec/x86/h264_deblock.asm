@@ -42,18 +42,18 @@ cextern pb_3
 %macro TRANSPOSE8x4B_STORE 10
     punpcklwd   m6, %1, %2
     movd        %3, m6
-    pshufd      m7, m6, 00110001b
-    punpckhqdq  m6, m6
-    movd        %4, m7
-    punpckhqdq  m7, m7
+    pshufd      m7, m6, 1110b
+    psrlq       m6, 32
+    movd        %4, m6
+    movd        %5, m7
+    psrlq       m7, 32
     punpckhwd   %1, %2
-    movd        %5, m6
     movd        %6, m7
-    pshufd      m6, %1, 00110001b
+    pshufd      m6, %1, 1101b
     movd        %7, %1
     punpckhqdq  %1, %1
     movd        %8, m6
-    punpckhqdq  m6, m6
+    psrlq       m6, 32
     movd        %9, %1
     movd       %10, m6
 %endmacro
