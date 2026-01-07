@@ -73,36 +73,59 @@ cextern pb_3
     punpckl%1  %2, %3
 %endmacro
 
-; in: 8 rows of 8 (only the middle 6 pels are used) in %1..%8
-; out: 6 rows of 8 in [%9+0*16] .. [%9+5*16]
-%macro TRANSPOSE6x8_MEM 9
+; in: base, base3, stride, stride3 %1-%4
+; base and base3 will be incremented by 8*stride
+; out: 6 rows of 16 in [%5+0*16] .. [%5+5*16]
+%macro TRANSPOSE6x16_MEM 5
     RESET_MM_PERMUTATION
-    movq  m0, %1
-    movq  m1, %2
-    movq  m2, %3
-    movq  m3, %4
-    movq  m4, %5
-    movq  m5, %6
-    movq  m6, %7
-    SBUTTERFLY bw, 0, 1, 7
-    SBUTTERFLY bw, 2, 3, 7
-    SBUTTERFLY bw, 4, 5, 7
-    movq  [%9+0x10], m3
-    SBUTTERFLY3 bw, m6, %8, m7
-    SBUTTERFLY wd, 0, 2, 3
-    SBUTTERFLY wd, 4, 6, 3
-    punpckhdq m0, m4
-    movq  [%9+0x00], m0
-    SBUTTERFLY3 wd, m1, [%9+0x10], m3
-    SBUTTERFLY wd, 5, 7, 0
-    SBUTTERFLY dq, 1, 5, 0
-    SBUTTERFLY dq, 2, 6, 0
-    punpckldq m3, m7
-    movq  [%9+0x10], m2
-    movq  [%9+0x20], m6
-    movq  [%9+0x30], m1
-    movq  [%9+0x40], m5
-    movq  [%9+0x50], m3
+    ; we only want six bytes which we put into bytes 2..7
+    ; of the registers. The first read is special: To avoid out-of-bounds
+    ; reads, we read the interesting bytes into positions 1..6
+    ; and shift lateron.
+    movq        m0, [%1+1]
+    movq        m1, [%1+%3+1]
+    movq        m2, [%1+2*%3]
+    movq        m3, [%2]
+    movq        m4, [%2+%3]
+    punpcklbw   m0, m1
+    movq        m5, [%2+2*%3]
+    lea         %1, [%1+8*%3]
+    punpcklbw   m2, m3
+    movq        m6, [%2+%4]
+    movq        m7, [%2+4*%3]
+    pslldq      m0, 2
+    lea         %2, [%2+8*%3]
+    movq        m1, [%1]
+    punpcklbw   m4, m5
+    movq        m3, [%1+%3]
+    punpcklbw   m6, m7
+    movq        m5, [%1+2*%3]
+    SBUTTERFLY  wd, 0, 2, 7
+    punpcklbw   m1, m3
+    movq        m3, [%2]
+    SBUTTERFLY  wd, 4, 6, 7
+    punpcklbw   m5, m3
+    movq        m3, [%2+%3]
+    movq        m7, [%2+2*%3]
+    punpckhdq   m0, m4
+    movq        m4, [%2+%4]
+    punpcklbw   m3, m7
+    SBUTTERFLY  dq, 2, 6, 7
+    SBUTTERFLY  wd, 1, 5, 7
+    movq        m7, [%2+4*%3]
+    punpcklbw   m4, m7
+    SBUTTERFLY  wd, 3, 4, 7
+    punpckhdq   m1, m3
+    SBUTTERFLY  dq, 5, 4, 7
+    SBUTTERFLY qdq, 0, 1, 7
+    mova      [%5], m0
+    SBUTTERFLY qdq, 2, 5, 7
+    mova   [%5+16], m1
+    SBUTTERFLY qdq, 6, 4, 7
+    mova   [%5+32], m2
+    mova   [%5+48], m5
+    mova   [%5+64], m6
+    mova   [%5+80], m4
     RESET_MM_PERMUTATION
 %endmacro
 
@@ -297,12 +320,11 @@ cglobal deblock_v_luma_8, 5,5,10, pix_, stride_, alpha_, beta_, base3_
 ; void ff_deblock_h_luma(uint8_t *pix, int stride, int alpha, int beta,
 ;                        int8_t *tc0)
 ;-----------------------------------------------------------------------------
-INIT_MMX cpuname
-cglobal deblock_h_luma_8, 5,9,0,0x60+16*WIN64
+cglobal deblock_h_luma_8, 5,9,8,0x60+16*WIN64
     movsxd r7,  r1d
     lea    r8,  [r7+r7*2]
-    lea    r6,  [r0-4]
-    lea    r5,  [r0-4+r8]
+    lea    r6,  [r0-5]
+    lea    r5,  [r0-5+r8]
 %if WIN64
     %define pix_tmp rsp+0x30 ; shadow space + r4
 %else
@@ -310,10 +332,7 @@ cglobal deblock_h_luma_8, 5,9,0,0x60+16*WIN64
 %endif
 
     ; transpose 6x16 -> tmp space
-    TRANSPOSE6x8_MEM  PASS8ROWS(r6, r5, r7, r8), pix_tmp
-    lea    r6, [r6+r7*8]
-    lea    r5, [r5+r7*8]
-    TRANSPOSE6x8_MEM  PASS8ROWS(r6, r5, r7, r8), pix_tmp+8
+    TRANSPOSE6x16_MEM r6, r5, r7, r8, pix_tmp
 
     ; vertical filter
     ; alpha, beta, tc0 are still in r2d, r3d, r4
@@ -325,9 +344,10 @@ cglobal deblock_h_luma_8, 5,9,0,0x60+16*WIN64
 %endif
     call   deblock_v_luma_8
 
+    INIT_MMX cpuname
     ; transpose 16x4 -> original space  (only the middle 4 rows were changed by the filter)
-    add    r6, 2
-    add    r5, 2
+    add    r6, 3
+    add    r5, 3
     movq   m0, [pix_tmp+0x18]
     movq   m1, [pix_tmp+0x28]
     movq   m2, [pix_tmp+0x38]
@@ -499,20 +519,16 @@ cglobal deblock_v_luma_8, 5,5,8,2*%1
 ; void ff_deblock_h_luma(uint8_t *pix, int stride, int alpha, int beta,
 ;                        int8_t *tc0)
 ;-----------------------------------------------------------------------------
-INIT_MMX cpuname
 cglobal deblock_h_luma_8, 0,5,8,0x60+12
     mov    r0, r0mp
     mov    r3, r1m
     lea    r4, [r3*3]
-    sub    r0, 4
+    sub    r0, 5
     lea    r1, [r0+r4]
 %define pix_tmp esp+12
 
     ; transpose 6x16 -> tmp space
-    TRANSPOSE6x8_MEM  PASS8ROWS(r0, r1, r3, r4), pix_tmp
-    lea    r0, [r0+r3*8]
-    lea    r1, [r1+r3*8]
-    TRANSPOSE6x8_MEM  PASS8ROWS(r0, r1, r3, r4), pix_tmp+8
+    TRANSPOSE6x16_MEM r0, r1, r3, r4, pix_tmp
 
     ; vertical filter
     lea    r0, [pix_tmp+0x30]
@@ -524,6 +540,7 @@ cglobal deblock_h_luma_8, 0,5,8,0x60+12
     call   deblock_v_luma_8
     ADD    esp, 20
 
+    INIT_MMX cpuname
     ; transpose 16x4 -> original space  (only the middle 4 rows were changed by the filter)
     mov    r0, r0mp
     sub    r0, 2
